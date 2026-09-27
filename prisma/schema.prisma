@@ -1,0 +1,194 @@
+// Postgres — Supabase in production. DATABASE_URL is what the app uses (session pooler);
+// DIRECT_URL is the connection Prisma uses for `db push` (see README → Environment).
+generator client {
+  provider        = "prisma-client-js"
+  // Loads `include`d relations with SQL joins in one query instead of one query per relation —
+  // each round trip to a remote database (Supabase) costs ~100 ms+.
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Category {
+  MICROCONTROLLER
+  SENSOR
+  ACTUATOR_MOTOR
+  POWER
+  COMMUNICATION
+  DISPLAY
+  TOOL
+  CONSUMABLE
+  MISC
+}
+
+enum Designation {
+  PRESIDENT
+  VICE_PRESIDENT
+  SECRETARY
+  JOINT_SECRETARY
+  TREASURER
+  CORE_MEMBER
+  MEMBER
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  DROPPED
+}
+
+enum ReturnCondition {
+  WORKING
+  DAMAGED
+  LOST
+}
+
+model Component {
+  id                  String   @id @default(cuid())
+  name                String
+  modelNumber         String?
+  category            Category
+  description         String?
+  // Invariant (enforced in actions): working + damaged + underRepair = total.
+  // Issued units are still counted as working; available = working - open issuances.
+  quantityTotal       Int      @default(0)
+  quantityWorking     Int      @default(0)
+  quantityDamaged     Int      @default(0)
+  quantityUnderRepair Int      @default(0)
+  location            String?
+  unitCost            Float?
+  datasheetUrl        String?
+  lowStockThreshold   Int      @default(2)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  issuances         Issuance[]
+  projectComponents ProjectComponent[]
+
+  @@index([category])
+}
+
+model Member {
+  id          String      @id @default(cuid())
+  name        String
+  rollNumber  String      @unique
+  department  String
+  yearOfStudy Int
+  designation Designation @default(MEMBER)
+  email       String      @unique
+  phone       String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  teams           TeamMember[]
+  projects        ProjectMember[]
+  issuances       Issuance[]
+  progressUpdates ProgressUpdate[]
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  TeamMember[]
+  projects Project[]
+}
+
+model TeamMember {
+  teamId     String
+  memberId   String
+  roleInTeam String
+  team       Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  member     Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, memberId])
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  title           String
+  description     String?
+  teamId          String?
+  team            Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  // { languages: string[], frameworks: string[], hardware: string[], tools: string[], cloud: string[] }
+  techStack       Json
+  status          ProjectStatus @default(PLANNING)
+  progressPercent Int           @default(0)
+  startDate       DateTime?
+  targetDate      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  members         ProjectMember[]
+  progressUpdates ProgressUpdate[]
+  components      ProjectComponent[]
+  issuances       Issuance[]
+}
+
+model ProjectMember {
+  projectId     String
+  memberId      String
+  roleInProject String
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member        Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, memberId])
+}
+
+model ProgressUpdate {
+  id                String   @id @default(cuid())
+  projectId         String
+  date              DateTime
+  note              String
+  percentAtUpdate   Int
+  updatedByMemberId String?
+  createdAt         DateTime @default(now())
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  updatedBy         Member?  @relation(fields: [updatedByMemberId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, date])
+}
+
+model ProjectComponent {
+  projectId        String
+  componentId      String
+  quantityRequired Int       @default(0)
+  // Units currently out on open issuances tagged with this project (maintained by issue/return actions).
+  quantityIssued   Int       @default(0)
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  component        Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, componentId])
+}
+
+model Issuance {
+  id                 String           @id @default(cuid())
+  componentId        String
+  quantity           Int
+  issuedToMemberId   String
+  projectId          String?
+  issuedDate         DateTime
+  expectedReturnDate DateTime?
+  returnedDate       DateTime?
+  conditionOnReturn  ReturnCondition?
+  notes              String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  component          Component        @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  issuedTo           Member           @relation(fields: [issuedToMemberId], references: [id], onDelete: Cascade)
+  project            Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([componentId, returnedDate])
+  @@index([issuedToMemberId])
+}
