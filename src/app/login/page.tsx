@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, LockKeyhole } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { isAdmin } from "@/lib/auth"
+import { safePath } from "@/lib/safe-path"
 import { TecLogo } from "@/components/tec-logo"
 import { LoginForm } from "./login-form"
 
@@ -10,8 +11,8 @@ export const metadata: Metadata = { title: "Admin login" }
 
 export default async function LoginPage(props: PageProps<"/login">) {
   const { next } = await props.searchParams
-  // Only allow same-site relative redirects ("//x" and "/\x" are protocol-relative in browsers).
-  const target = typeof next === "string" && /^\/(?![/\\])/.test(next) ? next : "/"
+  // Only allow same-site relative redirects (see safePath — blocks protocol-relative and control-char bypasses).
+  const target = safePath(next)
   const admin = await isAdmin()
 
   return (

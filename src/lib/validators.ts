@@ -59,7 +59,9 @@ const componentBase = z.object({
   quantityUnderRepair: int(),
   location: optStr(80),
   unitCost: optNum,
-  datasheetUrl: z.preprocess(emptyToNull, z.url("Must be a valid URL").nullable()),
+  // Restrict scheme to http(s): z.url() alone accepts javascript:/data:/vbscript:, which become a
+  // stored dangerous-scheme link at the world-readable inventory detail page (href sink).
+  datasheetUrl: z.preprocess(emptyToNull, z.url({ protocol: /^https?$/, message: "Must be an http(s) URL" }).max(2048, "URL too long").nullable()),
   lowStockThreshold: int(),
   notes: optStr(2000),
 })
@@ -226,7 +228,7 @@ export const taskUpdateSchema = taskFields.partial().extend({ id })
 export const taskMoveSchema = z.object({ id, status: taskStatus, order: int() })
 export const taskDoneSchema = z.object({ id, done: bool })
 
-export const loginSchema = z.object({ password: z.string().min(1, "Enter the admin password") })
+export const loginSchema = z.object({ password: z.string().min(1, "Enter the admin password").max(200) })
 
 export type IssueInput = z.output<typeof issueSchema>
 export type ReturnInput = z.output<typeof returnSchema>

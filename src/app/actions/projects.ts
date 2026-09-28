@@ -90,15 +90,17 @@ export const removeProjectComponent = adminAction(
   }
 )
 
-/** Project progress always mirrors its latest update (by date). */
+/** Project progress always mirrors its latest update (by date); 0 when no updates remain. */
 async function syncProgress(tx: Prisma.TransactionClient, projectId: string) {
   const latest = await tx.progressUpdate.findFirst({
     where: { projectId },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   })
-  if (latest) {
-    await tx.project.update({ where: { id: projectId }, data: { progressPercent: latest.percentAtUpdate } })
-  }
+  // Deleting the last update must not leave a stale percent — reset to 0 so progress never lies.
+  await tx.project.update({
+    where: { id: projectId },
+    data: { progressPercent: latest?.percentAtUpdate ?? 0 },
+  })
 }
 
 export const addProgressUpdate = adminAction(progressUpdateSchema, async (data) => {

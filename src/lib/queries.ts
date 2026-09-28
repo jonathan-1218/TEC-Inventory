@@ -76,7 +76,9 @@ export type SearchResult = {
 }
 
 // ponytail: loads rows and filters in JS so tech-stack tags inside the JSON column match too.
-// Fine for club-sized data (thousands of rows); switch to Postgres full-text search if it grows past that.
+// Fine for club-sized data; the SCAN_CAP bounds worst-case memory/CPU for this unauthenticated path
+// so it can't be turned into a load amplifier — switch to Postgres full-text search if we outgrow it.
+const SCAN_CAP = 2000
 export async function searchAll(query: string, limit = 8): Promise<SearchResult[]> {
   const q = query.trim().toLowerCase()
   if (!q) return []
@@ -85,10 +87,12 @@ export async function searchAll(query: string, limit = 8): Promise<SearchResult[
 
   const [components, projects, members] = await Promise.all([
     db.component.findMany({
+      take: SCAN_CAP,
       select: { id: true, name: true, modelNumber: true, location: true, category: true, description: true },
     }),
-    db.project.findMany({ select: { id: true, title: true, description: true, status: true, techStack: true } }),
+    db.project.findMany({ take: SCAN_CAP, select: { id: true, title: true, description: true, status: true, techStack: true } }),
     db.member.findMany({
+      take: SCAN_CAP,
       select: { id: true, name: true, rollNumber: true, email: true, department: true },
     }),
   ])

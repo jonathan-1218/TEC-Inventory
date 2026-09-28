@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 import { isAdmin } from "@/lib/auth"
 import { ActionError } from "@/lib/action-error"
+import { safePath } from "@/lib/safe-path"
 
 export { ActionError }
 
@@ -50,8 +51,12 @@ export function adminAction<S extends z.ZodType, T>(
     } catch (e) {
       return { ok: false, error: errorMessage(e) }
     }
-    const to = raw.redirectTo
-    if (typeof to === "string" && /^\/(?![/\\])/.test(to)) redirect(to) // throws; must be outside try
+    // Same-site only (safePath blocks protocol-relative and control-char bypasses). Only redirect
+    // when a target was actually supplied, so safePath's "/" fallback doesn't force a spurious nav.
+    if (typeof raw.redirectTo === "string" && raw.redirectTo !== "") {
+      const to = safePath(raw.redirectTo)
+      if (to !== "/") redirect(to) // throws; must be outside try
+    }
     return { ok: true, data }
   }
 }
