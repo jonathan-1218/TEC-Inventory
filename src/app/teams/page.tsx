@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/empty-state"
 import { PageHeader } from "@/components/page-header"
 import { TeamCard, type TeamCardData } from "@/components/teams/team-card"
 import { TeamDialog } from "@/components/teams/team-dialog"
+import { getTeamSnapshot } from "@/lib/analytics"
 import { isAdmin } from "@/lib/auth"
 import { db } from "@/lib/db"
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = { title: "Teams" }
 const isLead = (role: string) => role.trim().toLowerCase() === "team lead"
 
 export default async function TeamsPage() {
-  const [admin, teams, activeMembers] = await Promise.all([
+  const [admin, teams, activeMembers, snapshot] = await Promise.all([
     isAdmin(),
     db.team.findMany({
       orderBy: { name: "asc" },
@@ -21,11 +22,23 @@ export default async function TeamsPage() {
         members: {
           select: {
             roleInTeam: true,
-            member: { select: { id: true, name: true, designation: true, isActive: true } },
+            member: {
+              select: {
+                id: true,
+                name: true,
+                designation: true,
+                isActive: true,
+              },
+            },
           },
         },
         projects: {
-          select: { id: true, title: true, status: true, progressPercent: true },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            progressPercent: true,
+          },
           orderBy: { title: "asc" },
         },
       },
@@ -35,23 +48,36 @@ export default async function TeamsPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, rollNumber: true },
     }),
+    getTeamSnapshot(),
   ])
 
-  const cards: TeamCardData[] = teams.map((t) => ({
-    id: t.id,
-    name: t.name,
-    description: t.description,
-    projects: t.projects,
-    members: t.members
-      .map(({ roleInTeam, member }) => ({ ...member, roleInTeam, isLead: isLead(roleInTeam) }))
-      // Team Lead first, then alphabetical.
-      .sort((a, b) => Number(b.isLead) - Number(a.isLead) || a.name.localeCompare(b.name)),
-  }))
+  const cards: TeamCardData[] = teams.map((t) => {
+    const snap = snapshot.find((s) => s.id === t.id)
+    return {
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      projects: t.projects,
+      members: t.members
+        .map(({ roleInTeam, member }) => ({
+          ...member,
+          roleInTeam,
+          isLead: isLead(roleInTeam),
+        }))
+        // Team Lead first, then alphabetical.
+        .sort((a, b) => Number(b.isLead) - Number(a.isLead) || a.name.localeCompare(b.name)),
+      stats: {
+        activeProjects: snap?.activeProjects ?? 0,
+        openTasks: snap?.openTasks ?? 0,
+        unitsOnLoan: snap?.unitsOnLoan ?? 0,
+      },
+    }
+  })
 
   const newTeam = admin && (
     <TeamDialog
       trigger={
-        <Button>
+        <Button variant="brand">
           <Plus /> New team
         </Button>
       }
@@ -60,7 +86,11 @@ export default async function TeamsPage() {
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Teams" description="Who works together, their roles, and what they're building.">
+      <PageHeader
+        eyebrow="Work · Teams"
+        title="Teams"
+        description="Who works together, their roles, and what they're building."
+      >
         {newTeam}
       </PageHeader>
       {cards.length === 0 ? (

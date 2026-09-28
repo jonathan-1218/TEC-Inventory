@@ -1,7 +1,7 @@
 import { z } from "zod"
-import type { Category, Designation, ProjectStatus, ReturnCondition } from "@prisma/client"
+import type { Category, Designation, ProjectStatus, ReturnCondition, TaskPriority, TaskStatus } from "@prisma/client"
 import { CATEGORIES, CONDITIONS, DESIGNATIONS, STATUSES, TECH_STACK_KEYS } from "@/lib/labels"
-import { parseDateInput } from "@/lib/dates"
+import { parseDateInput, todayNoonUTC } from "@/lib/dates"
 
 // Inputs arrive from forms, so "" means "not provided".
 const emptyToNull = (v: unknown) => (v === "" || v === undefined ? null : v)
@@ -194,7 +194,43 @@ export const returnSchema = z.object({
   notes: optStr(1000),
 })
 
+/** Push an open issuance's expected return date out (never into the past). */
+export const extendDueSchema = z.object({
+  id,
+  expectedReturnDate: dateStr.refine((d) => d >= todayNoonUTC(), "Can't be before today"),
+})
+
+// ---------- Tasks ----------
+
+export const TASK_STATUSES = ["TODO", "IN_PROGRESS", "DONE"] as const satisfies readonly TaskStatus[]
+export const TASK_PRIORITIES = ["LOW", "MEDIUM", "HIGH"] as const satisfies readonly TaskPriority[]
+const taskStatus = z.enum(TASK_STATUSES)
+
+const taskFields = z.object({
+  title: reqStr(160),
+  description: optStr(2000),
+  status: taskStatus,
+  priority: z.enum(TASK_PRIORITIES),
+  assigneeId: optId,
+  dueDate: optDate,
+})
+
+export const taskCreateSchema = taskFields.extend({
+  projectId: id,
+  status: taskStatus.default("TODO"),
+  priority: z.enum(TASK_PRIORITIES).default("MEDIUM"),
+})
+/** Partial: send only the fields that changed ("" / "none" clears an optional field). */
+export const taskUpdateSchema = taskFields.partial().extend({ id })
+/** `order` = 0-based position in the target column, counted without the moved task (like arrayMove). */
+export const taskMoveSchema = z.object({ id, status: taskStatus, order: int() })
+export const taskDoneSchema = z.object({ id, done: bool })
+
 export const loginSchema = z.object({ password: z.string().min(1, "Enter the admin password") })
 
 export type IssueInput = z.output<typeof issueSchema>
 export type ReturnInput = z.output<typeof returnSchema>
+export type ExtendDueInput = z.output<typeof extendDueSchema>
+export type TaskCreateInput = z.output<typeof taskCreateSchema>
+export type TaskUpdateInput = z.output<typeof taskUpdateSchema>
+export type TaskMoveInput = z.output<typeof taskMoveSchema>

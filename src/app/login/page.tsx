@@ -1,42 +1,60 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ShieldCheck } from "lucide-react"
+import { ArrowLeft, LockKeyhole } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { isAdmin } from "@/lib/auth"
+import { TecLogo } from "@/components/tec-logo"
 import { LoginForm } from "./login-form"
 
 export const metadata: Metadata = { title: "Admin login" }
 
 export default async function LoginPage(props: PageProps<"/login">) {
   const { next } = await props.searchParams
-  // Only allow same-site relative redirects.
-  const target = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/"
+  // Only allow same-site relative redirects ("//x" and "/\x" are protocol-relative in browsers).
+  const target = typeof next === "string" && /^\/(?![/\\])/.test(next) ? next : "/"
+  const admin = await isAdmin()
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-5" /> Admin login
-          </CardTitle>
-          <CardDescription>
-            Browsing is open to everyone. Log in with the club admin password to add, edit, issue or delete.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {(await isAdmin()) ? (
-            <div className="grid gap-3">
-              <p className="text-sm">You&apos;re already signed in as admin.</p>
-              <Button asChild>
-                <Link href={target}>Continue</Link>
-              </Button>
-            </div>
+    <div className="flex min-h-[calc(100svh-9rem)] items-center justify-center py-6">
+      <div className="bg-card w-full max-w-sm overflow-hidden rounded-xl border shadow-[0_1px_0_0_var(--border),0_24px_48px_-24px_color-mix(in_oklab,var(--foreground)_18%,transparent)]">
+        <div className="relative grid place-items-center gap-4 border-b px-6 pt-10 pb-6">
+          <TecLogo height={68} />
+          {/* Instrument ruler under the logo. */}
+          <div
+            aria-hidden
+            className="h-2 w-40 bg-[repeating-linear-gradient(90deg,var(--border)_0_1px,transparent_1px_8px)] [mask-image:linear-gradient(90deg,transparent,#000_20%,#000_80%,transparent)]"
+          />
+          <p className="eyebrow">Inventory · Projects · Club</p>
+        </div>
+        <div className="grid gap-5 px-6 pt-6 pb-6">
+          <div className="grid gap-1.5">
+            <p className="eyebrow flex items-center gap-2">
+              <LockKeyhole className="text-brand-strong size-3.5" /> Admin access
+            </p>
+            <h1 className="font-display text-2xl leading-tight font-extrabold tracking-[-0.02em]">
+              {admin ? "You're signed in" : "Log in to make changes"}
+            </h1>
+            <p className="text-muted-foreground text-sm text-pretty">
+              Browsing is open to everyone. The club admin password unlocks adding, editing, issuing and deleting.
+            </p>
+          </div>
+          {admin ? (
+            <Button asChild variant="brand" className="h-10">
+              <Link href={target}>Continue</Link>
+            </Button>
           ) : (
             <LoginForm next={target} />
           )}
-        </CardContent>
-      </Card>
+        </div>
+        <div className="bg-muted/40 border-t px-6 py-3">
+          <Link
+            href={target}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs"
+          >
+            <ArrowLeft className="size-3.5" /> Keep browsing without logging in
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

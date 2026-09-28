@@ -1,6 +1,7 @@
 import * as React from "react"
 
-const MOBILE_BREAKPOINT = 768
+// Below lg the sidebar is an off-canvas sheet, so tablets (768–1023px) get the full width for content.
+const MOBILE_BREAKPOINT = 1024
 const QUERY = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`
 
 function subscribe(onChange: () => void) {

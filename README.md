@@ -2,11 +2,13 @@
 
 Inventory, checkout and project tracker for the TEC tech club.
 
-- **Inventory** – every component with working / damaged / under-repair counts, live availability, low-stock alerts, datasheets.
-- **Issuances** – check units out to members (optionally for a project), track due dates, record returns (partial returns and Working / Damaged / Lost conditions update stock automatically).
-- **Projects** – team or independent projects with members, tech-stack tags, required components vs. issued, a progress bar and an update timeline.
-- **Teams & Members** – club roster with designations, team roles and each member's current checkouts.
-- **Dashboard & search** – totals, overdue returns, low stock, recent activity, and ⌘K / Ctrl+K search across components, projects and members.
+- **Dashboard** – a plain-language status line ("3 returns overdue · 2 parts low on stock …"), KPI readouts with sparklines, checkouts over 7/30/90 days, inventory health by category, projects in motion, team snapshot, a 26-week activity heatmap, and a "needs attention" list with one-click Return / Extend.
+- **Inventory** – every component with working / damaged / under-repair counts, live availability, category breakdown, quick filters, CSV export, and a per-part checkout history chart.
+- **Issuances** – check units out to members (optionally for a project); Active / Overdue / Due soon / History tabs; partial returns with Working / Damaged / Lost conditions update stock automatically; extend due dates; CSV export.
+- **Projects** – grid, drag-and-drop **board** by status (mouse or keyboard) and **roadmap** timeline; each project has members, tech stack, required components vs issued, a progress-over-time chart and an update timeline.
+- **Tasks** – per-project tasks (status, priority, assignee, due date) on a board or checklist; `/tasks` tracks everything across projects, and task completion suggests project progress.
+- **Teams & Members** – team pages with projects, roster, open tasks and parts on loan; member pages with an activity heatmap, checkouts, tasks and projects.
+- **Everywhere** – light and dark themes in the logo's palette, an animated logo intro once per browser session (skippable with Esc, off under reduced motion), and a ⌘K / Ctrl+K palette for navigation, actions and search.
 
 Anyone can browse. Adding, editing, issuing, returning and deleting require the admin password.
 
@@ -84,12 +86,19 @@ For a quick offline setup: in `prisma/schema.prisma` set `provider = "sqlite"` a
 prisma/schema.prisma      data model
 prisma/seed.ts            sample data (dates are relative to today)
 prisma/enable-rls.sql     locks the tables away from Supabase's Data API
-src/app/                  routes: / inventory issuances projects teams members search login
+src/app/                  routes: / inventory issuances projects tasks teams members search login
 src/app/actions/          server actions (admin check + zod validation + revalidation)
-src/lib/stock.ts          issue / return logic (transactional)
+src/app/api/export/       admin-only CSV export (components, issuances, members, projects, tasks)
+src/lib/stock.ts          issue / return / extend logic (transactional)
+src/lib/tasks.ts          task ordering + completion helpers
+src/lib/analytics.ts      dashboard / chart queries (batched — each round trip to Supabase costs ~100 ms+)
 src/lib/validators.ts     zod schemas shared by forms and actions
 src/lib/queries.ts        read helpers (availability, search)
-src/components/           shared UI (dialogs, badges, shell); ui/ is shadcn
+src/components/charts/    themed chart kit (sparkline, trend, stacked bars, ring, heatmap, bar list)
+src/components/intro/     the logo intro animation
+src/components/tec-logo.tsx  vector logo (public/brand/tec-logo.svg is a static copy)
+src/components/           feature UI (dashboard, projects, tasks, …) and shared dialogs; ui/ is shadcn
+src/app/chart-kit/        dev-only showcase of the chart kit (404 in production)
 scripts/check-stock.ts    stock logic self-check
 scripts/predev.mjs        creates .env and stops early if the database URLs aren't filled in
 ```

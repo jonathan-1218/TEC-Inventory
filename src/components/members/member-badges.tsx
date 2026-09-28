@@ -1,17 +1,59 @@
 import type { Designation } from "@prisma/client"
-import { Badge } from "@/components/ui/badge"
-import { ToneBadge } from "@/components/badges"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { PriorityBars } from "@/components/badges"
 import { DESIGNATIONS, DESIGNATION_LABELS } from "@/lib/labels"
+import { cn } from "@/lib/utils"
 
 /** Office bearers (President … Treasurer) come first in DESIGNATIONS. */
 export const designationRank = (d: Designation) => DESIGNATIONS.indexOf(d)
 
-export function DesignationBadge({ designation }: { designation: Designation }) {
-  if (designation === "CORE_MEMBER") return <ToneBadge tone="blue">{DESIGNATION_LABELS[designation]}</ToneBadge>
-  if (designation === "MEMBER") return <ToneBadge tone="gray">{DESIGNATION_LABELS[designation]}</ToneBadge>
-  return <Badge>{DESIGNATION_LABELS[designation]}</Badge>
+/** Quiet hierarchy: signal bars (3 office bearer · 2 core · 1 member) + label, no coloured chips. */
+export function DesignationBadge({ designation, className }: { designation: Designation; className?: string }) {
+  const level = designation === "MEMBER" ? "LOW" : designation === "CORE_MEMBER" ? "MEDIUM" : "HIGH"
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs whitespace-nowrap",
+        level === "HIGH" ? "text-foreground font-semibold" : level === "MEDIUM" ? "text-foreground" : "text-muted-foreground",
+        className
+      )}
+    >
+      <PriorityBars priority={level} className={cn(level === "HIGH" && "text-brand-strong")} />
+      {DESIGNATION_LABELS[designation]}
+    </span>
+  )
 }
 
 export function ActiveBadge({ active }: { active: boolean }) {
-  return active ? <ToneBadge tone="green">Active</ToneBadge> : <ToneBadge tone="gray">Inactive</ToneBadge>
+  return (
+    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs whitespace-nowrap">
+      <span
+        aria-hidden
+        className={cn("size-1.5 rounded-full", active ? "bg-foreground/70" : "ring-1 ring-current ring-inset")}
+      />
+      {active ? "Active" : "Inactive"}
+    </span>
+  )
+}
+
+/** Rounded-square avatar with mono initials (no photos in the data). */
+export function MemberAvatar({
+  name,
+  size,
+  className,
+}: {
+  name: string
+  size?: "sm" | "default" | "lg"
+  className?: string
+}) {
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+  return (
+    <Avatar size={size} className={className} aria-hidden>
+      <AvatarFallback>{initials}</AvatarFallback>
+    </Avatar>
+  )
 }

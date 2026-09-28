@@ -24,6 +24,8 @@ type Props = {
   /** "YYYY-MM-DD", computed on the server so SSR and hydration agree. */
   today: string
   currentPercent: number
+  /** Share of tasks done (null without tasks): pre-fills the % and shows as "Tasks say N%". */
+  suggestedPercent?: number | null
   projectMembers: MemberOption[]
   otherMembers: MemberOption[]
 }
@@ -31,13 +33,15 @@ type Props = {
 /** Inline "add update" form; remounts (resets) after each successful save. */
 export function ProgressUpdateForm(props: Props) {
   const [key, setKey] = useState(0)
-  return <UpdateForm key={key} {...props} onSaved={() => setKey((k) => k + 1)} />
+  // Also remount when ticking tasks changes the suggestion, so the pre-filled % follows "Tasks say N%".
+  return <UpdateForm key={`${key}-${props.suggestedPercent}`} {...props} onSaved={() => setKey((k) => k + 1)} />
 }
 
 function UpdateForm({
   projectId,
   today,
   currentPercent,
+  suggestedPercent = null,
   projectMembers,
   otherMembers,
   onSaved,
@@ -56,19 +60,32 @@ function UpdateForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="bg-muted/40 grid gap-3 rounded-lg border p-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+    <form onSubmit={onSubmit} aria-label="Add progress update" className="bg-muted/40 grid gap-3 rounded-lg border p-3">
+      <p className="eyebrow">New update</p>
+      <div className="grid items-start gap-3 sm:grid-cols-3">
         <FormField label="Date" htmlFor="pu-date" error={errors.date}>
           <Input id="pu-date" name="date" type="date" defaultValue={today} required />
         </FormField>
-        <FormField label="Progress %" htmlFor="pu-percent" error={errors.percentAtUpdate}>
+        <FormField
+          label="Progress %"
+          htmlFor="pu-percent"
+          error={errors.percentAtUpdate}
+          hint={
+            suggestedPercent !== null ? (
+              <>
+                Tasks say <span className="text-foreground font-mono">{suggestedPercent}%</span> · now{" "}
+                <span className="font-mono">{currentPercent}%</span>
+              </>
+            ) : undefined
+          }
+        >
           <Input
             id="pu-percent"
             name="percentAtUpdate"
             type="number"
             min={0}
             max={100}
-            defaultValue={currentPercent}
+            defaultValue={suggestedPercent ?? currentPercent}
             required
           />
         </FormField>
@@ -114,7 +131,7 @@ function UpdateForm({
         />
       </FormField>
       <div className="flex justify-end">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="outline" disabled={pending}>
           {pending ? "Saving…" : "Add update"}
         </Button>
       </div>

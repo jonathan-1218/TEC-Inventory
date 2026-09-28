@@ -27,30 +27,10 @@ export function MemberActions({
 
   return (
     <>
-      {options && (
-        <IssueDialog
-          options={options}
-          memberId={member.id}
-          trigger={
-            <Button>
-              <PackagePlus /> Issue to member
-            </Button>
-          }
-        />
-      )}
-      <MemberFormDialog
-        member={member}
-        departments={departments}
-        trigger={
-          <Button variant="outline">
-            <Pencil /> Edit
-          </Button>
-        }
-      />
       <ConfirmDelete
         trigger={
-          <Button variant="destructive">
-            <Trash2 /> Delete
+          <Button variant="ghost" size="icon" aria-label={`Delete ${member.name}`} className="hover:text-danger">
+            <Trash2 />
           </Button>
         }
         title={`Delete ${member.name}?`}
@@ -62,6 +42,26 @@ export function MemberActions({
         successMessage="Member deleted"
         onConfirm={() => deleteMember({ id: member.id, redirectTo: "/members" })}
       />
+      <MemberFormDialog
+        member={member}
+        departments={departments}
+        trigger={
+          <Button variant="outline">
+            <Pencil /> Edit
+          </Button>
+        }
+      />
+      {options && (
+        <IssueDialog
+          options={options}
+          memberId={member.id}
+          trigger={
+            <Button variant="brand">
+              <PackagePlus /> Issue to member
+            </Button>
+          }
+        />
+      )}
     </>
   )
 }

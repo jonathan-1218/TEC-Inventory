@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client"
 import { ActionError } from "@/lib/action-error"
-import type { IssueInput, ReturnInput } from "@/lib/validators"
+import type { ExtendDueInput, IssueInput, ReturnInput } from "@/lib/validators"
 
 type Tx = Prisma.TransactionClient | PrismaClient
 
@@ -129,4 +129,14 @@ export async function returnUnits(tx: Tx, input: ReturnInput) {
   }
 
   return { id: closedId }
+}
+
+/** Move an open issuance's expected return date (the schema already rejects dates before today). */
+export async function extendDue(tx: Tx, { id, expectedReturnDate }: ExtendDueInput) {
+  const iss = await tx.issuance.findUnique({ where: { id } })
+  if (!iss) throw new ActionError("Issuance not found.")
+  if (iss.returnedDate) throw new ActionError("This issuance has already been returned.")
+  if (expectedReturnDate < iss.issuedDate) throw new ActionError("Expected return can't be before the issue date.")
+  await tx.issuance.update({ where: { id }, data: { expectedReturnDate } })
+  return { id }
 }

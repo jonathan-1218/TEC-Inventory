@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Children, useState, useTransition } from "react"
+import { Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,6 +10,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
@@ -51,9 +53,12 @@ export function ConfirmDelete({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
+      {trigger && <AlertDialogTrigger asChild>{Children.toArray(trigger)[0]}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
+          <AlertDialogMedia className="bg-danger-soft text-danger">
+            <Trash2 />
+          </AlertDialogMedia>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
@@ -61,6 +66,7 @@ export function ConfirmDelete({
           <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
+            className="bg-danger text-danger-foreground hover:bg-danger/90 dark:bg-danger dark:hover:bg-danger/90"
             disabled={pending}
             onClick={(e) => {
               e.preventDefault()

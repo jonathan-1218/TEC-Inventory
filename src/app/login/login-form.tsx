@@ -29,9 +29,17 @@ export function LoginForm({ next }: { next: string }) {
       }}
     >
       <FormField label="Password" htmlFor="password" error={error}>
-        <Input id="password" name="password" type="password" autoComplete="current-password" autoFocus required />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          autoFocus
+          required
+          className="h-10 font-mono tracking-widest"
+        />
       </FormField>
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" variant="brand" className="h-10" disabled={pending}>
         {pending ? "Checking…" : "Log in"}
       </Button>
     </form>

@@ -23,7 +23,10 @@ export function FormField({
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {message ? (
-        <p className="text-destructive text-xs">{message}</p>
+        <p role="alert" className="text-danger flex items-center gap-1 text-xs font-medium">
+          <span aria-hidden className="bg-danger size-1.5 shrink-0 rounded-full" />
+          {message}
+        </p>
       ) : hint ? (
         <p className="text-muted-foreground text-xs">{hint}</p>
       ) : null}

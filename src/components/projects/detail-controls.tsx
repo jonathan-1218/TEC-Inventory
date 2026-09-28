@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Children, useState, useTransition } from "react"
 import { Pencil, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -87,9 +87,10 @@ export function MemberDialog({
   const [open, setOpen] = useState(false)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
+          <p className="eyebrow">Project team</p>
           <DialogTitle>{member ? `Change ${member.name}'s role` : "Add member"}</DialogTitle>
           <DialogDescription>
             {member ? "Update what they do on this project." : "Add an active club member to this project."}
@@ -170,7 +171,7 @@ function MemberForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="project-member-form" disabled={pending}>
+        <Button type="submit" form="project-member-form" variant="brand" disabled={pending}>
           {pending ? "Saving…" : member ? "Save role" : "Add member"}
         </Button>
       </DialogFooter>
@@ -214,9 +215,10 @@ export function RequirementDialog({
   const [open, setOpen] = useState(false)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
+          <p className="eyebrow">Parts list</p>
           <DialogTitle>{component ? `Edit ${component.name}` : "Add required component"}</DialogTitle>
           <DialogDescription>
             {component
@@ -304,7 +306,7 @@ function RequirementForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="project-component-form" disabled={pending}>
+        <Button type="submit" form="project-component-form" variant="brand" disabled={pending}>
           {pending ? "Saving…" : component ? "Save" : "Add component"}
         </Button>
       </DialogFooter>

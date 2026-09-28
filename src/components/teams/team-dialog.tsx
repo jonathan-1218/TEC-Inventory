@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState, useTransition } from "react"
+import { Children, useId, useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -43,9 +43,10 @@ export function TeamDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {trigger && <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
+          <p className="eyebrow">Team</p>
           <DialogTitle>{team ? "Edit team" : "New team"}</DialogTitle>
           <DialogDescription>
             {team ? `Update ${team.name}.` : "Group members who work together on projects."}
@@ -104,7 +105,7 @@ function TeamForm({ team, onDone }: { team?: TeamValues; onDone: () => void }) {
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form={`${id}-form`} disabled={pending}>
+        <Button type="submit" form={`${id}-form`} variant="brand" disabled={pending}>
           {pending ? "Saving…" : team ? "Save changes" : "Create team"}
         </Button>
       </DialogFooter>

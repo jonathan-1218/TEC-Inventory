@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Children, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { ProjectStatus } from "@prisma/client"
 import { Badge } from "@/components/ui/badge"
@@ -52,23 +52,35 @@ const PLACEHOLDERS: Record<TechStackKey, string> = {
   cloud: "Firebase, HiveMQ",
 }
 
-/** Create a project (no `project`) or edit one. */
+/** Create a project (no `project`) or edit one. `defaultOpen`: opened by `?new=1` (⌘K "New project"); closing drops the param. */
 export function ProjectFormDialog({
   teams,
   project,
   trigger,
+  defaultOpen = false,
 }: {
   teams: TeamOption[]
   project?: EditableProject
   trigger: React.ReactNode
+  defaultOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(defaultOpen)
+  const setOpen = (o: boolean) => {
+    setOpenState(o)
+    const params = new URLSearchParams(window.location.search)
+    if (!o && params.has("new")) {
+      params.delete("new")
+      window.history.replaceState(null, "", params.size ? `?${params}` : window.location.pathname)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {/* toArray resolves a lazy element (server-passed triggers can arrive lazy after a refresh; Slot can't clone those). */}
+      <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
+          <p className="eyebrow">Project</p>
           <DialogTitle>{project ? "Edit project" : "New project"}</DialogTitle>
           <DialogDescription>
             {project ? "Update the project details." : "Track a club project, its team and tech stack."}
@@ -194,9 +206,7 @@ function ProjectForm({
           </FormField>
         </div>
         <fieldset className="grid gap-4">
-          <legend className="mb-1 text-sm font-medium">
-            Tech stack <span className="text-muted-foreground font-normal">(comma-separated)</span>
-          </legend>
+          <legend className="eyebrow mb-3 w-full border-t pt-4">Tech stack · comma-separated</legend>
           <div className="grid gap-4 sm:grid-cols-2">
             {TECH_STACK_KEYS.map((k) => (
               <TagField
@@ -213,7 +223,7 @@ function ProjectForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="project-form" disabled={pending}>
+        <Button type="submit" form="project-form" variant="brand" disabled={pending}>
           {pending ? "Saving…" : project ? "Save changes" : "Create project"}
         </Button>
       </DialogFooter>

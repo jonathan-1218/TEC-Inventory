@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Children, useState, useTransition } from "react"
 import type { Component } from "@prisma/client"
 import { CircleAlert, CircleCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -49,9 +49,10 @@ export function ComponentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {trigger && <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>}
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
+          <p className="eyebrow">Inventory</p>
           <DialogTitle>{component ? `Edit ${component.name}` : "Add component"}</DialogTitle>
           <DialogDescription>
             {component ? "Update details and stock counts." : "Add a new item to the club inventory."}
@@ -267,7 +268,7 @@ function ComponentForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="component-form" disabled={pending}>
+        <Button type="submit" form="component-form" variant="brand" disabled={pending}>
           {pending ? "Saving…" : c ? "Save changes" : "Add component"}
         </Button>
       </DialogFooter>

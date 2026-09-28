@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState, useTransition } from "react"
+import { Children, useId, useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -39,9 +39,10 @@ export function TeamMemberDialog({ teamId, teamName, trigger, candidates, member
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
+          <p className="eyebrow">Team roster</p>
           <DialogTitle>{member ? `Change ${member.name}'s role` : "Add member"}</DialogTitle>
           <DialogDescription>
             {member ? `Their role on ${teamName}.` : `Add an active club member to ${teamName}.`}
@@ -129,7 +130,7 @@ function MemberForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form={`${id}-form`} disabled={pending}>
+        <Button type="submit" form={`${id}-form`} variant="brand" disabled={pending}>
           {pending ? "Saving…" : member ? "Save role" : "Add to team"}
         </Button>
       </DialogFooter>

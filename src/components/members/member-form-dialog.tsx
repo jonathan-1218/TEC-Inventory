@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Children, useState, useTransition } from "react"
 import type { Member } from "@prisma/client"
 import { Button } from "@/components/ui/button"
 import {
@@ -55,9 +55,10 @@ export function MemberFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {trigger && <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>}
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
+          <p className="eyebrow">Member</p>
           <DialogTitle>{member ? `Edit ${member.name}` : "Add member"}</DialogTitle>
           <DialogDescription>
             {member ? "Update this member's details." : "Add a new club member."}
@@ -195,7 +196,7 @@ function MemberForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="member-form" disabled={pending}>
+        <Button type="submit" form="member-form" variant="brand" disabled={pending}>
           {pending ? "Saving…" : member ? "Save changes" : "Add member"}
         </Button>
       </DialogFooter>

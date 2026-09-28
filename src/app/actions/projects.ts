@@ -1,8 +1,10 @@
 "use server"
 
+import { z } from "zod"
 import { db } from "@/lib/db"
-import type { Prisma } from "@prisma/client"
+import type { Prisma, ProjectStatus } from "@prisma/client"
 import { ActionError, adminAction } from "@/lib/action"
+import { STATUSES } from "@/lib/labels"
 import {
   idSchema,
   progressUpdateSchema,
@@ -23,6 +25,15 @@ export const updateProject = adminAction(projectUpdateSchema, async ({ id, ...da
   await db.project.update({ where: { id }, data })
   return { id }
 })
+
+/** Board drag: change only the status. */
+export const updateProjectStatus = adminAction(
+  z.object({ id: z.string().min(1), status: z.enum(STATUSES as [ProjectStatus, ...ProjectStatus[]]) }),
+  async ({ id, status }) => {
+    await db.project.update({ where: { id }, data: { status } })
+    return { id, status }
+  }
+)
 
 export const deleteProject = adminAction(idSchema, async ({ id }) => {
   // Members, updates and component requirements cascade; issuances keep their history with projectId = null.

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Plus, Users } from "lucide-react"
+import { Download, Plus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AdminOnly } from "@/components/admin-context"
 import { EmptyState } from "@/components/empty-state"
@@ -31,20 +31,33 @@ export default async function MembersPage() {
       <MemberFormDialog
         departments={departments}
         trigger={
-          <Button>
+          <Button variant="brand">
             <Plus /> Add member
           </Button>
         }
       />
     </AdminOnly>
   )
+  const holding = rows.filter((m) => m.openIssuances > 0).length
 
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader
+        eyebrow="People · Roster"
         title="Members"
-        description={`${active} active of ${members.length} club members, their roles and what they're holding.`}
+        description={
+          <span className="font-mono text-xs tabular-nums">
+            {members.length} members · {active} active · {holding} holding parts
+          </span>
+        }
       >
+        <AdminOnly>
+          <Button variant="outline" asChild>
+            <a href="/api/export/members" download>
+              <Download /> Export CSV
+            </a>
+          </Button>
+        </AdminOnly>
         {addButton}
       </PageHeader>
       {members.length === 0 ? (

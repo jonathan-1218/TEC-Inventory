@@ -1,22 +1,26 @@
 import type { Metadata } from "next"
-import { AlarmClock, ClipboardList, PackageCheck, PackageOpen, Plus } from "lucide-react"
+import { Download, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { AdminOnly } from "@/components/admin-context"
 import { IssueDialog } from "@/components/issue-dialog"
 import { PageHeader } from "@/components/page-header"
-import { IssuancesView } from "@/components/issuances/issuances-view"
+import { Readout } from "@/components/issuances/readout"
+import { IssuancesView, type IssuanceRow } from "@/components/issuances/issuances-view"
+import { getCheckoutSeries } from "@/lib/analytics"
 import { isAdmin } from "@/lib/auth"
-import { daysOverdue, isOverdue, todayNoonUTC } from "@/lib/dates"
+import { daysOverdue, formatDate } from "@/lib/dates"
 import { db } from "@/lib/db"
 import { getSelectOptions } from "@/lib/queries"
-import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Issuances" }
+
+/** "Due soon" window, same as the dashboard's getDueSoon(3). */
+const DUE_SOON_DAYS = 3
 
 export default async function IssuancesPage(props: PageProps<"/issuances">) {
   const { q } = await props.searchParams
   const admin = await isAdmin()
-  const [issuances, options] = await Promise.all([
+  const [issuances, options, series] = await Promise.all([
     db.issuance.findMany({
       include: {
         component: { select: { id: true, name: true, modelNumber: true } },
@@ -25,59 +29,82 @@ export default async function IssuancesPage(props: PageProps<"/issuances">) {
       },
     }),
     admin ? getSelectOptions() : null,
+    getCheckoutSeries(30),
   ])
 
-  // Overdue is computed on the server so client and server agree on "today".
-  const rows = issuances.map((i) => ({
-    ...i,
-    overdueDays: isOverdue(i) && i.expectedReturnDate ? daysOverdue(i.expectedReturnDate) : 0,
-  }))
+  // Due/overdue is computed on the server so client and server agree on "today".
+  const rows: IssuanceRow[] = issuances.map((i) => {
+    const daysLeft = !i.returnedDate && i.expectedReturnDate ? -daysOverdue(i.expectedReturnDate) : null
+    return { ...i, daysLeft, overdueDays: daysLeft != null && daysLeft < 0 ? -daysLeft : 0 }
+  })
   const open = rows.filter((r) => !r.returnedDate)
-  const since = todayNoonUTC().getTime() - 30 * 86_400_000
-  const stats = [
-    { label: "Units out", value: open.reduce((n, r) => n + r.quantity, 0), icon: PackageOpen },
-    { label: "Open checkouts", value: open.length, icon: ClipboardList },
-    { label: "Overdue", value: open.filter((r) => r.overdueDays > 0).length, icon: AlarmClock, alert: true },
-    {
-      label: "Returned (last 30 days)",
-      value: rows.filter((r) => r.returnedDate && r.returnedDate.getTime() >= since).length,
-      icon: PackageCheck,
-    },
-  ]
+  const overdue = open.filter((r) => r.overdueDays > 0)
+  const dueSoon = open
+    .filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= DUE_SOON_DAYS)
+    .sort((a, b) => a.daysLeft! - b.daysLeft!)
+  const unitsOut = open.reduce((n, r) => n + r.quantity, 0)
+  const returned30 = series.reduce((n, d) => n + d.returned, 0)
+  const worst = Math.max(0, ...overdue.map((r) => r.overdueDays))
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Issuances" description="Checkout log: who has what, and what's due back.">
+      <PageHeader
+        eyebrow="Stock · Checkouts"
+        title="Issuances"
+        description="Who has what, and what's due back."
+      >
+        <AdminOnly>
+          <Button variant="outline" asChild>
+            <a href="/api/export/issuances" download>
+              <Download /> Export CSV
+            </a>
+          </Button>
+        </AdminOnly>
         {options && (
           <IssueDialog
             options={options}
             trigger={
-              <Button>
+              <Button variant="brand">
                 <Plus /> Issue component
               </Button>
             }
           />
         )}
       </PageHeader>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map((s) => {
-          const red = s.alert && s.value > 0
-          return (
-            <Card key={s.label} size="sm">
-              <CardContent className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-muted-foreground text-xs">{s.label}</p>
-                  <p className={cn("mt-1 text-2xl font-semibold tabular-nums", red && "text-red-600 dark:text-red-400")}>
-                    {s.value}
-                  </p>
-                </div>
-                <s.icon className={cn("size-4 shrink-0", red ? "text-red-600 dark:text-red-400" : "text-muted-foreground")} />
-              </CardContent>
-            </Card>
-          )
-        })}
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        <Readout
+          label="Units out"
+          value={unitsOut}
+          context={`on ${open.length} checkout${open.length === 1 ? "" : "s"}`}
+          spark={series.map((d) => d.onLoan)}
+          summary={`Units on loan, last 30 days: now ${unitsOut}`}
+        />
+        <Readout
+          label="Overdue"
+          value={overdue.length}
+          context={overdue.length ? `oldest ${worst} day${worst === 1 ? "" : "s"} late` : "all within due dates"}
+          alert={overdue.length > 0}
+        />
+        <Readout
+          label={`Due in ${DUE_SOON_DAYS} days`}
+          value={dueSoon.length}
+          context={dueSoon.length ? `next: ${dueSoon[0].component.name}, ${formatDate(dueSoon[0].expectedReturnDate)}` : "nothing coming up"}
+        />
+        <Readout
+          label="Returned · 30d"
+          value={returned30}
+          context="units back on the shelf"
+          spark={series.map((d) => d.returned)}
+          summary={`Units returned per day, last 30 days: ${returned30} in total`}
+        />
       </div>
-      <IssuancesView rows={rows} initialQuery={typeof q === "string" ? q.slice(0, 100) : ""} />
+
+      <IssuancesView
+        rows={rows}
+        initialQuery={typeof q === "string" ? q.slice(0, 100) : ""}
+        dueSoonDays={DUE_SOON_DAYS}
+      />
     </div>
   )
 }

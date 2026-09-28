@@ -1,6 +1,7 @@
+import { cache } from "react"
 import type { Component } from "@prisma/client"
 import { db } from "@/lib/db"
-import { issuedCounts } from "@/lib/stock"
+import { issuedCount, issuedCounts } from "@/lib/stock"
 import { stockStatus, type StockStatus } from "@/lib/labels"
 
 export type ComponentWithStock = Component & {
@@ -19,20 +20,22 @@ export function withStock(c: Component, issued: number): ComponentWithStock {
   }
 }
 
-/** All components with derived issued/available counts, sorted by name. */
-export async function getComponentsWithStock(): Promise<ComponentWithStock[]> {
+/**
+ * All components with derived issued/available counts, sorted by name.
+ * Memoised per request (dashboard panels share it) — copy before sorting in place.
+ */
+export const getComponentsWithStock = cache(async (): Promise<ComponentWithStock[]> => {
   const [components, issued] = await Promise.all([
     db.component.findMany({ orderBy: { name: "asc" } }),
     issuedCounts(db),
   ])
   return components.map((c) => withStock(c, issued.get(c.id) ?? 0))
-}
+})
 
 export async function getComponentWithStock(id: string): Promise<ComponentWithStock | null> {
-  const c = await db.component.findUnique({ where: { id } })
-  if (!c) return null
-  const issued = await issuedCounts(db)
-  return withStock(c, issued.get(c.id) ?? 0)
+  // One round trip, and only this component's open issuances.
+  const [c, issued] = await Promise.all([db.component.findUnique({ where: { id } }), issuedCount(db, id)])
+  return c && withStock(c, issued)
 }
 
 /** Lightweight option lists for select inputs in issue / assign dialogs. */

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Children, useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -17,9 +17,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { FormField } from "@/components/form-field"
 import { issueComponent } from "@/app/actions/issuances"
 import { formValues, runAction } from "@/lib/client"
+import { parseDateInput, toDateInput } from "@/lib/dates"
 import type { SelectOptions } from "@/lib/queries"
+import { cn } from "@/lib/utils"
 
 const today = () => new Date().toLocaleDateString("en-CA")
+const addDays = (day: string, n: number) => toDateInput(new Date(parseDateInput(day).getTime() + n * 86_400_000))
+const DUE_PICKS = [
+  { label: "3 days", days: 3 },
+  { label: "1 week", days: 7 },
+  { label: "2 weeks", days: 14 },
+]
 
 type IssueDefaults = { componentId?: string; projectId?: string; memberId?: string }
 
@@ -48,9 +56,11 @@ export function IssueDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {/* toArray resolves a lazy element (server-passed triggers can arrive lazy after a refresh; Slot can't clone those). */}
+      {trigger && <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
+          <p className="eyebrow">Checkout</p>
           <DialogTitle>Issue component</DialogTitle>
           <DialogDescription>Check out working units to a member.</DialogDescription>
         </DialogHeader>
@@ -74,6 +84,8 @@ function IssueForm({
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [componentId, setComponentId] = useState(defaults.componentId ?? "")
   const selected = options.components.find((c) => c.id === componentId)
+  const [issuedOn, setIssuedOn] = useState(today)
+  const [due, setDue] = useState("")
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -152,12 +164,48 @@ function IssueForm({
         </FormField>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Issued on" htmlFor="issue-date" error={errors.issuedDate}>
-            <Input id="issue-date" name="issuedDate" type="date" defaultValue={today()} required />
+            <Input
+              id="issue-date"
+              name="issuedDate"
+              type="date"
+              value={issuedOn}
+              onChange={(e) => setIssuedOn(e.target.value)}
+              required
+            />
           </FormField>
           <FormField label="Expected return" htmlFor="issue-return" error={errors.expectedReturnDate}>
-            <Input id="issue-return" name="expectedReturnDate" type="date" />
+            <Input
+              id="issue-return"
+              name="expectedReturnDate"
+              type="date"
+              min={issuedOn || undefined}
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
+            />
           </FormField>
         </div>
+        {issuedOn && (
+          <div role="group" aria-label="Quick due dates" className="-mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="eyebrow mr-1">Due in</span>
+            {DUE_PICKS.map((p) => {
+              const day = addDays(issuedOn, p.days)
+              return (
+                <button
+                  key={p.days}
+                  type="button"
+                  aria-pressed={due === day}
+                  onClick={() => setDue(day)}
+                  className={cn(
+                    "ease-snap h-7 rounded-md border px-2 font-mono text-[11px] transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:h-9",
+                    due === day ? "border-brand/60 bg-brand-soft text-brand-strong" : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </button>
+              )
+            })}
+          </div>
+        )}
         <FormField label="Notes" htmlFor="issue-notes" error={errors.notes}>
           <Textarea id="issue-notes" name="notes" rows={2} placeholder="Purpose, condition at checkout…" />
         </FormField>
@@ -166,7 +214,7 @@ function IssueForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="issue-form" disabled={pending}>
+        <Button type="submit" form="issue-form" variant="brand" disabled={pending}>
           {pending ? "Issuing…" : "Issue"}
         </Button>
       </DialogFooter>

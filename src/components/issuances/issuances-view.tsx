@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import type { ReturnCondition } from "@prisma/client"
-import { AlarmClockCheck, History, PackageCheck, Search, SearchX, Undo2 } from "lucide-react"
+import { AlarmClockCheck, CalendarCheck, CalendarClock, History, PackageCheck, Search, SearchX, Undo2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -14,6 +14,7 @@ import { useIsAdmin } from "@/components/admin-context"
 import { ConditionBadge, IssuanceStatusBadge } from "@/components/badges"
 import { EmptyState } from "@/components/empty-state"
 import { ReturnDialog } from "@/components/return-dialog"
+import { ExtendDueDialog } from "@/components/issuances/extend-due-dialog"
 import { formatDate } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 
@@ -25,23 +26,33 @@ export type IssuanceRow = {
   returnedDate: Date | null
   conditionOnReturn: ReturnCondition | null
   notes: string | null
-  /** > 0 when open and past the expected return date (computed on the server). */
+  /** Days until the expected return (0 = today, < 0 = overdue); null without a due date. Computed on the server. */
+  daysLeft: number | null
+  /** > 0 when open and past the expected return date. */
   overdueDays: number
   component: { id: string; name: string; modelNumber: string | null }
   issuedTo: { id: string; name: string; rollNumber: string }
   project: { id: string; title: string } | null
 }
 
-const TABS = ["open", "overdue", "history"] as const
+const TABS = ["open", "overdue", "due", "history"] as const
 type Tab = (typeof TABS)[number]
 
 // Breathing room at the table's outer edges.
-const TABLE =
-  "[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4"
+const TABLE = "[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4"
 
 const time = (d: Date | null) => (d ? new Date(d).getTime() : Infinity)
 
-export function IssuancesView({ rows, initialQuery }: { rows: IssuanceRow[]; initialQuery: string }) {
+export function IssuancesView({
+  rows,
+  initialQuery,
+  dueSoonDays,
+}: {
+  rows: IssuanceRow[]
+  initialQuery: string
+  /** "Due soon" = open, not overdue, due within this many days. */
+  dueSoonDays: number
+}) {
   const searchParams = useSearchParams()
   const param = searchParams.get("tab") as Tab
   const tab: Tab = TABS.includes(param) ? param : "open"
@@ -64,15 +75,13 @@ export function IssuancesView({ rows, initialQuery }: { rows: IssuanceRow[]; ini
     [rows]
   )
 
-  const { open, overdue, history } = useMemo(() => {
+  const { open, overdue, due, history } = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const hit = (...fields: (string | null | undefined)[]) =>
-      fields.some((f) => f?.toLowerCase().includes(q))
+    const hit = (...fields: (string | null | undefined)[]) => fields.some((f) => f?.toLowerCase().includes(q))
     const matches = rows.filter(
       (r) =>
         (member === "all" || r.issuedTo.id === member) &&
-        (!q ||
-          hit(r.component.name, r.component.modelNumber, r.issuedTo.name, r.issuedTo.rollNumber, r.project?.title))
+        (!q || hit(r.component.name, r.component.modelNumber, r.issuedTo.name, r.issuedTo.rollNumber, r.project?.title))
     )
     // Most overdue first, then soonest due (no due date last), then oldest checkout.
     const open = matches
@@ -86,31 +95,43 @@ export function IssuancesView({ rows, initialQuery }: { rows: IssuanceRow[]; ini
     return {
       open,
       overdue: open.filter((r) => r.overdueDays > 0),
-      history: matches
-        .filter((r) => r.returnedDate)
-        .sort((a, b) => time(b.returnedDate) - time(a.returnedDate)),
+      due: open.filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= dueSoonDays),
+      history: matches.filter((r) => r.returnedDate).sort((a, b) => time(b.returnedDate) - time(a.returnedDate)),
     }
-  }, [rows, query, member])
+  }, [rows, query, member, dueSoonDays])
 
   const filtering = query.trim() !== "" || member !== "all"
+  const clear = () => {
+    setQuery("")
+    setMember("all")
+  }
   const noMatches = (
-    <EmptyState icon={SearchX} title="No matching issuances" description="Try a different search or member." />
+    <EmptyState icon={SearchX} title="No matching issuances" description="Try a different search or member.">
+      <Button variant="outline" onClick={clear}>
+        Clear filters
+      </Button>
+    </EmptyState>
   )
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="min-w-0 gap-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <TabsList className="w-full sm:w-fit">
-          <TabsTrigger value="open">
-            Checked out <Count n={open.length} />
-          </TabsTrigger>
-          <TabsTrigger value="overdue">
-            Overdue <Count n={overdue.length} alert />
-          </TabsTrigger>
-          <TabsTrigger value="history">
-            History <Count n={history.length} />
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <TabsList variant="line" className="gap-4">
+            <TabsTrigger value="open" className="px-0">
+              Active <Count n={open.length} />
+            </TabsTrigger>
+            <TabsTrigger value="overdue" className="px-0">
+              Overdue <Count n={overdue.length} tone="danger" />
+            </TabsTrigger>
+            <TabsTrigger value="due" className="px-0">
+              Due soon <Count n={due.length} tone="brand" />
+            </TabsTrigger>
+            <TabsTrigger value="history" className="px-0">
+              History <Count n={history.length} />
+            </TabsTrigger>
+          </TabsList>
+        </div>
         <div className="flex flex-wrap gap-2">
           <InputGroup className="w-full sm:w-64">
             <InputGroupAddon>
@@ -137,12 +158,17 @@ export function IssuancesView({ rows, initialQuery }: { rows: IssuanceRow[]; ini
               ))}
             </SelectContent>
           </Select>
+          {filtering && (
+            <Button variant="ghost" onClick={clear}>
+              <X /> Clear
+            </Button>
+          )}
         </div>
       </div>
 
       <TabsContent value="open">
         {open.length ? (
-          <OpenTable rows={open} />
+          <OpenTable rows={open} dueSoonDays={dueSoonDays} />
         ) : filtering ? (
           noMatches
         ) : (
@@ -151,14 +177,23 @@ export function IssuancesView({ rows, initialQuery }: { rows: IssuanceRow[]; ini
       </TabsContent>
       <TabsContent value="overdue">
         {overdue.length ? (
-          <OpenTable rows={overdue} />
+          <OpenTable rows={overdue} dueSoonDays={dueSoonDays} />
+        ) : filtering ? (
+          noMatches
+        ) : (
+          <EmptyState icon={AlarmClockCheck} title="No overdue returns" description="Everything checked out is within its due date." />
+        )}
+      </TabsContent>
+      <TabsContent value="due">
+        {due.length ? (
+          <OpenTable rows={due} dueSoonDays={dueSoonDays} />
         ) : filtering ? (
           noMatches
         ) : (
           <EmptyState
-            icon={AlarmClockCheck}
-            title="No overdue returns"
-            description="Everything checked out is within its due date."
+            icon={CalendarCheck}
+            title="Nothing due soon"
+            description={`No returns are due in the next ${dueSoonDays} days.`}
           />
         )}
       </TabsContent>
@@ -175,12 +210,15 @@ export function IssuancesView({ rows, initialQuery }: { rows: IssuanceRow[]; ini
   )
 }
 
-function Count({ n, alert }: { n: number; alert?: boolean }) {
+function Count({ n, tone }: { n: number; tone?: "danger" | "brand" }) {
+  const hot = tone && n > 0
   return (
     <span
       className={cn(
-        "text-xs tabular-nums",
-        alert && n > 0 ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground"
+        "rounded-sm px-1 font-mono text-[11px] tabular-nums",
+        !hot && "text-muted-foreground",
+        hot && tone === "danger" && "bg-danger-soft text-danger font-semibold",
+        hot && tone === "brand" && "bg-brand-soft text-brand-strong font-semibold"
       )}
     >
       {n}
@@ -191,10 +229,10 @@ function Count({ n, alert }: { n: number; alert?: boolean }) {
 function ComponentCell({ c }: { c: IssuanceRow["component"] }) {
   return (
     <>
-      <Link href={`/inventory/${c.id}`} className="font-medium hover:underline">
+      <Link href={`/inventory/${c.id}`} className="hover:text-brand-strong font-medium transition-colors">
         {c.name}
       </Link>
-      {c.modelNumber && <div className="text-muted-foreground text-xs">{c.modelNumber}</div>}
+      {c.modelNumber && <div className="text-muted-foreground font-mono text-[11px]">{c.modelNumber}</div>}
     </>
   )
 }
@@ -202,10 +240,10 @@ function ComponentCell({ c }: { c: IssuanceRow["component"] }) {
 function MemberCell({ m }: { m: IssuanceRow["issuedTo"] }) {
   return (
     <>
-      <Link href={`/members/${m.id}`} className="hover:underline">
+      <Link href={`/members/${m.id}`} className="hover:text-brand-strong transition-colors">
         {m.name}
       </Link>
-      <div className="text-muted-foreground text-xs">{m.rollNumber}</div>
+      <div className="text-muted-foreground font-mono text-[11px]">{m.rollNumber}</div>
     </>
   )
 }
@@ -213,39 +251,50 @@ function MemberCell({ m }: { m: IssuanceRow["issuedTo"] }) {
 function ProjectCell({ p }: { p: IssuanceRow["project"] }) {
   if (!p) return <span className="text-muted-foreground">—</span>
   return (
-    <Link href={`/projects/${p.id}`} className="hover:underline">
+    <Link href={`/projects/${p.id}`} className="hover:text-brand-strong transition-colors">
       {p.title}
     </Link>
   )
 }
 
-function DueCell({ r }: { r: IssuanceRow }) {
-  if (!r.expectedReturnDate) return <span className="text-muted-foreground">No due date</span>
-  if (r.overdueDays <= 0) return <>{formatDate(r.expectedReturnDate)}</>
-  return (
-    <div className="text-red-600 dark:text-red-400">
-      <div className="font-medium">{formatDate(r.expectedReturnDate)}</div>
-      <div className="text-xs">
-        {r.overdueDays} {r.overdueDays === 1 ? "day" : "days"} overdue
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
+
+function DueCell({ r, dueSoonDays }: { r: IssuanceRow; dueSoonDays: number }) {
+  if (!r.expectedReturnDate || r.daysLeft == null) return <span className="text-muted-foreground text-xs">No due date</span>
+  const date = <div className="font-mono text-xs tabular-nums">{formatDate(r.expectedReturnDate)}</div>
+  if (r.overdueDays > 0)
+    return (
+      <div className="text-danger">
+        {date}
+        <div className="text-xs font-semibold">{plural(r.overdueDays, "day")} late</div>
       </div>
-    </div>
-  )
+    )
+  if (r.daysLeft <= dueSoonDays)
+    return (
+      <div>
+        {date}
+        <div className="text-brand-strong text-xs font-medium">
+          {r.daysLeft === 0 ? "Due today" : r.daysLeft === 1 ? "Due tomorrow" : `In ${r.daysLeft} days`}
+        </div>
+      </div>
+    )
+  return date
 }
 
-function OpenTable({ rows }: { rows: IssuanceRow[] }) {
+function OpenTable({ rows, dueSoonDays }: { rows: IssuanceRow[]; dueSoonDays: number }) {
   const admin = useIsAdmin()
   return (
-    <div className="rounded-xl border">
+    <div className="bg-card overflow-hidden rounded-xl border">
       <Table className={TABLE}>
         <TableHeader>
-          <TableRow>
+          <TableRow className="hover:bg-transparent">
             <TableHead>Component</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead>Issued to</TableHead>
-            <TableHead className="hidden md:table-cell">Project</TableHead>
-            <TableHead className="hidden lg:table-cell">Issued</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Qty</TableHead>
+            <TableHead className="hidden sm:table-cell">Issued to</TableHead>
+            <TableHead className="hidden xl:table-cell">Project</TableHead>
+            <TableHead className="hidden md:table-cell">Issued</TableHead>
             <TableHead>Due</TableHead>
-            <TableHead className="hidden sm:table-cell">Status</TableHead>
+            <TableHead className="hidden xl:table-cell">Status</TableHead>
             {admin && (
               <TableHead>
                 <span className="sr-only">Actions</span>
@@ -257,43 +306,65 @@ function OpenTable({ rows }: { rows: IssuanceRow[] }) {
           {rows.map((r) => {
             const late = r.overdueDays > 0
             return (
-              <TableRow key={r.id} className={cn(late && "bg-red-500/5 hover:bg-red-500/10")}>
-                <TableCell className={cn("min-w-40 border-l-2 whitespace-normal", late ? "border-l-red-500" : "border-l-transparent")}>
+              <TableRow key={r.id} className={cn(late && "bg-danger-soft/35 hover:bg-danger-soft/60")}>
+                <TableCell className={cn("min-w-40 border-l-2 whitespace-normal", late ? "border-l-danger" : "border-l-transparent")}>
                   <ComponentCell c={r.component} />
+                  <div className="text-muted-foreground mt-0.5 text-xs sm:hidden">
+                    <span className="font-mono">{r.quantity}×</span> →{" "}
+                    <Link href={`/members/${r.issuedTo.id}`}>{r.issuedTo.name}</Link>
+                  </div>
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{r.quantity}</TableCell>
-                <TableCell>
+                <TableCell className="hidden text-right font-mono tabular-nums sm:table-cell">{r.quantity}</TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <MemberCell m={r.issuedTo} />
                 </TableCell>
-                <TableCell className="hidden min-w-36 whitespace-normal md:table-cell">
+                <TableCell className="hidden min-w-36 whitespace-normal xl:table-cell">
                   <ProjectCell p={r.project} />
                 </TableCell>
-                <TableCell className="hidden tabular-nums lg:table-cell">{formatDate(r.issuedDate)}</TableCell>
-                <TableCell className="tabular-nums">
-                  <DueCell r={r} />
+                <TableCell className="text-muted-foreground hidden font-mono text-xs tabular-nums md:table-cell">
+                  {formatDate(r.issuedDate)}
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">
+                <TableCell>
+                  <DueCell r={r} dueSoonDays={dueSoonDays} />
+                </TableCell>
+                <TableCell className="hidden xl:table-cell">
                   <IssuanceStatusBadge returned={false} overdueDays={r.overdueDays} />
                 </TableCell>
                 {admin && (
                   <TableCell className="text-right">
-                    <ReturnDialog
-                      issuance={{
-                        id: r.id,
-                        quantity: r.quantity,
-                        componentName: r.component.name,
-                        memberName: r.issuedTo.name,
-                      }}
-                      trigger={
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          aria-label={`Return ${r.component.name} from ${r.issuedTo.name}`}
-                        >
-                          <Undo2 /> Return
-                        </Button>
-                      }
-                    />
+                    <div className="flex items-center justify-end gap-1">
+                      <ExtendDueDialog
+                        issuance={{
+                          id: r.id,
+                          componentName: r.component.name,
+                          memberName: r.issuedTo.name,
+                          expectedReturnDate: r.expectedReturnDate,
+                        }}
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Extend due date of ${r.component.name} for ${r.issuedTo.name}`}
+                            title="Extend due date"
+                          >
+                            <CalendarClock />
+                          </Button>
+                        }
+                      />
+                      <ReturnDialog
+                        issuance={{
+                          id: r.id,
+                          quantity: r.quantity,
+                          componentName: r.component.name,
+                          memberName: r.issuedTo.name,
+                        }}
+                        trigger={
+                          <Button size="sm" variant="outline" aria-label={`Return ${r.component.name} from ${r.issuedTo.name}`}>
+                            <Undo2 /> <span className="hidden sm:inline">Return</span>
+                          </Button>
+                        }
+                      />
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
@@ -307,18 +378,18 @@ function OpenTable({ rows }: { rows: IssuanceRow[] }) {
 
 function HistoryTable({ rows }: { rows: IssuanceRow[] }) {
   return (
-    <div className="rounded-xl border">
+    <div className="bg-card overflow-hidden rounded-xl border">
       <Table className={TABLE}>
         <TableHeader>
-          <TableRow>
+          <TableRow className="hover:bg-transparent">
             <TableHead>Component</TableHead>
             <TableHead className="text-right">Qty</TableHead>
-            <TableHead>Issued to</TableHead>
-            <TableHead className="hidden md:table-cell">Project</TableHead>
-            <TableHead className="hidden lg:table-cell">Issued</TableHead>
+            <TableHead className="hidden sm:table-cell">Issued to</TableHead>
+            <TableHead className="hidden xl:table-cell">Project</TableHead>
+            <TableHead className="hidden md:table-cell">Issued</TableHead>
             <TableHead>Returned</TableHead>
             <TableHead className="hidden sm:table-cell">Condition</TableHead>
-            <TableHead className="hidden lg:table-cell">Notes</TableHead>
+            <TableHead className="hidden xl:table-cell">Notes</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -326,16 +397,26 @@ function HistoryTable({ rows }: { rows: IssuanceRow[] }) {
             <TableRow key={r.id}>
               <TableCell className="min-w-40 whitespace-normal">
                 <ComponentCell c={r.component} />
+                <div className="text-muted-foreground mt-0.5 text-xs sm:hidden">← {r.issuedTo.name}</div>
               </TableCell>
-              <TableCell className="text-right tabular-nums">{r.quantity}</TableCell>
-              <TableCell>
+              <TableCell className="text-right font-mono tabular-nums">{r.quantity}</TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <MemberCell m={r.issuedTo} />
               </TableCell>
-              <TableCell className="hidden min-w-36 whitespace-normal md:table-cell">
+              <TableCell className="hidden min-w-36 whitespace-normal xl:table-cell">
                 <ProjectCell p={r.project} />
               </TableCell>
-              <TableCell className="hidden tabular-nums lg:table-cell">{formatDate(r.issuedDate)}</TableCell>
-              <TableCell className="tabular-nums">{formatDate(r.returnedDate)}</TableCell>
+              <TableCell className="text-muted-foreground hidden font-mono text-xs tabular-nums md:table-cell">
+                {formatDate(r.issuedDate)}
+              </TableCell>
+              <TableCell className="font-mono text-xs tabular-nums">
+                {formatDate(r.returnedDate)}
+                {r.conditionOnReturn && r.conditionOnReturn !== "WORKING" && (
+                  <div className="mt-1 sm:hidden">
+                    <ConditionBadge condition={r.conditionOnReturn} />
+                  </div>
+                )}
+              </TableCell>
               <TableCell className="hidden sm:table-cell">
                 {r.conditionOnReturn ? (
                   <ConditionBadge condition={r.conditionOnReturn} />
@@ -343,7 +424,7 @@ function HistoryTable({ rows }: { rows: IssuanceRow[] }) {
                   <span className="text-muted-foreground">—</span>
                 )}
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell className="hidden xl:table-cell">
                 {r.notes ? (
                   <div className="text-muted-foreground max-w-48 truncate" title={r.notes}>
                     {r.notes}

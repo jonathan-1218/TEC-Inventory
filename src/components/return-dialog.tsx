@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Children, useState, useTransition } from "react"
 import type { ReturnCondition } from "@prisma/client"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,14 +13,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { FormField } from "@/components/form-field"
 import { returnIssuance } from "@/app/actions/issuances"
 import { formValues, runAction } from "@/lib/client"
 import { CONDITIONS, CONDITION_LABELS } from "@/lib/labels"
+import { cn } from "@/lib/utils"
 
 const today = () => new Date().toLocaleDateString("en-CA")
+
+/** Selected look per condition — same tones as ConditionBadge. */
+const CONDITION_ON: Record<ReturnCondition, string> = {
+  WORKING: "border-foreground/40 bg-muted text-foreground",
+  DAMAGED: "border-brand/60 bg-brand-soft text-brand-strong",
+  LOST: "border-danger/50 bg-danger-soft text-danger",
+}
 
 const CONDITION_HINT: Record<ReturnCondition, string> = {
   WORKING: "Units go back to available stock.",
@@ -54,9 +61,10 @@ export function ReturnDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {trigger && <DialogTrigger asChild>{Children.toArray(trigger)[0]}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
+          <p className="eyebrow">Return</p>
           <DialogTitle>Return {issuance.componentName}</DialogTitle>
           <DialogDescription>
             {issuance.quantity} unit(s) out with {issuance.memberName}. Return fewer to keep the rest checked
@@ -110,24 +118,38 @@ function ReturnForm({ issuance, onDone }: { issuance: ReturnTarget; onDone: () =
             />
           </FormField>
         </div>
-        <FormField label="Condition" error={errors.condition} hint={CONDITION_HINT[condition]}>
-          <Select
-            name="condition"
-            value={condition}
-            onValueChange={(v) => setCondition(v as ReturnCondition)}
-          >
-            <SelectTrigger className="w-full" aria-label="Condition">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CONDITIONS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {CONDITION_LABELS[c]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormField>
+        <fieldset className="grid gap-1.5">
+          <legend className="mb-1.5 text-sm leading-none font-medium select-none">Condition</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {CONDITIONS.map((c) => (
+              <label
+                key={c}
+                className={cn(
+                  "ease-snap flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-150 has-focus-visible:ring-3 has-focus-visible:ring-ring/50 pointer-coarse:py-3",
+                  condition !== c && "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                  condition === c && CONDITION_ON[c]
+                )}
+              >
+                <input
+                  type="radio"
+                  name="condition"
+                  value={c}
+                  checked={condition === c}
+                  onChange={() => setCondition(c)}
+                  className="sr-only"
+                />
+                <span
+                  aria-hidden
+                  className={cn("size-2 shrink-0 rounded-full", condition === c ? "bg-current" : "ring-1 ring-current ring-inset")}
+                />
+                {CONDITION_LABELS[c]}
+              </label>
+            ))}
+          </div>
+          <p className={cn("text-xs", errors.condition ? "text-danger font-medium" : "text-muted-foreground")} role={errors.condition ? "alert" : undefined}>
+            {errors.condition?.[0] ?? CONDITION_HINT[condition]}
+          </p>
+        </fieldset>
         <FormField label="Notes" htmlFor={`ret-notes-${issuance.id}`} error={errors.notes}>
           <Textarea
             id={`ret-notes-${issuance.id}`}
@@ -141,7 +163,7 @@ function ReturnForm({ issuance, onDone }: { issuance: ReturnTarget; onDone: () =
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form={`return-form-${issuance.id}`} disabled={pending}>
+        <Button type="submit" form={`return-form-${issuance.id}`} variant="brand" disabled={pending}>
           {pending ? "Saving…" : "Record return"}
         </Button>
       </DialogFooter>

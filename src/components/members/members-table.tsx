@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { ArrowDown, ArrowUp, ArrowUpDown, Eye, MoreHorizontal, Pencil, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,16 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ToneBadge } from "@/components/badges"
 import { ConfirmDelete } from "@/components/confirm-delete"
 import { useIsAdmin } from "@/components/admin-context"
-import { ActiveBadge, DesignationBadge, designationRank } from "@/components/members/member-badges"
+import { ActiveBadge, DesignationBadge, MemberAvatar, designationRank } from "@/components/members/member-badges"
 import { MemberFormDialog, type MemberFormValues } from "@/components/members/member-form-dialog"
 import { deleteMember } from "@/app/actions/members"
 import { DESIGNATIONS, DESIGNATION_LABELS } from "@/lib/labels"
+import { cn } from "@/lib/utils"
 
 export type MemberRow = MemberFormValues & {
   teamCount: number
@@ -38,24 +37,26 @@ function SortHead({
   k,
   sort,
   onSort,
+  className,
   children,
 }: {
   k: SortKey
   sort: Sort
   onSort: (sort: Sort) => void
+  className?: string
   children: React.ReactNode
 }) {
   const active = sort.key === k
   const Icon = !active ? ArrowUpDown : sort.dir === 1 ? ArrowUp : ArrowDown
   return (
-    <TableHead aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
+    <TableHead className={className} aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
       <button
         type="button"
-        className="hover:text-foreground inline-flex items-center gap-1"
+        className={cn("hover:text-foreground inline-flex items-center gap-1 uppercase", active && "text-foreground")}
         onClick={() => onSort({ key: k, dir: active && sort.dir === 1 ? -1 : 1 })}
       >
         {children}
-        <Icon className={active ? "size-3.5" : "text-muted-foreground size-3.5"} />
+        <Icon className={cn("size-3", active ? "text-brand-strong" : "opacity-40")} aria-hidden />
       </button>
     </TableHead>
   )
@@ -108,16 +109,18 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-full sm:w-64">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
+        <InputGroup className="w-full sm:w-64">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, roll no, email, phone…"
+            placeholder="Name, roll no, email, phone…"
             aria-label="Search members"
-            className="pl-8"
           />
-        </div>
+        </InputGroup>
         <Select value={designation} onValueChange={setDesignation}>
           <SelectTrigger aria-label="Filter by designation">
             <SelectValue />
@@ -172,25 +175,24 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
             <X /> Clear filters
           </Button>
         )}
-        <p className="text-muted-foreground text-sm tabular-nums sm:ml-auto" aria-live="polite">
-          {rows.length === members.length
-            ? `${members.length} members`
-            : `${rows.length} of ${members.length} members`}
+        <p className="eyebrow tabular-nums sm:ml-auto" aria-live="polite">
+          {rows.length} / {members.length} members
         </p>
       </div>
 
-      <Card className="py-0">
-        <Table>
+      <div className="bg-card overflow-hidden rounded-xl border">
+        <Table className="[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent">
               <SortHead k="name" sort={sort} onSort={setSort}>Name</SortHead>
-              <SortHead k="rollNumber" sort={sort} onSort={setSort}>Roll no</SortHead>
-              <SortHead k="department" sort={sort} onSort={setSort}>Department</SortHead>
-              <SortHead k="yearOfStudy" sort={sort} onSort={setSort}>Year</SortHead>
+              <SortHead k="rollNumber" sort={sort} onSort={setSort} className="hidden sm:table-cell">Roll no</SortHead>
+              <SortHead k="department" sort={sort} onSort={setSort} className="hidden md:table-cell">Department</SortHead>
+              <SortHead k="yearOfStudy" sort={sort} onSort={setSort} className="hidden sm:table-cell">Year</SortHead>
               <SortHead k="designation" sort={sort} onSort={setSort}>Designation</SortHead>
-              <TableHead className="hidden md:table-cell">Email</TableHead>
+              <TableHead className="hidden xl:table-cell">Email</TableHead>
               <TableHead className="hidden 2xl:table-cell">Phone</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="hidden text-right lg:table-cell">Holding</TableHead>
+              <TableHead className="hidden md:table-cell">Status</TableHead>
               {admin && (
                 <TableHead className="w-10">
                   <span className="sr-only">Actions</span>
@@ -201,44 +203,57 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={admin ? 9 : 8} className="text-muted-foreground h-24 text-center">
+                <TableCell colSpan={admin ? 10 : 9} className="text-muted-foreground h-24 text-center">
                   No members match these filters.
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((m) => (
                 <TableRow key={m.id} className={m.isActive ? undefined : "text-muted-foreground"}>
-                  <TableCell>
-                    <Link href={`/members/${m.id}`} className="font-medium hover:underline">
-                      {m.name}
-                    </Link>
-                    <p className="text-muted-foreground text-xs md:hidden">{m.email}</p>
+                  <TableCell className="min-w-44">
+                    <div className="flex items-center gap-2.5">
+                      <MemberAvatar name={m.name} className={cn(!m.isActive && "opacity-60")} />
+                      <div className="min-w-0">
+                        <Link href={`/members/${m.id}`} className="hover:text-brand-strong font-medium transition-colors">
+                          {m.name}
+                        </Link>
+                        <p className="text-muted-foreground font-mono text-[11px] sm:hidden">{m.rollNumber}</p>
+                        <p className="text-muted-foreground hidden truncate text-xs sm:block xl:hidden">{m.email}</p>
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{m.rollNumber}</TableCell>
-                  <TableCell className="min-w-32 whitespace-normal">{m.department}</TableCell>
-                  <TableCell className="tabular-nums">{m.yearOfStudy}</TableCell>
+                  <TableCell className="hidden font-mono text-xs sm:table-cell">{m.rollNumber}</TableCell>
+                  <TableCell className="hidden min-w-32 whitespace-normal md:table-cell">{m.department}</TableCell>
+                  <TableCell className="hidden font-mono text-xs tabular-nums sm:table-cell">Y{m.yearOfStudy}</TableCell>
                   <TableCell>
                     <DesignationBadge designation={m.designation} />
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <a href={`mailto:${m.email}`} className="hover:underline">
+                  <TableCell className="hidden xl:table-cell">
+                    <a href={`mailto:${m.email}`} className="hover:text-foreground text-muted-foreground">
                       {m.email}
                     </a>
                   </TableCell>
-                  <TableCell className="hidden tabular-nums 2xl:table-cell">
+                  <TableCell className="hidden font-mono text-xs tabular-nums 2xl:table-cell">
                     {m.phone ? (
-                      <a href={`tel:${m.phone.replace(/\s/g, "")}`} className="hover:underline">
+                      <a href={`tel:${m.phone.replace(/\s/g, "")}`} className="hover:text-foreground">
                         {m.phone}
                       </a>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <ActiveBadge active={m.isActive} />
-                      {m.openIssuances > 0 && <ToneBadge tone="amber">Holding {m.openIssuances}</ToneBadge>}
-                    </div>
+                  <TableCell className="hidden text-right lg:table-cell">
+                    {m.openIssuances > 0 ? (
+                      <span className="text-brand-strong inline-flex items-center gap-1.5 font-mono text-xs font-semibold tabular-nums">
+                        <span aria-hidden className="bg-brand size-1.5 rounded-full" />
+                        {m.openIssuances} out
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/60 font-mono text-xs">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <ActiveBadge active={m.isActive} />
                   </TableCell>
                   {admin && (
                     <TableCell>
@@ -250,7 +265,7 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
             )}
           </TableBody>
         </Table>
-      </Card>
+      </div>
     </div>
   )
 }
