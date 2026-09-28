@@ -44,7 +44,13 @@ Open http://localhost:3000. The first run creates the tables in Supabase, locks 
 | `DIRECT_URL`     | Same session pooler, used by `prisma db push`                             |
 | `ADMIN_PASSWORD` | Unlocks all write actions. Changing it signs every admin out.             |
 
-Why session mode: the transaction pooler (port 6543) doesn't support prepared statements, and Prisma's `?pgbouncer=true` workaround costs several extra round trips per query (~650 ms instead of ~130 ms per query to a far-away region). For a long-running server (`npm run dev`, `npm start`, a VM) session mode is Supabase's recommendation. Only for serverless hosting (e.g. Vercel) switch `DATABASE_URL` to port 6543 with `?pgbouncer=true&connection_limit=1`.
+Why session mode: the transaction pooler (port 6543) doesn't support prepared statements, and Prisma's `?pgbouncer=true` workaround costs several extra round trips per query (~650 ms instead of ~130 ms per query to a far-away region). For a long-running server (`npm run dev`, `npm start`, a VM) session mode is Supabase's recommendation. For serverless hosting (e.g. Vercel) set `DATABASE_URL` to the transaction pooler instead: port 6543 with `?pgbouncer=true&connection_limit=5&pool_timeout=20`. Without `pgbouncer=true` Prisma fails with "prepared statement … does not exist"; with a limit of 1 the dashboard's parallel queries time out waiting for a connection.
+
+### Deploying to Vercel
+
+- `vercel.json` pins functions to **Tokyo (`hnd1`)**, next to the Supabase project (`ap-northeast-1`). Every query is a network round trip, so a function in another region makes pages several seconds slower — change the region if your Supabase project lives elsewhere.
+- Project → Settings → Environment Variables: `DATABASE_URL` (transaction pooler, as above), `DIRECT_URL` (session pooler, port 5432), `ADMIN_PASSWORD`. Environment variable changes only apply to new deployments — redeploy after editing them.
+- The database schema isn't pushed during the build; run `npm run db:push` locally (with `.env` pointing at the same project) after schema changes.
 
 Pick a Supabase region close to where the app runs — every query pays the round trip.
 
