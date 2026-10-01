@@ -60,6 +60,20 @@ Any Postgres works too (local, Neon, RDS…): point both URLs at it.
 
 Supabase publishes the `public` schema through its Data API, where anyone with your project's anon key could otherwise read and write these tables. `npm run dev` / `npm run db:push` run `prisma/enable-rls.sql`, which turns on Row Level Security with no policies for the app's tables. The app itself connects as the table owner, so it is unaffected; the Data API gets nothing.
 
+## Google Sheets sync
+
+Every change in the app (adding, editing or deleting a part, issuing, returning…) rewrites a **Components** tab in a Google Sheet a moment later: every part with every field, plus the computed Issued / Available / Stock status. It's one-way — edits made in the sheet are overwritten on the next sync. Admins also get a **Sync to Sheets** button (and a link to the sheet) on the Inventory page.
+
+Setup (once):
+
+1. Google Cloud Console → create a project → **APIs & Services → Enable APIs** → enable **Google Sheets API**.
+2. **IAM & Admin → Service Accounts → Create service account** (no roles needed) → open it → **Keys → Add key → JSON**. A key file downloads.
+3. Create a Google Sheet and **Share** it with the service account's email (`…@….iam.gserviceaccount.com`) as **Editor**.
+4. Set `GOOGLE_SHEET_ID` to the sheet's URL, and `GOOGLE_SERVICE_ACCOUNT_KEY` to the key file base64-encoded (`base64 -i key.json | pbcopy`) — in `.env` for local, and in Vercel → Environment Variables (then redeploy).
+5. Click **Sync to Sheets** once. The tab is created automatically.
+
+Values are written as plain values (never formulas), and times are in IST. Leave both variables empty to turn syncing off. Keep the key file secret — anyone holding it can edit sheets shared with that account.
+
 ## Scripts
 
 | Command             | What it does                                                      |

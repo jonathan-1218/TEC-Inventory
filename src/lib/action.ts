@@ -5,6 +5,7 @@ import { z } from "zod"
 import { isAdmin } from "@/lib/auth"
 import { ActionError } from "@/lib/action-error"
 import { safePath } from "@/lib/safe-path"
+import { scheduleSheetSync } from "@/lib/sheets"
 
 export { ActionError }
 
@@ -48,6 +49,7 @@ export function adminAction<S extends z.ZodType, T>(
     try {
       data = await handler(parsed.data)
       revalidatePath("/", "layout")
+      scheduleSheetSync() // mirror the inventory to Google Sheets after the response (no-op if not configured)
     } catch (e) {
       return { ok: false, error: errorMessage(e) }
     }

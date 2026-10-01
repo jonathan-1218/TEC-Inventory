@@ -49,3 +49,6 @@ next-env.d.ts
 
 /.claude/settings.local.json
 /.claude/scheduled_tasks.lock
+
+# Google service account key files (project-id-<12 hex>.json) — never commit
+/*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json

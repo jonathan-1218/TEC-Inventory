@@ -7,6 +7,8 @@ import { AdminOnly } from "@/components/admin-context"
 import { StockBadge } from "@/components/badges"
 import { StackedBars } from "@/components/charts"
 import { PageHeader } from "@/components/page-header"
+import { SheetSync } from "@/components/inventory/sheet-sync"
+import { configuredSheetUrl } from "@/lib/sheets"
 import { AddComponentButton, InventoryTable, type OpenIssuance } from "@/components/inventory/inventory-table"
 import { StockMeter } from "@/components/inventory/stock-meter"
 import { getInventoryHealth } from "@/lib/analytics"
@@ -49,6 +51,8 @@ export default async function InventoryPage(props: PageProps<"/inventory">) {
     .filter((c) => c.stockStatus !== "ok")
     .sort((a, b) => a.quantityAvailable - b.quantityAvailable || a.name.localeCompare(b.name))
 
+  const sheet = configuredSheetUrl()
+
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader
@@ -61,6 +65,7 @@ export default async function InventoryPage(props: PageProps<"/inventory">) {
         }
       >
         <AdminOnly>
+          {sheet && <SheetSync url={sheet} />}
           <Button variant="outline" asChild>
             <a href="/api/export/components" download>
               <Download /> Export CSV

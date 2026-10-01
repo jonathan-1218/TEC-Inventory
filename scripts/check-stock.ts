@@ -14,6 +14,9 @@ import { csvCell, toCsv } from "@/app/api/export/[entity]/csv"
 import { ActionError } from "@/lib/action-error"
 import { parseDateInput, toDateInput, todayNoonUTC } from "@/lib/dates"
 import { extendDueSchema, issueSchema, projectCreateSchema, taskUpdateSchema } from "@/lib/validators"
+import { createVerify, generateKeyPairSync } from "node:crypto"
+import { componentRows, configuredSheetUrl, pushRowsToSheet, SHEET_HEADER, sheetsConfig, signJwt } from "@/lib/sheets"
+import { withStock } from "@/lib/queries"
 
 if (existsSync(".env")) process.loadEnvFile(".env")
 const base = process.env.DIRECT_URL ?? process.env.DATABASE_URL
@@ -178,7 +181,9 @@ async function main() {
   assert.equal(dayKeys(90).length, 90)
   assert.equal(dayKeys(1)[0], toDateInput(todayNoonUTC()))
 
-  console.log("✓ stock logic, task ordering, CSV, series and validator checks passed")
+  await checkSheets()
+
+  console.log("✓ stock logic, task ordering, CSV, series, validator and Google Sheets checks passed")
 }
 
 main()
@@ -190,3 +195,76 @@ main()
     await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`)
     await db.$disconnect()
   })
+
+/** Google Sheets mirror: config parsing, JWT, row shape, and the push flow against a fake Google API (no network). */
+async function checkSheets() {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 })
+  const keyJson = JSON.stringify({ client_email: "tec-sync@x.iam.gserviceaccount.com", private_key: privateKey.export({ type: "pkcs8", format: "pem" }) })
+  const url = "https://docs.google.com/spreadsheets/d/AbC-123_x/edit#gid=0"
+
+  // Config: off when unset; accepts raw or base64 JSON and a full URL or bare id; rejects junk.
+  assert.equal(sheetsConfig({}), null)
+  assert.equal(configuredSheetUrl({ GOOGLE_SHEET_ID: url }), null)
+  const raw = sheetsConfig({ GOOGLE_SHEET_ID: url, GOOGLE_SERVICE_ACCOUNT_KEY: keyJson })!
+  const b64 = sheetsConfig({ GOOGLE_SHEET_ID: "AbC-123_x", GOOGLE_SERVICE_ACCOUNT_KEY: Buffer.from(keyJson).toString("base64") })!
+  assert.equal(raw.sheetId, "AbC-123_x")
+  assert.deepEqual(raw, b64)
+  assert.equal(configuredSheetUrl({ GOOGLE_SHEET_ID: url, GOOGLE_SERVICE_ACCOUNT_KEY: "x" }), "https://docs.google.com/spreadsheets/d/AbC-123_x/edit")
+  assert.throws(() => sheetsConfig({ GOOGLE_SHEET_ID: "a", GOOGLE_SERVICE_ACCOUNT_KEY: "not json" }), /valid JSON/)
+
+  // JWT: verifies against the public key and carries the claims Google expects.
+  const jwt = signJwt(raw.email, raw.privateKey, 1_000)
+  const [h, c, sig] = jwt.split(".")
+  assert.ok(createVerify("RSA-SHA256").update(`${h}.${c}`).verify(publicKey, sig, "base64url"))
+  const claims = JSON.parse(Buffer.from(c, "base64url").toString())
+  assert.deepEqual(claims, { iss: raw.email, scope: "https://www.googleapis.com/auth/spreadsheets", aud: "https://oauth2.googleapis.com/token", iat: 1_000, exp: 4_600 })
+
+  // Rows: header + one row per part, numbers stay numeric, formula-looking text stays text (written RAW).
+  const base = { id: "c1", name: "=IMPORTXML(1)", modelNumber: null, category: "SENSOR", description: null, quantityTotal: 5, quantityWorking: 4, quantityDamaged: 1, quantityUnderRepair: 0, location: "Box A", unitCost: 120, datasheetUrl: null, lowStockThreshold: 2, notes: null, createdAt: new Date("2026-09-28T04:30:00Z"), updatedAt: new Date("2026-09-28T04:30:00Z") } as const
+  const rows = componentRows([withStock({ ...base }, 3)])
+  assert.equal(rows[0], SHEET_HEADER)
+  const row = Object.fromEntries(SHEET_HEADER.map((k, i) => [k, rows[1][i]]))
+  assert.equal(row["Name"], "=IMPORTXML(1)")
+  assert.equal(row["Category"], "Sensor")
+  assert.equal(row["Available"], 1)
+  assert.equal(row["Issued"], 3)
+  assert.equal(row["Stock status"], "Low stock")
+  assert.equal(row["Last updated"], "2026-09-28 10:00")
+
+  // Push flow: token → find/create tab → write RAW → clear leftovers; token and tab are reused next time.
+  const realFetch = globalThis.fetch
+  const calls: string[] = []
+  let written: unknown
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const u = String(input), m = init?.method ?? "GET"
+    calls.push(`${m} ${u.replace(/^https:\/\/[^/]+/, "")}`)
+    const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
+    if (u.includes("oauth2")) {
+      assert.match(String(init?.body), /grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=/)
+      return ok({ access_token: "tok", expires_in: 3600 })
+    }
+    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer tok")
+    if (m === "GET") return ok({ sheets: [{ properties: { title: "Sheet1" } }] })
+    if (m === "PUT") written = JSON.parse(String(init?.body))
+    if (u.includes("FORBIDDEN")) return new Response(JSON.stringify({ error: { message: "denied" } }), { status: 403 })
+    return ok({})
+  }) as typeof fetch
+  try {
+    const cfg = { ...raw, sheetId: "S1" }
+    assert.deepEqual(await pushRowsToSheet(cfg, rows), { rows: 1, url: "https://docs.google.com/spreadsheets/d/S1/edit" })
+    assert.deepEqual(calls, [
+      "POST /token",
+      "GET /v4/spreadsheets/S1?fields=sheets.properties.title",
+      "POST /v4/spreadsheets/S1:batchUpdate",
+      "PUT /v4/spreadsheets/S1/values/Components!A1?valueInputOption=RAW",
+      "POST /v4/spreadsheets/S1/values/Components!A3%3AZZ:clear",
+    ])
+    assert.deepEqual(written, { values: JSON.parse(JSON.stringify(rows)) })
+    calls.length = 0
+    await pushRowsToSheet(cfg, rows)
+    assert.deepEqual(calls.map((x) => x.split(" ")[0]), ["PUT", "POST"]) // cached token + known tab
+    await assert.rejects(pushRowsToSheet({ ...raw, sheetId: "FORBIDDEN" }, rows), /403: denied — share the sheet with the service account/)
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
