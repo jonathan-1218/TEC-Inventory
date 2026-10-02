@@ -1,5 +1,7 @@
 /**
- * Live mirror of the inventory into a Google Sheet ("Components" tab), one-way: app → sheet.
+ * Live mirror of the inventory into the club's existing Google Sheet ("COMPONENTS" tab), one-way: app → sheet.
+ * It fills that tab's own table — COMPONENT NAME · TOTAL · TYPE · TEC CLUB USAGE · USED QTY · RETURN STATUS ·
+ * AVAILABLE QTY · PURPOSE · PROJECT NAME — and leaves the header, formatting and every other tab alone.
  *
  * Auth is a Google service account (server-to-server, no browser login): we sign a JWT with Node's crypto and
  * trade it for an access token. Each sync rewrites the whole tab from the database, so the sheet can't drift —
@@ -13,13 +15,11 @@ import { after } from "next/server"
 import { db } from "@/lib/db"
 import { issuedCounts } from "@/lib/stock"
 import { withStock, type ComponentWithStock } from "@/lib/queries"
-import { CATEGORY_LABELS } from "@/lib/labels"
+import type { Category } from "@prisma/client"
 
-const TAB = "Components"
+const TAB = "COMPONENTS"
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
 const API = "https://sheets.googleapis.com/v4/spreadsheets"
-// ponytail: fixed to the club's timezone (Vercel runs in UTC); make it an env var if the club ever moves.
-const TIME_ZONE = "Asia/Kolkata"
 
 type Env = Record<string, string | undefined>
 export type SheetsConfig = { sheetId: string; email: string; privateKey: string }
@@ -96,87 +96,171 @@ async function api(token: string, method: string, url: string, body?: unknown) {
   return res.json() as Promise<unknown>
 }
 
-const STOCK_LABELS = { ok: "In stock", low: "Low stock", out: "Out of stock" } as const
-const stamp = (d: Date) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, dateStyle: "short", timeStyle: "short", hourCycle: "h23" })
-    .format(d)
-    .replace(",", "")
+type Cell = string | number | boolean
+
+/** The sheet's TYPE dropdown (a strict list) → the app's categories. Several types share a category. */
+export const TYPE_TO_CATEGORY: Record<string, Category> = {
+  "MICRO CONTROLLERS": "MICROCONTROLLER",
+  "DEVELOPMENT KITS": "MICROCONTROLLER",
+  SENSORS: "SENSOR",
+  WIRES: "CONSUMABLE",
+  TOOLS: "TOOL",
+  BATTERIES: "POWER",
+  TRANSFORMERS: "POWER",
+  ADAPTORS: "POWER",
+  RELAYS: "ACTUATOR_MOTOR",
+  OTHER: "MISC",
+}
+/** App category → the closest TYPE in the sheet's dropdown. */
+const CATEGORY_TO_TYPE: Record<Category, string> = {
+  MICROCONTROLLER: "MICRO CONTROLLERS",
+  SENSOR: "SENSORS",
+  ACTUATOR_MOTOR: "OTHER",
+  POWER: "BATTERIES",
+  COMMUNICATION: "OTHER",
+  DISPLAY: "OTHER",
+  TOOL: "TOOLS",
+  CONSUMABLE: "WIRES",
+  MISC: "OTHER",
+}
+
+export const categoryFromType = (type: string): Category => TYPE_TO_CATEGORY[type.trim().toUpperCase()] ?? "MISC"
+
+/**
+ * TYPE to write for a component. Keeps what the sheet already says while it still maps to the app's category,
+ * so "DEVELOPMENT KITS", "TRANSFORMERS" or a blank aren't flattened to the closest type on every sync; only a
+ * category change in the app rewrites it.
+ */
+export function typeFor(category: Category, current: string | undefined): string {
+  const known = current !== undefined && (current === "" || current.trim().toUpperCase() in TYPE_TO_CATEGORY)
+  return known && categoryFromType(current) === category ? current : CATEGORY_TO_TYPE[category]
+}
 
 export const SHEET_HEADER = [
-  "Name", "Model number", "Category", "Stock status", "Available", "Issued", "Working", "Damaged",
-  "Under repair", "Total", "Low-stock threshold", "Location", "Unit cost", "Datasheet URL", "Description",
-  "Notes", "Created", "Last updated", "ID",
+  "COMPONENT NAME", "TOTAL", "TYPE", "TEC CLUB USAGE", "USED QTY", "RETURN STATUS", "AVAILABLE QTY", "PURPOSE", "PROJECT NAME",
 ]
+const WIDTH = SHEET_HEADER.length
+const BLANK_ROW: Cell[] = ["", "", "", false, "", false, "", "", ""]
+export const sheetKey = (name: string) => name.trim().replace(/\s+/g, " ").toUpperCase()
 
-/** Header + one row per component. Numbers stay numbers so the sheet can sum and chart them. */
-export function componentRows(components: ComponentWithStock[]): (string | number)[][] {
-  return [
-    SHEET_HEADER,
-    ...components.map((c) => [
+/** A component's checkout history, as far as the sheet needs it. */
+export type Use = { notes: string | null; project: string | null }
+export type Usage = { open: Use[]; latest: Use | null }
+
+const joinUnique = (xs: (string | null)[]) => [...new Set(xs.map((x) => x?.trim()).filter(Boolean))].join("; ")
+
+/**
+ * One table row per component (header excluded). TEC CLUB USAGE = it has ever been checked out; USED QTY = units
+ * out right now; RETURN STATUS = everything has come back; PURPOSE / PROJECT NAME = the open checkouts' notes and
+ * projects, or the most recent checkout's once all are back.
+ */
+export function clubRows(components: ComponentWithStock[], usage: Map<string, Usage>, currentTypes: Map<string, string>): Cell[][] {
+  return components.map((c) => {
+    const u = usage.get(c.id)
+    const used = Boolean(u?.latest)
+    const shown = u?.open.length ? u.open : u?.latest ? [u.latest] : []
+    return [
       c.name,
-      c.modelNumber ?? "",
-      CATEGORY_LABELS[c.category],
-      STOCK_LABELS[c.stockStatus],
-      c.quantityAvailable,
-      c.quantityIssued,
-      c.quantityWorking,
-      c.quantityDamaged,
-      c.quantityUnderRepair,
       c.quantityTotal,
-      c.lowStockThreshold,
-      c.location ?? "",
-      c.unitCost ?? "",
-      c.datasheetUrl ?? "",
-      c.description ?? "",
-      c.notes ?? "",
-      stamp(c.createdAt),
-      stamp(c.updatedAt),
-      c.id,
-    ]),
-  ]
+      typeFor(c.category, currentTypes.get(sheetKey(c.name))),
+      used,
+      used ? c.quantityIssued : "",
+      used && c.quantityIssued === 0,
+      c.quantityAvailable,
+      joinUnique(shown.map((s) => s.notes)),
+      joinUnique(shown.map((s) => s.project)),
+    ]
+  })
 }
 
-const range = (sheetId: string, a1: string) => `${API}/${sheetId}/values/${encodeURIComponent(`${TAB}!${a1}`)}`
-let tabReady: string | null = null
+const values = (sheetId: string, a1: string) => `${API}/${sheetId}/values/${encodeURIComponent(`'${TAB}'!${a1}`)}`
 
-async function ensureTab(cfg: SheetsConfig, token: string) {
-  if (tabReady === cfg.sheetId) return
-  const meta = (await api(token, "GET", `${API}/${cfg.sheetId}?fields=sheets.properties.title`)) as {
-    sheets?: { properties?: { title?: string } }[]
+type TableInfo = { gid: number; tableId?: string; endRowIndex: number }
+
+/** The COMPONENTS tab and its table (rows A1:I…), plus the TYPE currently shown for each component name. */
+async function readSheet(cfg: SheetsConfig, token: string): Promise<{ table: TableInfo; currentTypes: Map<string, string> }> {
+  const [meta, grid] = (await Promise.all([
+    api(token, "GET", `${API}/${cfg.sheetId}?fields=sheets(properties(sheetId,title),tables(tableId,range))`),
+    api(token, "GET", `${values(cfg.sheetId, "A1:I")}?valueRenderOption=UNFORMATTED_VALUE`),
+  ])) as [
+    { sheets?: { properties?: { sheetId?: number; title?: string }; tables?: { tableId?: string; range?: { startRowIndex?: number; startColumnIndex?: number; endRowIndex?: number } }[] }[] },
+    { values?: Cell[][] },
+  ]
+  const tab = meta.sheets?.find((s) => s.properties?.title === TAB)
+  if (!tab) throw new Error(`The sheet has no "${TAB}" tab.`)
+  const header = (grid.values?.[0] ?? []).map((h) => String(h).trim().toUpperCase())
+  if (SHEET_HEADER.some((h, i) => header[i] !== h)) {
+    // Refuse rather than write numbers under the wrong headings if someone reorders or renames the columns.
+    throw new Error(`"${TAB}" columns changed — expected ${SHEET_HEADER.join(" · ")} in A1:I1.`)
   }
-  if (!meta.sheets?.some((s) => s.properties?.title === TAB)) {
+  const table = tab.tables?.find((t) => !t.range?.startRowIndex && !t.range?.startColumnIndex)
+  const rows = grid.values?.length ?? 1
+  // First occurrence wins for duplicate names — the same rule the one-off import used.
+  const currentTypes = new Map<string, string>()
+  for (const r of (grid.values ?? []).slice(1)) {
+    const key = sheetKey(String(r[0] ?? ""))
+    if (key && !currentTypes.has(key)) currentTypes.set(key, String(r[2] ?? ""))
+  }
+  return { table: { gid: tab.properties?.sheetId ?? 0, tableId: table?.tableId, endRowIndex: table?.range?.endRowIndex ?? rows }, currentTypes }
+}
+
+/**
+ * Write the rows under the header. The table keeps its size: unused rows below are blanked (checkboxes unticked),
+ * and it grows if there are more components than rows — so formatting, dropdowns and checkboxes stay intact.
+ */
+async function writeTable(cfg: SheetsConfig, token: string, table: TableInfo, rows: Cell[][]) {
+  const height = Math.max(table.endRowIndex - 1, rows.length)
+  if (table.tableId && rows.length + 1 > table.endRowIndex) {
     await api(token, "POST", `${API}/${cfg.sheetId}:batchUpdate`, {
-      requests: [{ addSheet: { properties: { title: TAB, gridProperties: { frozenRowCount: 1 } } } }],
+      requests: [{
+        updateTable: {
+          table: { tableId: table.tableId, range: { sheetId: table.gid, startRowIndex: 0, endRowIndex: rows.length + 1, startColumnIndex: 0, endColumnIndex: WIDTH } },
+          fields: "range",
+        },
+      }],
     })
   }
-  tabReady = cfg.sheetId
+  const body = [...rows, ...Array.from({ length: height - rows.length }, () => BLANK_ROW)]
+  // RAW: values are stored as typed, so a part named "=IMPORTXML(...)" stays text, never a formula.
+  await api(token, "PUT", `${values(cfg.sheetId, `A2:I${height + 1}`)}?valueInputOption=RAW`, { values: body })
 }
 
-/** Rewrite the Components tab from the database. Returns null when syncing isn't configured. */
+/** Rewrite the COMPONENTS table from the database. Returns null when syncing isn't configured. */
 export async function syncComponentsToSheet(): Promise<{ rows: number; url: string } | null> {
   const cfg = sheetsConfig()
   if (!cfg) return null
-  const [components, issued] = await Promise.all([
+  const [components, issued, issuances] = await Promise.all([
     db.component.findMany({ orderBy: { name: "asc" } }),
     issuedCounts(db),
+    db.issuance.findMany({
+      orderBy: { issuedDate: "desc" },
+      select: { componentId: true, returnedDate: true, notes: true, project: { select: { title: true } } },
+    }),
   ])
-  return pushRowsToSheet(cfg, componentRows(components.map((c) => withStock(c, issued.get(c.id) ?? 0))))
+  const usage = new Map<string, Usage>()
+  for (const i of issuances) {
+    const u = usage.get(i.componentId) ?? { open: [], latest: null }
+    const use = { notes: i.notes, project: i.project?.title ?? null }
+    u.latest ??= use
+    if (!i.returnedDate) u.open.push(use)
+    usage.set(i.componentId, u)
+  }
+  const withCounts = components.map((c) => withStock(c, issued.get(c.id) ?? 0))
+  return pushToSheet(cfg, (currentTypes) => clubRows(withCounts, usage, currentTypes))
 }
 
-/** Replace the Components tab's contents with `rows` (header first). */
-export async function pushRowsToSheet(cfg: SheetsConfig, rows: (string | number)[][]) {
+/** Read the sheet, build rows (they need the TYPE currently shown), write them back. */
+export async function pushToSheet(cfg: SheetsConfig, build: (currentTypes: Map<string, string>) => Cell[][]) {
   const token = await accessToken(cfg)
-  await ensureTab(cfg, token)
-  // RAW: values are stored as typed, so a part named "=IMPORTXML(...)" stays text, never a formula.
-  await api(token, "PUT", `${range(cfg.sheetId, "A1")}?valueInputOption=RAW`, { values: rows })
-  // Clear whatever sat below the new last row (deleted components) — no blank-sheet flash in between.
-  await api(token, "POST", `${range(cfg.sheetId, `A${rows.length + 1}:ZZ`)}:clear`, {})
-  return { rows: rows.length - 1, url: sheetUrl(cfg.sheetId) }
+  const { table, currentTypes } = await readSheet(cfg, token)
+  const rows = build(currentTypes)
+  await writeTable(cfg, token, table, rows)
+  return { rows: rows.length, url: sheetUrl(cfg.sheetId) }
 }
 
 /**
  * Queue a sync to run after the response is sent, so saving never waits on Google.
- * ponytail: every admin change triggers one (3 small API calls) rather than tracking which actions touch
+ * ponytail: every admin change triggers one (2 reads + 1 write) rather than tracking which actions touch
  * components — issue/return change the Available/Issued columns too, and nothing can be missed this way.
  * Two near-simultaneous changes can finish out of order; the next change or "Sync to Sheets" corrects it.
  */

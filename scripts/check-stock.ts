@@ -15,7 +15,7 @@ import { ActionError } from "@/lib/action-error"
 import { parseDateInput, toDateInput, todayNoonUTC } from "@/lib/dates"
 import { extendDueSchema, issueSchema, projectCreateSchema, taskUpdateSchema } from "@/lib/validators"
 import { createVerify, generateKeyPairSync } from "node:crypto"
-import { componentRows, configuredSheetUrl, pushRowsToSheet, SHEET_HEADER, sheetsConfig, signJwt } from "@/lib/sheets"
+import { categoryFromType, clubRows, configuredSheetUrl, pushToSheet, SHEET_HEADER, sheetsConfig, signJwt, typeFor } from "@/lib/sheets"
 import { withStock } from "@/lib/queries"
 
 if (existsSync(".env")) process.loadEnvFile(".env")
@@ -219,51 +219,71 @@ async function checkSheets() {
   const claims = JSON.parse(Buffer.from(c, "base64url").toString())
   assert.deepEqual(claims, { iss: raw.email, scope: "https://www.googleapis.com/auth/spreadsheets", aud: "https://oauth2.googleapis.com/token", iat: 1_000, exp: 4_600 })
 
-  // Rows: header + one row per part, numbers stay numeric, formula-looking text stays text (written RAW).
-  const base = { id: "c1", name: "=IMPORTXML(1)", modelNumber: null, category: "SENSOR", description: null, quantityTotal: 5, quantityWorking: 4, quantityDamaged: 1, quantityUnderRepair: 0, location: "Box A", unitCost: 120, datasheetUrl: null, lowStockThreshold: 2, notes: null, createdAt: new Date("2026-09-28T04:30:00Z"), updatedAt: new Date("2026-09-28T04:30:00Z") } as const
-  const rows = componentRows([withStock({ ...base }, 3)])
-  assert.equal(rows[0], SHEET_HEADER)
-  const row = Object.fromEntries(SHEET_HEADER.map((k, i) => [k, rows[1][i]]))
-  assert.equal(row["Name"], "=IMPORTXML(1)")
-  assert.equal(row["Category"], "Sensor")
-  assert.equal(row["Available"], 1)
-  assert.equal(row["Issued"], 3)
-  assert.equal(row["Stock status"], "Low stock")
-  assert.equal(row["Last updated"], "2026-09-28 10:00")
+  // TYPE <-> category: closest-type mapping, and an existing compatible TYPE is kept rather than flattened.
+  assert.equal(categoryFromType("DEVELOPMENT KITS"), "MICROCONTROLLER")
+  assert.equal(categoryFromType(" relays "), "ACTUATOR_MOTOR")
+  assert.equal(categoryFromType(""), "MISC")
+  assert.equal(typeFor("MICROCONTROLLER", "DEVELOPMENT KITS"), "DEVELOPMENT KITS") // still compatible: kept
+  assert.equal(typeFor("MICROCONTROLLER", undefined), "MICRO CONTROLLERS") // new part: closest type
+  assert.equal(typeFor("MISC", ""), "") // blank stays blank while uncategorised
+  assert.equal(typeFor("SENSOR", "DEVELOPMENT KITS"), "SENSORS") // category changed in the app: rewritten
+  assert.equal(typeFor("MISC", "NONSENSE"), "OTHER")
 
-  // Push flow: token → find/create tab → write RAW → clear leftovers; token and tab are reused next time.
+  // Rows: the club layout; formula-looking text stays text (written RAW); usage columns from checkout history.
+  const base = { id: "c1", name: "=IMPORTXML(1)", modelNumber: null, category: "SENSOR", description: null, quantityTotal: 5, quantityWorking: 4, quantityDamaged: 1, quantityUnderRepair: 0, location: "Box A", unitCost: 120, datasheetUrl: null, lowStockThreshold: 2, notes: null, createdAt: new Date(), updatedAt: new Date() } as const
+  const parts = [withStock({ ...base }, 3), withStock({ ...base, id: "c2", name: "Arduino  Nano", category: "MICROCONTROLLER" }, 0), withStock({ ...base, id: "c3", name: "Spare" }, 0)]
+  const usage = new Map([
+    ["c1", { open: [{ notes: "Rover", project: "LFB" }, { notes: "Rover", project: "Garden" }], latest: { notes: "Rover", project: "LFB" } }],
+    ["c2", { open: [], latest: { notes: "Competition", project: null } }],
+  ])
+  const rows = clubRows(parts, usage, new Map([["ARDUINO NANO", "DEVELOPMENT KITS"]]))
+  const at = (r: number) => Object.fromEntries(SHEET_HEADER.map((k, i) => [k, rows[r][i]]))
+  assert.deepEqual(at(0), { "COMPONENT NAME": "=IMPORTXML(1)", TOTAL: 5, TYPE: "SENSORS", "TEC CLUB USAGE": true, "USED QTY": 3, "RETURN STATUS": false, "AVAILABLE QTY": 1, PURPOSE: "Rover", "PROJECT NAME": "LFB; Garden" })
+  assert.deepEqual(at(1), { "COMPONENT NAME": "Arduino  Nano", TOTAL: 5, TYPE: "DEVELOPMENT KITS", "TEC CLUB USAGE": true, "USED QTY": 0, "RETURN STATUS": true, "AVAILABLE QTY": 4, PURPOSE: "Competition", "PROJECT NAME": "" })
+  assert.deepEqual(at(2), { "COMPONENT NAME": "Spare", TOTAL: 5, TYPE: "SENSORS", "TEC CLUB USAGE": false, "USED QTY": "", "RETURN STATUS": false, "AVAILABLE QTY": 4, PURPOSE: "", "PROJECT NAME": "" })
+
+  // Push flow against a fake Google API: read tab + table + current TYPEs, then write under the header only,
+  // blanking leftover table rows; grow the table when there are more parts than rows; refuse a changed header.
   const realFetch = globalThis.fetch
   const calls: string[] = []
-  let written: unknown
+  let written: { values: unknown[][] } | undefined
+  const tableEnd = 3 // header + 2 rows
+  let header = [...SHEET_HEADER]
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const u = String(input), m = init?.method ?? "GET"
-    calls.push(`${m} ${u.replace(/^https:\/\/[^/]+/, "")}`)
+    const u = decodeURIComponent(String(input)), m = init?.method ?? "GET"
+    calls.push(`${m} ${u.replace(/^https:\/\/[^/]+/, "").replace(/\?.*/, "")}`)
     const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
-    if (u.includes("oauth2")) {
-      assert.match(String(init?.body), /grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=/)
-      return ok({ access_token: "tok", expires_in: 3600 })
-    }
+    if (u.includes("oauth2")) return ok({ access_token: "tok", expires_in: 3600 })
     assert.equal(new Headers(init?.headers).get("authorization"), "Bearer tok")
-    if (m === "GET") return ok({ sheets: [{ properties: { title: "Sheet1" } }] })
-    if (m === "PUT") written = JSON.parse(String(init?.body))
     if (u.includes("FORBIDDEN")) return new Response(JSON.stringify({ error: { message: "denied" } }), { status: 403 })
+    if (m === "GET" && u.includes("fields=sheets")) return ok({ sheets: [{ properties: { sheetId: 7, title: "CHECK-LIST" } }, { properties: { sheetId: 0, title: "COMPONENTS" }, tables: [{ tableId: "T1", range: { startRowIndex: 0, endRowIndex: tableEnd } }] }] })
+    if (m === "GET") return ok({ values: [header, ["ARDUINO NANO", 2, "DEVELOPMENT KITS"]] })
+    if (m === "PUT") written = JSON.parse(String(init?.body))
+    if (m === "POST" && u.includes("batchUpdate")) {
+      const req = JSON.parse(String(init?.body)).requests[0].updateTable
+      assert.deepEqual(req, { table: { tableId: "T1", range: { sheetId: 0, startRowIndex: 0, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 9 } }, fields: "range" })
+    }
     return ok({})
   }) as typeof fetch
   try {
     const cfg = { ...raw, sheetId: "S1" }
-    assert.deepEqual(await pushRowsToSheet(cfg, rows), { rows: 1, url: "https://docs.google.com/spreadsheets/d/S1/edit" })
-    assert.deepEqual(calls, [
-      "POST /token",
-      "GET /v4/spreadsheets/S1?fields=sheets.properties.title",
-      "POST /v4/spreadsheets/S1:batchUpdate",
-      "PUT /v4/spreadsheets/S1/values/Components!A1?valueInputOption=RAW",
-      "POST /v4/spreadsheets/S1/values/Components!A3%3AZZ:clear",
-    ])
-    assert.deepEqual(written, { values: JSON.parse(JSON.stringify(rows)) })
+    // 1 part, table has 2 body rows → writes A2:I3 with the second row blanked.
+    assert.deepEqual(await pushToSheet(cfg, (types) => clubRows([parts[1]], usage, types)), { rows: 1, url: "https://docs.google.com/spreadsheets/d/S1/edit" })
+    assert.deepEqual(calls, ["POST /token", "GET /v4/spreadsheets/S1", "GET /v4/spreadsheets/S1/values/'COMPONENTS'!A1:I", "PUT /v4/spreadsheets/S1/values/'COMPONENTS'!A2:I3"])
+    assert.equal(written!.values.length, 2)
+    assert.equal(written!.values[0][2], "DEVELOPMENT KITS") // read back from the sheet and kept
+    assert.deepEqual(written!.values[1], ["", "", "", false, "", false, "", "", ""])
+    // 3 parts, table has 2 body rows → grow the table to 4 rows first, then write A2:I4.
     calls.length = 0
-    await pushRowsToSheet(cfg, rows)
-    assert.deepEqual(calls.map((x) => x.split(" ")[0]), ["PUT", "POST"]) // cached token + known tab
-    await assert.rejects(pushRowsToSheet({ ...raw, sheetId: "FORBIDDEN" }, rows), /403: denied — share the sheet with the service account/)
+    await pushToSheet(cfg, (types) => clubRows(parts, usage, types))
+    assert.deepEqual(calls.map((c) => c.split(" ")[0] + (c.includes("batchUpdate") ? ":grow" : "")), ["GET", "GET", "POST:grow", "PUT"])
+    assert.equal(written!.values.length, 3)
+    // Renamed/reordered columns → refuse to write.
+    header = ["NAME", ...SHEET_HEADER.slice(1)]
+    calls.length = 0
+    await assert.rejects(pushToSheet(cfg, (types) => clubRows(parts, usage, types)), /columns changed/)
+    assert.ok(!calls.some((c) => c.startsWith("PUT")))
+    await assert.rejects(pushToSheet({ ...raw, sheetId: "FORBIDDEN" }, () => []), /403: denied — share the sheet with the service account/)
   } finally {
     globalThis.fetch = realFetch
   }

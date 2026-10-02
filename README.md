@@ -62,17 +62,29 @@ Supabase publishes the `public` schema through its Data API, where anyone with y
 
 ## Google Sheets sync
 
-Every change in the app (adding, editing or deleting a part, issuing, returning…) rewrites a **Components** tab in a Google Sheet a moment later: every part with every field, plus the computed Issued / Available / Stock status. It's one-way — edits made in the sheet are overwritten on the next sync. Admins also get a **Sync to Sheets** button (and a link to the sheet) on the Inventory page.
+The club's **Components list** sheet stays in step with the app. A moment after any change (adding, editing or deleting a part, issuing, returning…) the app rewrites the **COMPONENTS** table:
+
+| Column | From the app |
+| --- | --- |
+| COMPONENT NAME, TOTAL | the part |
+| TYPE | the part's category, as the closest dropdown option. An existing TYPE is kept while it still fits the category (e.g. DEVELOPMENT KITS or a blank for an uncategorised part); changing the category in the app rewrites it. |
+| TEC CLUB USAGE | ticked once the part has ever been checked out |
+| USED QTY | units out right now |
+| RETURN STATUS | ticked when everything that went out has come back |
+| AVAILABLE QTY | working units not on loan |
+| PURPOSE, PROJECT NAME | notes and projects of the open checkouts (or the latest one, once all are back) |
+
+The header row, formatting, dropdowns, checkboxes and the other tabs are never touched; leftover table rows are blanked and the table grows if needed. It's one-way — edits typed into those rows are overwritten on the next sync (use other tabs or columns for your own notes). If the header is renamed or reordered the sync stops with an error instead of writing under the wrong headings. Admins also get **Sync to Sheets** (and a link to the sheet) on the Inventory page. Sheets keeps version history (File → Version history) if you ever need an older state.
 
 Setup (once):
 
 1. Google Cloud Console → create a project → **APIs & Services → Enable APIs** → enable **Google Sheets API**.
-2. **IAM & Admin → Service Accounts → Create service account** (no roles needed) → open it → **Keys → Add key → JSON**. A key file downloads.
-3. Create a Google Sheet and **Share** it with the service account's email (`…@….iam.gserviceaccount.com`) as **Editor**.
-4. Set `GOOGLE_SHEET_ID` to the sheet's URL, and `GOOGLE_SERVICE_ACCOUNT_KEY` to the key file base64-encoded (`base64 -i key.json | pbcopy`) — in `.env` for local, and in Vercel → Environment Variables (then redeploy).
-5. Click **Sync to Sheets** once. The tab is created automatically.
+2. **IAM & Admin → Service Accounts → Create service account** (no roles needed) → **Keys → Add key → JSON**. If key creation is blocked by the `iam.disableServiceAccountKeyCreation` organization policy, grant yourself *Organization Policy Administrator* on the organization and override that policy (Enforcement off) for this project only.
+3. **Share** the sheet with the service account's email (`…@….iam.gserviceaccount.com`) as **Editor**.
+4. Set `GOOGLE_SHEET_ID` to the sheet's URL and `GOOGLE_SERVICE_ACCOUNT_KEY` to the key file base64-encoded (`base64 -i key.json | pbcopy`) — in `.env` for local and in Vercel → Environment Variables (then redeploy). Keep the key file outside the project folder.
+5. Click **Sync to Sheets** once.
 
-Values are written as plain values (never formulas), and times are in IST. Leave both variables empty to turn syncing off. Keep the key file secret — anyone holding it can edit sheets shared with that account.
+Leave both variables empty to turn syncing off. Keep the key secret — anyone holding it can edit sheets shared with that account.
 
 ## Scripts
 
