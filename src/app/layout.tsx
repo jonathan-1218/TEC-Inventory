@@ -10,6 +10,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Intro } from "@/components/intro/intro"
 import { SiteHeader } from "@/components/site-header"
 import { isAdmin } from "@/lib/auth"
+import { teamSession } from "@/lib/team-auth"
 import "./globals.css"
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] })
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Reading cookies makes every page render per-request, so data is always fresh.
-  const [admin, cookieStore] = await Promise.all([isAdmin(), cookies()])
+  const [admin, team, cookieStore] = await Promise.all([isAdmin(), teamSession(), cookies()])
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
 
   return (
@@ -33,7 +34,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Intro />
           <TooltipProvider>
-            <AdminProvider isAdmin={admin}>
+            <AdminProvider isAdmin={admin} team={team && { projectId: team.projectId, projectTitle: team.projectTitle }}>
               <SidebarProvider defaultOpen={sidebarOpen}>
                 <AppSidebar />
                 <SidebarInset className="dotgrid">

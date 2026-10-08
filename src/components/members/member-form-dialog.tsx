@@ -161,13 +161,12 @@ function MemberForm({
           </FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Email" htmlFor="member-email" error={errors.email}>
+          <FormField label="Email (optional)" htmlFor="member-email" error={errors.email}>
             <Input
               id="member-email"
               name="email"
               type="email"
-              defaultValue={member?.email}
-              required
+              defaultValue={member?.email ?? ""}
               autoComplete="off"
             />
           </FormField>

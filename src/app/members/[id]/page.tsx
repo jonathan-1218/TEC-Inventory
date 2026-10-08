@@ -145,9 +145,11 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                 <ActiveBadge active={member.isActive} />
               </span>
               <span className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                <a href={`mailto:${member.email}`} className="hover:text-foreground inline-flex items-center gap-1.5">
-                  <Mail className="size-3.5" /> {member.email}
-                </a>
+                {member.email && (
+                  <a href={`mailto:${member.email}`} className="hover:text-foreground inline-flex items-center gap-1.5">
+                    <Mail className="size-3.5" /> {member.email}
+                  </a>
+                )}
                 {member.phone && (
                   <a
                     href={`tel:${member.phone.replace(/\s/g, "")}`}

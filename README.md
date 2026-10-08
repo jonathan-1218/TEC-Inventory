@@ -12,6 +12,10 @@ Inventory, checkout and project tracker for the TEC tech club.
 
 Anyone can browse. Adding, editing, issuing, returning and deleting require the admin password.
 
+**Project team logins.** A team registers at `/signup`: individual or group (2–10 members, each with name, roll number, department and year), project title, and a mentor picked from the list admins keep under **Sign-ups & mentors** (`/accounts`), plus a login email and password. Nothing is created until an admin approves it there; approval creates the project and its members (existing roll numbers are reused). An approved team logs in on `/login` → **Project team** and can post progress updates and manage tasks on its own project only, and sees its borrowed parts on **My project** (`/my`). Sessions are signed with `SESSION_SECRET` (falls back to `ADMIN_PASSWORD`).
+
+**Goals.** Admins set a club-wide goal (e.g. 50% by a date) on `/accounts`, and can override it per project from the project page (**Set goal**). Expected progress rises in a straight line from the project's start to the goal; a project more than 10 points below that pace, or short of the goal after its date, is flagged on its project page, on the team's **My project** page, and under **Needs attention** on the dashboard.
+
 Stack: Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Prisma 6 · Postgres on Supabase · zod.
 
 ## Quick start

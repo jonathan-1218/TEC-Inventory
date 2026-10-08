@@ -3,17 +3,18 @@ import Link from "next/link"
 import { ArrowLeft, LockKeyhole } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { isAdmin } from "@/lib/auth"
+import { teamSession } from "@/lib/team-auth"
 import { safePath } from "@/lib/safe-path"
 import { TecLogo } from "@/components/tec-logo"
 import { LoginForm } from "./login-form"
 
-export const metadata: Metadata = { title: "Admin login" }
+export const metadata: Metadata = { title: "Log in" }
 
 export default async function LoginPage(props: PageProps<"/login">) {
   const { next } = await props.searchParams
   // Only allow same-site relative redirects (see safePath — blocks protocol-relative and control-char bypasses).
   const target = safePath(next)
-  const admin = await isAdmin()
+  const admin = (await isAdmin()) || !!(await teamSession())
 
   return (
     <div className="flex min-h-[calc(100svh-9rem)] items-center justify-center py-6">
@@ -30,13 +31,13 @@ export default async function LoginPage(props: PageProps<"/login">) {
         <div className="grid gap-5 px-6 pt-6 pb-6">
           <div className="grid gap-1.5">
             <p className="eyebrow flex items-center gap-2">
-              <LockKeyhole className="text-brand-strong size-3.5" /> Admin access
+              <LockKeyhole className="text-brand-strong size-3.5" /> Sign in
             </p>
             <h1 className="font-display text-2xl leading-tight font-extrabold tracking-[-0.02em]">
               {admin ? "You're signed in" : "Log in to make changes"}
             </h1>
             <p className="text-muted-foreground text-sm text-pretty">
-              Browsing is open to everyone. The club admin password unlocks adding, editing, issuing and deleting.
+              Browsing is open to everyone. Project teams log in to post progress and manage their tasks; club admins manage everything.
             </p>
           </div>
           {admin ? (

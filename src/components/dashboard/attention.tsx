@@ -7,6 +7,8 @@ import { ReturnDialog } from "@/components/return-dialog"
 import type { DueIssuance } from "@/lib/analytics"
 import { toDateInput } from "@/lib/dates"
 import { getComponentsWithStock } from "@/lib/queries"
+import { db } from "@/lib/db"
+import { getClubGoal, goalFor, goalStatus } from "@/lib/goals"
 import { dueSoon } from "./data"
 import { ExtendDue } from "./extend-due"
 import { relDays } from "./util"
@@ -15,13 +17,25 @@ const TASK_LIMIT = 5
 
 /** Overdue + due-soon returns (admin can return / extend in place), low stock, and tasks coming due. */
 export async function AttentionBody({ admin }: { admin: boolean }) {
-  const [due, components] = await Promise.all([dueSoon(), getComponentsWithStock()])
+  const [due, components, projects, club] = await Promise.all([
+    dueSoon(),
+    getComponentsWithStock(),
+    db.project.findMany({
+      where: { status: { notIn: ["COMPLETED", "DROPPED"] } },
+      select: { id: true, title: true, status: true, progressPercent: true, startDate: true, createdAt: true, goalPercent: true, goalDate: true },
+    }),
+    getClubGoal(),
+  ])
+  const behind = projects
+    .map((p) => ({ p, g: goalStatus(p, goalFor(p, club)) }))
+    .filter((x): x is { p: (typeof projects)[number]; g: NonNullable<typeof x.g> } => !!x.g?.behind)
+    .sort((a, b) => b.g.behindBy - a.g.behindBy)
   const returns = [...due.overdue, ...due.dueSoon]
   const low = components
     .filter((c) => c.stockStatus !== "ok")
     .sort((a, b) => a.quantityAvailable / Math.max(1, a.lowStockThreshold) - b.quantityAvailable / Math.max(1, b.lowStockThreshold))
 
-  if (!returns.length && !low.length && !due.tasks.length) {
+  if (!returns.length && !low.length && !due.tasks.length && !behind.length) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-center">
         <CheckCheck className="size-5 text-muted-foreground" aria-hidden />
@@ -33,6 +47,28 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {behind.length > 0 && (
+        <Section title="Behind goal" note={`${behind.length} ${behind.length === 1 ? "project" : "projects"} below pace`} href="/projects">
+          {behind.map(({ p, g }) => (
+            <li key={p.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 py-2">
+              <Led className="bg-danger" />
+              <div className="min-w-0">
+                <Link href={`/projects/${p.id}`} className="block truncate text-sm font-medium hover:underline">
+                  {p.title}
+                </Link>
+                <p className="truncate text-xs text-muted-foreground">
+                  {g.missed ? `Missed ${g.percent}% goal` : `${g.behindBy} pts behind pace`} · goal {g.percent}%
+                </p>
+              </div>
+              <span className="font-mono text-xs tabular-nums">
+                <b className="font-semibold text-danger">{p.progressPercent}%</b>
+                <span className="text-muted-foreground">/{g.expected}%</span>
+              </span>
+            </li>
+          ))}
+        </Section>
+      )}
+
       {returns.length > 0 && (
         <Section title="Returns" note={`${due.overdue.length} late · ${due.dueSoon.length} due in 3 days`} href="/issuances?tab=overdue">
           {returns.map((r) => (

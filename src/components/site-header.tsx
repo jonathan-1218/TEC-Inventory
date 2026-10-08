@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { GlobalSearch } from "@/components/global-search"
-import { useIsAdmin, useLogout } from "@/components/admin-context"
+import { useIsAdmin, useLogout, useTeam } from "@/components/admin-context"
 import { NAV, isNavActive } from "@/components/app-sidebar"
 import { TecLogo } from "@/components/tec-logo"
 
 export function SiteHeader() {
   const admin = useIsAdmin()
+  const team = useTeam()
   const pathname = usePathname()
   const { resolvedTheme, setTheme } = useTheme()
   const [pending, logOut] = useLogout()
@@ -49,7 +50,7 @@ export function SiteHeader() {
           <Sun className="hidden dark:block" />
           <Moon className="dark:hidden" />
         </Button>
-        {admin ? (
+        {admin || team ? (
           <Button variant="outline" size="sm" disabled={pending} onClick={logOut}>
             <LogOut />
             <span className="hidden sm:inline">Log out</span>
@@ -58,7 +59,7 @@ export function SiteHeader() {
           <Button variant="outline" size="sm" asChild>
             <Link href={pathname === "/login" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`}>
               <LogIn />
-              <span className="hidden sm:inline">Admin login</span>
+              <span className="hidden sm:inline">Log in</span>
             </Link>
           </Button>
         )}

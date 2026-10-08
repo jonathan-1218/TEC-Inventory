@@ -3,9 +3,10 @@
 import { z } from "zod"
 import { db } from "@/lib/db"
 import type { Prisma, ProjectStatus } from "@prisma/client"
-import { ActionError, adminAction } from "@/lib/action"
+import { ActionError, adminAction, projectAction } from "@/lib/action"
 import { STATUSES } from "@/lib/labels"
 import {
+  goalSchema,
   idSchema,
   progressUpdateSchema,
   projectComponentRemoveSchema,
@@ -103,7 +104,7 @@ async function syncProgress(tx: Prisma.TransactionClient, projectId: string) {
   })
 }
 
-export const addProgressUpdate = adminAction(progressUpdateSchema, async (data) => {
+export const addProgressUpdate = projectAction(progressUpdateSchema, async (d) => d.projectId, async (data) => {
   return db.$transaction(async (tx) => {
     const u = await tx.progressUpdate.create({ data })
     await syncProgress(tx, data.projectId)
@@ -111,10 +112,29 @@ export const addProgressUpdate = adminAction(progressUpdateSchema, async (data) 
   })
 })
 
-export const deleteProgressUpdate = adminAction(idSchema, async ({ id }) => {
-  return db.$transaction(async (tx) => {
-    const u = await tx.progressUpdate.delete({ where: { id } })
-    await syncProgress(tx, u.projectId)
+export const deleteProgressUpdate = projectAction(
+  idSchema,
+  async ({ id }) => (await db.progressUpdate.findUnique({ where: { id }, select: { projectId: true } }))?.projectId,
+  async ({ id }) => {
+    return db.$transaction(async (tx) => {
+      const u = await tx.progressUpdate.delete({ where: { id } })
+      await syncProgress(tx, u.projectId)
+      return { id }
+    })
+  }
+)
+
+/** Admin: this project's own goal (blank both to fall back to the club-wide goal). */
+export const setProjectGoal = adminAction(
+  z.object({ id: z.string().min(1) }).and(goalSchema),
+  async ({ id, goalPercent, goalDate }) => {
+    await db.project.update({ where: { id }, data: { goalPercent, goalDate } })
     return { id }
-  })
+  }
+)
+
+/** Admin: the club-wide goal every project without its own goal is measured against. */
+export const setClubGoal = adminAction(goalSchema, async ({ goalPercent, goalDate }) => {
+  await db.clubSettings.upsert({ where: { id: "club" }, create: { goalPercent, goalDate }, update: { goalPercent, goalDate } })
+  return { id: "club" }
 })

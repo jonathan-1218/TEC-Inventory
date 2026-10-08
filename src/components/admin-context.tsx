@@ -6,9 +6,29 @@ import { logout } from "@/app/actions/auth"
 import { runAction } from "@/lib/client"
 
 const AdminContext = createContext(false)
+export type TeamInfo = { projectId: string; projectTitle: string } | null
+const TeamContext = createContext<TeamInfo>(null)
 
-export function AdminProvider({ isAdmin, children }: { isAdmin: boolean; children: React.ReactNode }) {
-  return <AdminContext.Provider value={isAdmin}>{children}</AdminContext.Provider>
+/**
+ * `isAdmin` gates write controls. Nest a second provider with `isAdmin` = "may edit this project"
+ * to open a project's own controls (tasks, progress) to its signed-in team.
+ */
+export function AdminProvider({
+  isAdmin,
+  team,
+  children,
+}: {
+  isAdmin: boolean
+  team?: TeamInfo
+  children: React.ReactNode
+}) {
+  const inner = <AdminContext.Provider value={isAdmin}>{children}</AdminContext.Provider>
+  return team === undefined ? inner : <TeamContext.Provider value={team}>{inner}</TeamContext.Provider>
+}
+
+/** The signed-in project team, if any. */
+export function useTeam() {
+  return useContext(TeamContext)
 }
 
 /** True when the viewer is logged in as admin. Use it to hide write controls. */

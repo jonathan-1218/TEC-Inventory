@@ -94,7 +94,8 @@ model Member {
   department  String
   yearOfStudy Int
   designation Designation @default(MEMBER)
-  email       String      @unique
+  // Optional: members added through a team sign-up only give name, roll number, department and year.
+  email       String?     @unique
   phone       String?
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
@@ -140,9 +141,15 @@ model Project {
   progressPercent Int           @default(0)
   startDate       DateTime?
   targetDate      DateTime?
+  // Admin-set goal for this project; when unset the club-wide goal (ClubSettings) applies.
+  goalPercent     Int?
+  goalDate        DateTime?
+  mentorId        String?
+  mentor          Mentor?       @relation(fields: [mentorId], references: [id], onDelete: SetNull)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  account         Account?
   members         ProjectMember[]
   progressUpdates ProgressUpdate[]
   components      ProjectComponent[]
@@ -227,4 +234,41 @@ model Task {
 
   @@index([projectId, status])
   @@index([assigneeId])
+}
+
+/**
+ * Faculty mentors teams pick from when they sign up (maintained by admins).
+ */
+model Mentor {
+  id          String    @id @default(cuid())
+  name        String
+  designation String
+  department  String?
+  createdAt   DateTime  @default(now())
+  projects    Project[]
+}
+
+/**
+ * A project team's login. Created by the public sign-up form and inert until an admin approves it;
+ * approval turns `signup` into a Project + Members and links `projectId`. Rejecting deletes the row.
+ */
+model Account {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  // { kind: "INDIVIDUAL" | "GROUP", title, description, mentorId, members: [{ name, rollNumber, department, yearOfStudy }] }
+  signup       Json
+  approvedAt   DateTime?
+  projectId    String?   @unique
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+}
+
+/**
+ * Single row (id "club"): the club-wide progress goal every project is measured against unless it has its own.
+ */
+model ClubSettings {
+  id          String    @id @default("club")
+  goalPercent Int?
+  goalDate    DateTime?
 }

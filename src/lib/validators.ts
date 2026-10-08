@@ -90,7 +90,10 @@ const memberBase = z.object({
   department: reqStr(80),
   yearOfStudy: int(1).max(6, "Must be 6 or less"),
   designation,
-  email: z.string().trim().toLowerCase().pipe(z.email("Must be a valid email")),
+  email: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().toLowerCase() || null : emptyToNull(v)),
+    z.email("Must be a valid email").max(200).nullable()
+  ),
   phone: optStr(20),
   isActive: bool,
 })
@@ -229,6 +232,68 @@ export const taskMoveSchema = z.object({ id, status: taskStatus, order: int() })
 export const taskDoneSchema = z.object({ id, done: bool })
 
 export const loginSchema = z.object({ password: z.string().min(1, "Enter the admin password").max(200) })
+
+// ---------- Team accounts ----------
+
+const email = z.string().trim().toLowerCase().max(200).pipe(z.email("Must be a valid email"))
+
+export const signupMemberSchema = z.object({
+  name: reqStr(100),
+  rollNumber: reqStr(40).transform((s) => s.toUpperCase()),
+  department: reqStr(80),
+  yearOfStudy: int(1).max(6, "Must be 6 or less"),
+})
+
+export const MAX_GROUP = 10
+
+/** Public sign-up. members[0] is the person signing up (project lead). */
+/** What an Account keeps in `signup` until it's approved. */
+export const storedSignupSchema = z.object({
+  kind: z.enum(["INDIVIDUAL", "GROUP"]),
+  title: reqStr(120),
+  description: optStr(2000),
+  mentorId: id,
+  members: z.array(signupMemberSchema).min(1).max(MAX_GROUP),
+})
+export type StoredSignup = z.output<typeof storedSignupSchema>
+
+export const signupSchema = storedSignupSchema
+  .extend({ email, password: z.string().min(8, "Use at least 8 characters").max(200) })
+  .superRefine((v, ctx) => {
+    if (v.kind === "INDIVIDUAL" && v.members.length !== 1) {
+      ctx.addIssue({ code: "custom", path: ["members"], message: "An individual project has exactly one member" })
+    }
+    if (v.kind === "GROUP" && v.members.length < 2) {
+      ctx.addIssue({ code: "custom", path: ["members"], message: "A group project needs at least 2 members" })
+    }
+    const rolls = v.members.map((m) => m.rollNumber)
+    if (new Set(rolls).size !== rolls.length) {
+      ctx.addIssue({ code: "custom", path: ["members"], message: "Each member needs a different roll number" })
+    }
+  })
+export type SignupInput = z.input<typeof signupSchema>
+
+export const teamLoginSchema = z.object({ email, password: z.string().min(1, "Enter your password").max(200) })
+
+export const mentorSchema = z.object({
+  name: reqStr(100),
+  designation: reqStr(80),
+  department: optStr(80),
+})
+
+// ---------- Goals ----------
+
+/** Both blank clears the goal; otherwise both are required. */
+export const goalSchema = z
+  .object({
+    goalPercent: z.preprocess(emptyToNull, z.coerce.number().int("Must be a whole number").min(1, "At least 1").max(100, "100 or less").nullable()),
+    goalDate: optDate,
+  })
+  .superRefine((g, ctx) => {
+    if ((g.goalPercent == null) !== (g.goalDate == null)) {
+      ctx.addIssue({ code: "custom", path: [g.goalPercent == null ? "goalPercent" : "goalDate"], message: "Set both, or leave both blank" })
+    }
+  })
 
 export type IssueInput = z.output<typeof issueSchema>
 export type ReturnInput = z.output<typeof returnSchema>

@@ -22,9 +22,14 @@ import {
   RequirementDialog,
 } from "@/components/projects/detail-controls"
 import { ProgressUpdateForm } from "@/components/projects/progress-update-form"
+import { GoalBanner } from "@/components/projects/goal-banner"
+import { GoalDialog } from "@/components/projects/goal-dialog"
+import { getClubGoal, goalFor, goalStatus } from "@/lib/goals"
 import { ProjectTasks } from "@/components/tasks/project-tasks"
 import { db } from "@/lib/db"
 import { isAdmin } from "@/lib/auth"
+import { teamSession } from "@/lib/team-auth"
+import { AdminProvider } from "@/components/admin-context"
 import { calendarDay, daysOverdue, formatDate, isOverdue, toDateInput, todayNoonUTC } from "@/lib/dates"
 import { DESIGNATION_LABELS, TECH_STACK_KEYS, TECH_STACK_LABELS, parseTechStack } from "@/lib/labels"
 import { getSelectOptions, withStock } from "@/lib/queries"
@@ -51,12 +56,15 @@ const initials = (name: string) =>
 export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { id } = await props.params
   const admin = await isAdmin() // cookie check, no DB round trip
+  // A signed-in team may post progress and manage tasks on its own project (the actions re-check this).
+  const canEdit = admin || (await teamSession())?.projectId === id
   // One parallel round of queries; the write-control data (admins only) loads alongside the project.
-  const [project, issued, options, teams] = await Promise.all([
+  const [project, issued, options, teams, clubGoal] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
         team: { select: { id: true, name: true } },
+        mentor: { select: { name: true, designation: true, department: true } },
         members: {
           include: { member: { select: { id: true, name: true, designation: true } } },
           orderBy: { member: { name: "asc" } },
@@ -83,8 +91,10 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     issuedCounts(db),
     admin ? getSelectOptions() : null,
     admin ? db.team.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }) : [],
+    getClubGoal(),
   ])
   if (!project) notFound()
+  const goal = goalStatus(project, goalFor(project, clubGoal))
 
   const todayDate = todayNoonUTC()
   const today = toDateInput(todayDate)
@@ -160,6 +170,12 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         description={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <ProjectStatusBadge status={project.status} />
+            {project.mentor && (
+              <span className="text-xs">
+                Mentor: {project.mentor.name}, {project.mentor.designation}
+                {project.mentor.department && ` (${project.mentor.department})`}
+              </span>
+            )}
             {(project.startDate || project.targetDate) && (
               <span className="font-mono text-xs">
                 {formatDate(project.startDate)} →{" "}
@@ -172,6 +188,12 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           </span>
         }
       >
+        {admin && (
+          <GoalDialog
+            projectId={project.id}
+            current={{ percent: project.goalPercent, date: project.goalDate ? toDateInput(project.goalDate) : null }}
+          />
+        )}
         {admin && (
           <ProjectHeaderActions
             teams={teams}
@@ -189,6 +211,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           />
         )}
       </PageHeader>
+
+      {goal && <GoalBanner status={goal} progress={project.progressPercent} />}
 
       {/* ---------- Overview readout ---------- */}
       <section
@@ -283,13 +307,15 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       </section>
 
       {/* ---------- Tasks ---------- */}
-      <ProjectTasks
-        projectId={project.id}
-        tasks={tasks}
-        today={today}
-        projectMembers={project.members.map((m) => ({ id: m.member.id, name: m.member.name }))}
-        otherMembers={memberCandidates.map((m) => ({ id: m.id, name: m.name }))}
-      />
+      <AdminProvider isAdmin={canEdit}>
+        <ProjectTasks
+          projectId={project.id}
+          tasks={tasks}
+          today={today}
+          projectMembers={project.members.map((m) => ({ id: m.member.id, name: m.member.name }))}
+          otherMembers={memberCandidates.map((m) => ({ id: m.id, name: m.name }))}
+        />
+      </AdminProvider>
 
       <div className="grid items-start gap-6 lg:grid-cols-3">
         {/* Side column first in the DOM so members follow the tasks on phones. */}
@@ -436,7 +462,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                   }.`}
                 />
               )}
-              {options && (
+              {canEdit && (
                 <ProgressUpdateForm
                   projectId={project.id}
                   today={today}
@@ -450,7 +476,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                 <EmptyState icon={History} title="No progress updates yet" />
               ) : (
                 <div className="grid gap-4">
-                  <UpdateList updates={project.progressUpdates.slice(0, EARLY_UPDATES)} all={project.progressUpdates} admin={admin} />
+                  <UpdateList updates={project.progressUpdates.slice(0, EARLY_UPDATES)} all={project.progressUpdates} admin={canEdit} />
                   {earlier.length > 0 && (
                     <details className="group">
                       <summary className="text-muted-foreground hover:text-foreground w-fit cursor-pointer text-sm">
@@ -458,7 +484,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                         <span className="hidden group-open:inline">Hide earlier updates</span>
                       </summary>
                       <div className="mt-4">
-                        <UpdateList updates={earlier} all={project.progressUpdates} admin={admin} />
+                        <UpdateList updates={earlier} all={project.progressUpdates} admin={canEdit} />
                       </div>
                     </details>
                   )}

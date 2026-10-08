@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/auth"
 import { ActionError } from "@/lib/action-error"
 import { safePath } from "@/lib/safe-path"
 import { scheduleSheetSync } from "@/lib/sheets"
+import { teamSession } from "@/lib/team-auth"
 
 export { ActionError }
 
@@ -21,15 +22,45 @@ export function adminAction<S extends z.ZodType, T>(
   schema: S,
   handler: (input: z.output<S>) => Promise<T>
 ) {
+  return guardedAction(schema, async () => false, handler)
+}
+
+/**
+ * Like adminAction, but a signed-in team may also run it on its own project. `projectOf` resolves the
+ * project the (validated) input touches — look it up from the row for id-only inputs, never trust the client.
+ */
+export function projectAction<S extends z.ZodType, T>(
+  schema: S,
+  projectOf: (input: z.output<S>) => Promise<string | null | undefined>,
+  handler: (input: z.output<S>) => Promise<T>
+) {
+  return guardedAction(
+    schema,
+    async (input) => {
+      const team = await teamSession()
+      return !!team && team.projectId === (await projectOf(input))
+    },
+    handler
+  )
+}
+
+function guardedAction<S extends z.ZodType, T>(
+  schema: S,
+  allowNonAdmin: (input: z.output<S>) => Promise<boolean>,
+  handler: (input: z.output<S>) => Promise<T>
+) {
   // Accepts typed input or raw string form values; zod validates both.
   // Optional `redirectTo` (same-site path) navigates after success in the same round trip,
   // e.g. deleting from a detail page without it re-rendering as a 404 first.
   return async (
     raw: (z.input<S> | Record<string, string>) & { redirectTo?: string }
   ): Promise<ActionResult<T>> => {
-    if (!(await isAdmin())) return { ok: false, error: "Admin login required to make changes." }
-
+    const admin = await isAdmin()
     const parsed = schema.safeParse(raw)
+    // Visitors are refused before validation; a signed-in team sees validation errors, then the project check.
+    if (!admin && (parsed.success ? !(await allowNonAdmin(parsed.data)) : !(await teamSession()))) {
+      return { ok: false, error: "Admin login required to make changes." }
+    }
     if (!parsed.success) {
       const issue = parsed.error.issues[0]
       const field = issue?.path.join(".")
