@@ -5,36 +5,20 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { FormField } from "@/components/form-field"
 import { login } from "@/app/actions/auth"
 import { teamLogin } from "@/app/actions/accounts"
 import { runAction } from "@/lib/client"
 
-export function LoginForm({ next }: { next: string }) {
+/** Team login (email + password) on /login; the admin password form lives only on /admin. */
+export function LoginForm({ next, mode }: { next: string; mode: "team" | "admin" }) {
   const router = useRouter()
-  const [mode, setMode] = useState<"team" | "admin">("team")
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string>()
 
   return (
     <div className="grid gap-4">
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        value={mode}
-        onValueChange={(v) => {
-          if (v) setMode(v as "team" | "admin")
-          setError(undefined)
-        }}
-        className="w-full"
-        aria-label="Log in as"
-      >
-        <ToggleGroupItem value="team" className="flex-1">Project team</ToggleGroupItem>
-        <ToggleGroupItem value="admin" className="flex-1">Club admin</ToggleGroupItem>
-      </ToggleGroup>
       <form
-        key={mode}
         className="grid gap-4"
         onSubmit={(e) => {
           e.preventDefault()

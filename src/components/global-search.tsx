@@ -53,7 +53,7 @@ const ACTIONS: { id: ActionId; label: string; icon: LucideIcon; keywords: string
   { id: "project", label: "New project", icon: FolderPlus, keywords: "create project", admin: true },
   { id: "theme", label: "Toggle theme", icon: SunMoon, keywords: "toggle theme dark light mode appearance" },
   { id: "logout", label: "Log out", icon: LogOut, keywords: "sign out admin", admin: true },
-  { id: "login", label: "Admin login", icon: LogIn, keywords: "sign in password", admin: false },
+  { id: "login", label: "Team login", icon: LogIn, keywords: "sign in password", admin: false },
 ]
 
 const matches = (q: string, ...fields: string[]) => !q || fields.some((f) => f.toLowerCase().includes(q))
