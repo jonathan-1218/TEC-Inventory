@@ -2,6 +2,7 @@ import { z } from "zod"
 import type { Category, Designation, ProjectStatus, ReturnCondition, TaskPriority, TaskStatus } from "@prisma/client"
 import { CATEGORIES, CONDITIONS, DESIGNATIONS, STATUSES, TECH_STACK_KEYS } from "@/lib/labels"
 import { parseDateInput, todayNoonUTC } from "@/lib/dates"
+import { PASSWORD_MIN, passwordProblems } from "@/lib/password-strength"
 
 // Inputs arrive from forms, so "" means "not provided".
 const emptyToNull = (v: unknown) => (v === "" || v === undefined ? null : v)
@@ -231,7 +232,10 @@ export const taskUpdateSchema = taskFields.partial().extend({ id })
 export const taskMoveSchema = z.object({ id, status: taskStatus, order: int() })
 export const taskDoneSchema = z.object({ id, done: bool })
 
-export const loginSchema = z.object({ password: z.string().min(1, "Enter the admin password").max(200) })
+export const loginSchema = z.object({
+  password: z.string().min(1, "Enter the admin password").max(200),
+  code: z.string().trim().max(10).optional(),
+})
 
 // ---------- Team accounts ----------
 
@@ -246,6 +250,12 @@ export const signupMemberSchema = z.object({
 
 export const MAX_GROUP = 10
 
+/** Words a team's password must not contain: the email's name part, member names and roll numbers. */
+export const personalWords = (email: string, members: { name: string; rollNumber: string }[]) => [
+  email.split("@")[0],
+  ...members.flatMap((m) => [...m.name.split(/\s+/), m.rollNumber]),
+]
+
 /** Public sign-up. members[0] is the person signing up (project lead). */
 /** What an Account keeps in `signup` until it's approved. */
 export const storedSignupSchema = z.object({
@@ -258,8 +268,10 @@ export const storedSignupSchema = z.object({
 export type StoredSignup = z.output<typeof storedSignupSchema>
 
 export const signupSchema = storedSignupSchema
-  .extend({ email, password: z.string().min(8, "Use at least 8 characters").max(200) })
+  .extend({ email, password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`).max(200) })
   .superRefine((v, ctx) => {
+    const problem = passwordProblems(v.password, personalWords(v.email, v.members))[0]
+    if (problem) ctx.addIssue({ code: "custom", path: ["password"], message: problem })
     if (v.kind === "INDIVIDUAL" && v.members.length !== 1) {
       ctx.addIssue({ code: "custom", path: ["members"], message: "An individual project has exactly one member" })
     }

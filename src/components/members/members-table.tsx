@@ -229,9 +229,13 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
                     <DesignationBadge designation={m.designation} />
                   </TableCell>
                   <TableCell className="hidden xl:table-cell">
-                    <a href={`mailto:${m.email}`} className="hover:text-foreground text-muted-foreground">
-                      {m.email}
-                    </a>
+                    {m.email ? (
+                      <a href={`mailto:${m.email}`} className="hover:text-foreground text-muted-foreground">
+                        {m.email}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="hidden font-mono text-xs tabular-nums 2xl:table-cell">
                     {m.phone ? (

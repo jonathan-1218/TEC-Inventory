@@ -272,3 +272,12 @@ model ClubSettings {
   goalPercent Int?
   goalDate    DateTime?
 }
+
+/**
+ * Fixed-window attempt counters shared by every server instance (login, sign-up).
+ */
+model RateLimit {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}

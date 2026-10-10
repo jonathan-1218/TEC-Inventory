@@ -11,7 +11,7 @@ import { teamLogin } from "@/app/actions/accounts"
 import { runAction } from "@/lib/client"
 
 /** Team login (email + password) on /login; the admin password form lives only on /admin. */
-export function LoginForm({ next, mode }: { next: string; mode: "team" | "admin" }) {
+export function LoginForm({ next, mode, totp = false }: { next: string; mode: "team" | "admin"; totp?: boolean }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string>()
@@ -26,7 +26,7 @@ export function LoginForm({ next, mode }: { next: string; mode: "team" | "admin"
           const password = String(form.get("password") ?? "")
           startTransition(async () => {
             if (mode === "admin") {
-              const res = await runAction(login({ password }), "Welcome, admin")
+              const res = await runAction(login({ password, code: String(form.get("code") ?? "") }), "Welcome, admin")
               if (!res.ok) return setError(res.error)
               router.replace(next)
             } else {
@@ -54,6 +54,20 @@ export function LoginForm({ next, mode }: { next: string; mode: "team" | "admin"
             className="h-10 font-mono tracking-widest"
           />
         </FormField>
+        {mode === "admin" && totp && (
+          <FormField label="Authenticator code" htmlFor="code" hint="6 digits from your authenticator app.">
+            <Input
+              id="code"
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d{6}"
+              maxLength={6}
+              required
+              className="h-10 font-mono tracking-[0.4em]"
+            />
+          </FormField>
+        )}
         <Button type="submit" variant="brand" className="h-10" disabled={pending}>
           {pending ? "Checking…" : "Log in"}
         </Button>

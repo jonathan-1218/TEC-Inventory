@@ -13,7 +13,8 @@
     "db:push": "prisma db push --skip-generate && prisma db execute --schema prisma/schema.prisma --file prisma/enable-rls.sql",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "check": "tsx scripts/check-stock.ts",
+    "check": "tsx scripts/check-stock.ts && tsx scripts/password-check.ts && tsx scripts/totp-check.ts && tsx scripts/goal-check.ts",
+    "totp:setup": "tsx scripts/totp-setup.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

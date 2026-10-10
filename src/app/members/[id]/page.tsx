@@ -69,7 +69,9 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
     getMemberActivity(id),
   ])
   if (!member) notFound()
-  const { teams, projects, issuances, tasks, ...details } = member
+  const { teams, projects, issuances, tasks, ...rest } = member
+  // Contact details are admin-only, stripped on the server (the client never receives them).
+  const details = { ...rest, email: admin ? rest.email : null, phone: admin ? rest.phone : null }
   const options = member.isActive ? adminOptions : null
 
   const lateBy = (i: (typeof issuances)[number]) =>
@@ -145,17 +147,17 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
                 <ActiveBadge active={member.isActive} />
               </span>
               <span className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                {member.email && (
-                  <a href={`mailto:${member.email}`} className="hover:text-foreground inline-flex items-center gap-1.5">
-                    <Mail className="size-3.5" /> {member.email}
+                {details.email && (
+                  <a href={`mailto:${details.email}`} className="hover:text-foreground inline-flex items-center gap-1.5">
+                    <Mail className="size-3.5" /> {details.email}
                   </a>
                 )}
-                {member.phone && (
+                {details.phone && (
                   <a
-                    href={`tel:${member.phone.replace(/\s/g, "")}`}
+                    href={`tel:${details.phone.replace(/\s/g, "")}`}
                     className="hover:text-foreground inline-flex items-center gap-1.5 font-mono tabular-nums"
                   >
-                    <Phone className="size-3.5" /> {member.phone}
+                    <Phone className="size-3.5" /> {details.phone}
                   </a>
                 )}
               </span>

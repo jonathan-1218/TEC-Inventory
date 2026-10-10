@@ -6,7 +6,7 @@ import { z } from "zod"
 import { db } from "@/lib/db"
 import { ActionError, adminAction, errorMessage, type ActionResult } from "@/lib/action"
 import { TEAM_COOKIE, hashPassword, sessionValue, verifyPassword } from "@/lib/team-auth"
-import { fixedWindow } from "@/lib/throttle"
+import { MINUTE, allowAll, clearLimit, clientIp } from "@/lib/throttle"
 import {
   idSchema,
   mentorSchema,
@@ -16,8 +16,6 @@ import {
   type SignupInput,
 } from "@/lib/validators"
 
-const signupThrottle = fixedWindow(10) // sign-ups per minute, all visitors together
-const loginThrottle = fixedWindow(20)
 // Compared against when the email is unknown, so a miss costs the same time as a wrong password.
 const DUMMY_HASH = "scrypt$00000000000000000000000000000000$" + "0".repeat(64)
 
@@ -28,7 +26,10 @@ export async function signUp(raw: SignupInput): Promise<ActionResult> {
     const issue = parsed.error.issues[0]
     return { ok: false, error: issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message }
   }
-  if (!signupThrottle.take()) return { ok: false, error: "Too many sign-ups right now. Please try again in a minute." }
+  const ip = await clientIp()
+  if (!(await allowAll([[`signup:ip:${ip}`, 5, 60 * MINUTE], ["signup:all", 60, 60 * MINUTE]]))) {
+    return { ok: false, error: "Too many sign-ups right now. Please try again later." }
+  }
   const { email, password, ...signup } = parsed.data
   try {
     const mentor = await db.mentor.findUnique({ where: { id: signup.mentorId }, select: { id: true } })
@@ -47,10 +48,16 @@ export async function signUp(raw: SignupInput): Promise<ActionResult> {
 export async function teamLogin(raw: { email: string; password: string }): Promise<ActionResult<{ projectId: string }>> {
   const parsed = teamLoginSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
-  if (!loginThrottle.take()) return { ok: false, error: "Too many attempts. Please wait a minute and try again." }
+  // Per account (stops guessing one team's password from many IPs) and per IP (stops spraying many accounts).
+  const ip = await clientIp()
+  const emailKey = `team-login:email:${parsed.data.email}`
+  if (!(await allowAll([[emailKey, 5, 15 * MINUTE], [`team-login:ip:${ip}`, 20, 15 * MINUTE]]))) {
+    return { ok: false, error: "Too many attempts. Please wait 15 minutes and try again." }
+  }
   const account = await db.account.findUnique({ where: { email: parsed.data.email } })
   const ok = await verifyPassword(parsed.data.password, account?.passwordHash ?? DUMMY_HASH)
   if (!account || !ok) return { ok: false, error: "Wrong email or password." }
+  await clearLimit(emailKey)
   if (!account.approvedAt || !account.projectId) {
     return { ok: false, error: "Your sign-up is waiting for an admin to approve it." }
   }

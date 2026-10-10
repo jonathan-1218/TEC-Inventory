@@ -11,7 +11,8 @@ import { FormField } from "@/components/form-field"
 import { signUp } from "@/app/actions/accounts"
 import { runAction } from "@/lib/client"
 import { cn } from "@/lib/utils"
-import { MAX_GROUP } from "@/lib/validators"
+import { MAX_GROUP, personalWords } from "@/lib/validators"
+import { PASSWORD_MIN, passwordProblems, passwordScore } from "@/lib/password-strength"
 
 type Mentor = { id: string; name: string; designation: string; department: string | null }
 type Kind = "INDIVIDUAL" | "GROUP"
@@ -40,6 +41,8 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
   const count = kind === "GROUP" ? size : 1
   const members = Array.from({ length: count }, (_, i) => people[i] ?? blank())
   const mentor = mentors.find((m) => m.id === mentorId)
+  const personal = personalWords(email, members)
+  const score = passwordScore(password, personal)
   const setPerson = (i: number, patch: Partial<Person>) =>
     setPeople(Array.from({ length: Math.max(people.length, i + 1) }, (_, j) => (j === i ? { ...members[i], ...patch } : (people[j] ?? blank()))))
 
@@ -58,7 +61,8 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
     }
     if (s === 3) {
       if (!/^\S+@\S+\.\S+$/.test(email.trim())) return "Enter a valid email."
-      if (password.length < 8) return "Use a password of at least 8 characters."
+      const problem = passwordProblems(password, personal)[0]
+      if (problem) return `${problem}.`
       if (password !== confirm) return "The two passwords don't match."
     }
   }
@@ -249,8 +253,9 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
               <Input id="email" type="email" autoComplete="email" value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} />
             </FormField>
             <div className="grid items-start gap-4 sm:grid-cols-2">
-              <FormField label="Password" htmlFor="password" hint="At least 8 characters.">
+              <FormField label="Password" htmlFor="password">
                 <Input id="password" type="password" autoComplete="new-password" value={password} maxLength={200} onChange={(e) => setPassword(e.target.value)} />
+                <StrengthMeter score={score} hint={password ? (passwordProblems(password, personal)[0] ?? "Strong password") : `At least ${PASSWORD_MIN} characters; a long passphrase works best.`} />
               </FormField>
               <FormField label="Confirm password" htmlFor="confirm">
                 <Input id="confirm" type="password" autoComplete="new-password" value={confirm} maxLength={200} onChange={(e) => setConfirm(e.target.value)} />
@@ -381,6 +386,27 @@ function Row({ label, onEdit, children }: { label: string; onEdit: () => void; c
       <Button type="button" variant="link" size="xs" onClick={onEdit}>
         Edit
       </Button>
+    </div>
+  )
+}
+
+const STRENGTH = ["", "Weak", "Fair", "Good", "Strong"]
+
+function StrengthMeter({ score, hint }: { score: number; hint: string }) {
+  return (
+    <div className="grid gap-1" aria-live="polite">
+      <div className="grid grid-cols-4 gap-1" aria-hidden>
+        {[1, 2, 3, 4].map((i) => (
+          <span
+            key={i}
+            className={cn("h-1 rounded-full", i > score ? "bg-muted" : score <= 1 ? "bg-danger" : score === 2 ? "bg-brand/60" : "bg-brand")}
+          />
+        ))}
+      </div>
+      <p className="text-muted-foreground text-xs">
+        {score > 0 && <span className="text-foreground font-medium">{STRENGTH[score]} · </span>}
+        {hint}
+      </p>
     </div>
   )
 }

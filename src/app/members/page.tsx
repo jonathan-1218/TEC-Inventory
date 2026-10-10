@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header"
 import { MemberFormDialog } from "@/components/members/member-form-dialog"
 import { MembersTable, type MemberRow } from "@/components/members/members-table"
 import { db } from "@/lib/db"
+import { isAdmin } from "@/lib/auth"
 
 export const metadata: Metadata = { title: "Members" }
 
@@ -17,8 +18,12 @@ export default async function MembersPage() {
     },
   })
 
+  // Contact details never leave the server for visitors; hiding them in the UI alone isn't enough.
+  const admin = await isAdmin()
   const rows: MemberRow[] = members.map(({ _count, ...m }) => ({
     ...m,
+    email: admin ? m.email : null,
+    phone: admin ? m.phone : null,
     teamCount: _count.teams,
     projectCount: _count.projects,
     openIssuances: _count.issuances,

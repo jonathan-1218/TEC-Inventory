@@ -1,6 +1,7 @@
 import { cache } from "react"
 import type { Component } from "@prisma/client"
 import { db } from "@/lib/db"
+import { isAdmin } from "@/lib/auth"
 import { issuedCount, issuedCounts } from "@/lib/stock"
 import { stockStatus, type StockStatus } from "@/lib/labels"
 
@@ -85,6 +86,8 @@ export async function searchAll(query: string, limit = 8): Promise<SearchResult[
   const hit = (...fields: (string | null | undefined)[]) =>
     fields.some((f) => f?.toLowerCase().includes(q))
 
+  // Emails are private: only admins can find members by email (no enumeration by visitors).
+  const admin = await isAdmin()
   const [components, projects, members] = await Promise.all([
     db.component.findMany({
       take: SCAN_CAP,
@@ -119,7 +122,7 @@ export async function searchAll(query: string, limit = 8): Promise<SearchResult[
         href: `/projects/${p.id}`,
       })),
     ...members
-      .filter((m) => hit(m.name, m.rollNumber, m.email, m.department))
+      .filter((m) => hit(m.name, m.rollNumber, admin ? m.email : null, m.department))
       .slice(0, limit)
       .map((m) => ({
         type: "member" as const,

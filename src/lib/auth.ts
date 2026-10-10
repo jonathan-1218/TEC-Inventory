@@ -3,12 +3,13 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto"
 
 export const ADMIN_COOKIE = "tec_admin"
 
-// Session cookie = HMAC(ADMIN_PASSWORD, fixed label). Can't be forged without the password,
-// and changing ADMIN_PASSWORD logs everyone out.
+// Session cookie = HMAC(ADMIN_PASSWORD, label + 2FA secret). Can't be forged without the password, and changing
+// ADMIN_PASSWORD or turning on / rotating ADMIN_TOTP_SECRET logs every admin out.
 function sessionToken(): string | null {
   const password = process.env.ADMIN_PASSWORD
   if (!password) return null
-  return createHmac("sha256", password).update("tec-admin-session").digest("hex")
+  const totp = process.env.ADMIN_TOTP_SECRET
+  return createHmac("sha256", password).update(totp ? `tec-admin-session:${totp}` : "tec-admin-session").digest("hex")
 }
 
 function safeEqual(a: string, b: string): boolean {

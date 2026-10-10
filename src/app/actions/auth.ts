@@ -4,25 +4,34 @@ import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { ADMIN_COOKIE, checkPassword } from "@/lib/auth"
 import { TEAM_COOKIE } from "@/lib/team-auth"
-import { fixedWindow } from "@/lib/throttle"
+import { MINUTE, allowAll, clearLimit, clientIp } from "@/lib/throttle"
+import { matchTotp } from "@/lib/totp"
+import { db } from "@/lib/db"
 import type { ActionResult } from "@/lib/action"
 import { loginSchema } from "@/lib/validators"
 
-// Global login throttle against online brute force: the admin can wait out a 60 s window during a burst.
-const throttle = fixedWindow(20)
-
-export async function login(raw: { password: string }): Promise<ActionResult> {
+export async function login(raw: { password: string; code?: string }): Promise<ActionResult> {
   const parsed = loginSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   if (!process.env.ADMIN_PASSWORD) {
     return { ok: false, error: "ADMIN_PASSWORD is not set on the server." }
   }
-  if (!throttle.take()) {
-    return { ok: false, error: "Too many attempts. Please wait a minute and try again." }
+  // Counted before the password is evaluated, so the limit bounds guesses, not just feedback.
+  const ip = await clientIp()
+  if (!(await allowAll([[`admin-login:ip:${ip}`, 5, 15 * MINUTE], ["admin-login:all", 30, 15 * MINUTE]]))) {
+    return { ok: false, error: "Too many attempts. Please wait 15 minutes and try again." }
   }
   const token = checkPassword(parsed.data.password)
-  if (!token) return { ok: false, error: "Wrong password." }
-  throttle.reset() // legit login clears the window
+  const totpSecret = process.env.ADMIN_TOTP_SECRET
+  const step = totpSecret ? matchTotp(totpSecret, parsed.data.code ?? "") : 0
+  // One message for either failure, so the password can't be confirmed without the code.
+  if (!token || step === null) {
+    return { ok: false, error: totpSecret ? "Wrong password or authenticator code." : "Wrong password." }
+  }
+  if (totpSecret && !(await claimTotpStep(step))) {
+    return { ok: false, error: "That code was already used. Wait for the next one." }
+  }
+  await clearLimit(`admin-login:ip:${ip}`)
 
   ;(await cookies()).set(ADMIN_COOKIE, token, {
     httpOnly: true,
@@ -41,4 +50,14 @@ export async function logout(): Promise<ActionResult> {
   jar.delete(TEAM_COOKIE)
   revalidatePath("/", "layout")
   return { ok: true, data: undefined }
+}
+
+/** A TOTP code works once: remember the newest step used and refuse that step or older. */
+async function claimTotpStep(step: number): Promise<boolean> {
+  const rows = await db.$queryRaw<{ count: number }[]>`
+    INSERT INTO "RateLimit" ("key", "count", "windowStart") VALUES ('admin-totp:last-step', ${step}, now())
+    ON CONFLICT ("key") DO UPDATE SET "count" = ${step}, "windowStart" = now()
+    WHERE "RateLimit"."count" < ${step}
+    RETURNING "count"`
+  return rows.length === 1
 }

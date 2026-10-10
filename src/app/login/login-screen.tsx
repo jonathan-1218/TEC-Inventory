@@ -43,7 +43,7 @@ export async function LoginScreen({ next, mode }: { next: unknown; mode: "team" 
               <Link href={target}>Continue</Link>
             </Button>
           ) : (
-            <LoginForm next={target} mode={mode} />
+            <LoginForm next={target} mode={mode} totp={mode === "admin" && !!process.env.ADMIN_TOTP_SECRET} />
           )}
         </div>
         <div className="bg-muted/40 border-t px-6 py-3">
