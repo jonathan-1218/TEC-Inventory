@@ -261,6 +261,8 @@ export const personalWords = (email: string, members: { name: string; rollNumber
 export const storedSignupSchema = z.object({
   kind: z.enum(["INDIVIDUAL", "GROUP"]),
   title: reqStr(120),
+  // Optional only so sign-ups stored before team names existed still parse; the form requires it.
+  teamName: optStr(80),
   description: optStr(2000),
   mentorId: id,
   members: z.array(signupMemberSchema).min(1).max(MAX_GROUP),

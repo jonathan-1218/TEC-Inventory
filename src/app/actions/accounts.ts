@@ -34,6 +34,10 @@ export async function signUp(raw: SignupInput): Promise<ActionResult> {
   try {
     const mentor = await db.mentor.findUnique({ where: { id: signup.mentorId }, select: { id: true } })
     if (!mentor) return { ok: false, error: "Pick a mentor from the list." }
+    if (!signup.teamName) return { ok: false, error: "Give your team a name." }
+    if (await db.team.findFirst({ where: { name: { equals: signup.teamName, mode: "insensitive" } }, select: { id: true } })) {
+      return { ok: false, error: "A team with this name already exists. Pick another name." }
+    }
     if (await db.account.findUnique({ where: { email }, select: { id: true } })) {
       return { ok: false, error: "An account with this email already exists." }
     }
@@ -98,8 +102,21 @@ export const approveAccount = adminAction(idSchema, async ({ id }) => {
       memberIds.push((await tx.member.create({ data: { ...m, email } })).id)
     }
 
+    // Every approved sign-up gets its own team: the head leads it, everyone on the sign-up is a member.
+    const teamName = s.teamName ?? `${s.title} team`
+    if (await tx.team.findFirst({ where: { name: { equals: teamName, mode: "insensitive" } }, select: { id: true } })) {
+      throw new ActionError(`A team called “${teamName}” already exists. Rename that team first, or reject this sign-up.`)
+    }
+    const team = await tx.team.create({
+      data: {
+        name: teamName,
+        members: { create: memberIds.map((memberId, i) => ({ memberId, roleInTeam: i === 0 ? "Team Lead" : "Member" })) },
+      },
+    })
+
     const project = await tx.project.create({
       data: {
+        teamId: team.id,
         title: s.title,
         description: s.description,
         mentorId: mentor?.id ?? null,

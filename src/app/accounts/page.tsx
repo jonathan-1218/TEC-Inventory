@@ -88,7 +88,7 @@ export default async function AccountsPage() {
                         {formatDate(a.createdAt)}
                       </p>
                       <p className="mt-1 text-sm">
-                        Mentor: {mentorName.get(s.data.mentorId) ?? <span className="text-danger">removed from the list</span>}
+                        Team: {s.data.teamName ?? `${s.data.title} team`} · Mentor: {mentorName.get(s.data.mentorId) ?? <span className="text-danger">removed from the list</span>}
                       </p>
                       {s.data.description && <p className="text-muted-foreground mt-1 text-sm">{s.data.description}</p>}
                     </div>

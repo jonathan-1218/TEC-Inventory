@@ -29,6 +29,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
   const [size, setSize] = useState(2)
   const [people, setPeople] = useState<Person[]>([blank()])
   const [title, setTitle] = useState("")
+  const [teamName, setTeamName] = useState("")
   const [description, setDescription] = useState("")
   const [mentorId, setMentorId] = useState("")
   const [email, setEmail] = useState("")
@@ -57,6 +58,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
     }
     if (s === 2) {
       if (!title.trim()) return "Give your project a title."
+      if (!teamName.trim()) return "Give your team a name."
       if (!mentorId) return "Pick your project's mentor."
     }
     if (s === 3) {
@@ -77,6 +79,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
         signUp({
           kind: kind!,
           title,
+          teamName,
           description,
           mentorId,
           members: members.map((m) => ({ ...m, yearOfStudy: Number(m.yearOfStudy) })),
@@ -204,10 +207,15 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
         )}
 
         {step === 2 && (
-          <Step title="Project and mentor">
-            <FormField label="Project title" htmlFor="title">
-              <Input id="title" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
-            </FormField>
+          <Step title="Project, team and mentor">
+            <div className="grid items-start gap-4 sm:grid-cols-2">
+              <FormField label="Project title" htmlFor="title">
+                <Input id="title" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
+              </FormField>
+              <FormField label="Team name" htmlFor="teamName" hint={count > 1 ? "Everyone above joins this team." : "Your one-person team."}>
+                <Input id="teamName" value={teamName} maxLength={80} placeholder="e.g. Circuit Breakers" onChange={(e) => setTeamName(e.target.value)} />
+              </FormField>
+            </div>
             <FormField label="What are you building?" htmlFor="description" hint="Optional, a sentence or two.">
               <Textarea id="description" value={description} maxLength={2000} rows={3} onChange={(e) => setDescription(e.target.value)} />
             </FormField>
@@ -286,6 +294,9 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
               <Row label="Project" onEdit={() => setStep(2)}>
                 <span className="font-medium">{title}</span>
                 {description && <span className="text-muted-foreground block text-xs">{description}</span>}
+              </Row>
+              <Row label="Team" onEdit={() => setStep(2)}>
+                <span className="font-medium">{teamName}</span>
               </Row>
               <Row label="Mentor" onEdit={() => setStep(2)}>
                 {mentor ? `${mentor.name}, ${mentor.designation}` : "—"}

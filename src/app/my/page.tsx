@@ -33,6 +33,7 @@ export default async function MyProjectPage() {
       goalPercent: true,
       goalDate: true,
       mentor: { select: { name: true, designation: true, department: true } },
+      team: { select: { id: true, name: true } },
       members: { select: { roleInProject: true, member: { select: { id: true, name: true, rollNumber: true, department: true } } } },
       _count: { select: { tasks: { where: { status: { not: "DONE" } } }, progressUpdates: true } },
     },
@@ -59,7 +60,15 @@ export default async function MyProjectPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader
-        eyebrow="Your team"
+        eyebrow={
+          project.team ? (
+            <Link href={`/teams/${project.team.id}`} className="hover:text-foreground">
+              Team · {project.team.name}
+            </Link>
+          ) : (
+            "Your team"
+          )
+        }
         title={project.title}
         description={
           <span className="flex flex-wrap items-center gap-2">
