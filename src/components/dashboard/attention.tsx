@@ -13,7 +13,9 @@ import { dueSoon } from "./data"
 import { ExtendDue } from "./extend-due"
 import { relDays } from "./util"
 
-const TASK_LIMIT = 5
+const TASK_LIMIT = 2
+const RETURN_LIMIT = 3
+const LOW_LIMIT = 2
 
 /** Overdue + due-soon returns (admin can return / extend in place), low stock, and tasks coming due. */
 export async function AttentionBody({ admin }: { admin: boolean }) {
@@ -49,18 +51,18 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
     <div className="flex flex-col gap-5">
       {behind.length > 0 && (
         <Section title="Behind goal" note={`${behind.length} ${behind.length === 1 ? "project" : "projects"} below pace`} href="/projects">
-          {behind.map(({ p, g }) => (
+          {behind.slice(0, 3).map(({ p, g }) => (
             <li key={p.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 py-2">
               <Led className="bg-danger" />
               <div className="min-w-0">
                 <Link href={`/projects/${p.id}`} className="block truncate text-sm font-medium hover:underline">
                   {p.title}
                 </Link>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-[13px] text-muted-foreground">
                   {g.missed ? `Missed ${g.percent}% goal` : `${g.behindBy} pts behind pace`} · goal {g.percent}%
                 </p>
               </div>
-              <span className="font-mono text-xs tabular-nums">
+              <span className="font-mono text-[13px] tabular-nums">
                 <b className="font-semibold text-danger">{p.progressPercent}%</b>
                 <span className="text-muted-foreground">/{g.expected}%</span>
               </span>
@@ -71,7 +73,7 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
 
       {returns.length > 0 && (
         <Section title="Returns" note={`${due.overdue.length} late · ${due.dueSoon.length} due in 3 days`} href="/issuances?tab=overdue">
-          {returns.map((r) => (
+          {returns.slice(0, RETURN_LIMIT).map((r) => (
             <ReturnRow key={r.id} r={r} admin={admin} />
           ))}
         </Section>
@@ -79,7 +81,7 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
 
       {low.length > 0 && (
         <Section title="Low stock" note="available / threshold" href="/inventory?stock=low">
-          {low.map((c) => {
+          {low.slice(0, LOW_LIMIT).map((c) => {
             const out = c.quantityAvailable === 0
             return (
               <li key={c.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 py-2">
@@ -88,7 +90,7 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
                   <Link href={`/inventory/${c.id}`} className="block truncate text-sm font-medium hover:underline">
                     {c.name}
                   </Link>
-                  <p className="truncate text-xs text-muted-foreground">{out ? "Out of stock" : (c.location ?? "No location")}</p>
+                  <p className="truncate text-[13px] text-muted-foreground">{out ? "Out of stock" : (c.location ?? "No location")}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span aria-hidden className="relative h-1 w-10 overflow-hidden rounded-full bg-muted">
@@ -97,7 +99,7 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
                       style={{ width: `${Math.min(100, (c.quantityAvailable / Math.max(1, c.lowStockThreshold)) * 100)}%` }}
                     />
                   </span>
-                  <span className="w-10 text-right font-mono text-xs tabular-nums">
+                  <span className="w-10 text-right font-mono text-[13px] tabular-nums">
                     <b className="font-semibold">{c.quantityAvailable}</b>
                     <span className="text-muted-foreground">/{c.lowStockThreshold}</span>
                   </span>
@@ -117,7 +119,7 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
                 <Link href={`/projects/${t.project.id}`} className="block truncate text-sm font-medium hover:underline">
                   {t.title}
                 </Link>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-[13px] text-muted-foreground">
                   {t.project.title}
                   {t.assignee && <> · {t.assignee.name}</>}
                 </p>
@@ -129,7 +131,7 @@ export async function AttentionBody({ admin }: { admin: boolean }) {
             </li>
           ))}
           {due.tasks.length > TASK_LIMIT && (
-            <li className="pt-2 font-mono text-[11px] text-muted-foreground">+{due.tasks.length - TASK_LIMIT} more on their project pages</li>
+            <li className="pt-2 font-mono text-[13px] text-muted-foreground">+{due.tasks.length - TASK_LIMIT} more on their project pages</li>
           )}
         </Section>
       )}
@@ -147,9 +149,9 @@ function ReturnRow({ r, admin }: { r: DueIssuance; admin: boolean }) {
           <Link href={`/inventory/${r.component.id}`} className="font-medium hover:underline">
             {r.component.name}
           </Link>{" "}
-          <span className="font-mono text-xs text-muted-foreground">×{r.quantity}</span>
+          <span className="font-mono text-[13px] text-muted-foreground">×{r.quantity}</span>
         </p>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="truncate text-[13px] text-muted-foreground">
           <DueLabel days={r.daysLeft} /> ·{" "}
           <Link href={`/members/${r.issuedTo.id}`} className="hover:text-foreground hover:underline">
             {r.issuedTo.name}
@@ -195,7 +197,7 @@ function Section({ id, title, note, href, children }: { id?: string; title: stri
             title
           )}
         </h3>
-        <span className="truncate font-mono text-[10px] text-muted-foreground">{note}</span>
+        <span className="truncate font-mono text-[13px] text-muted-foreground">{note}</span>
       </div>
       <ul className="divide-y divide-border/70">{children}</ul>
     </section>

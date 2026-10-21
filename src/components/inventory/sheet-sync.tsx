@@ -19,7 +19,7 @@ export function SheetSync({ url }: { url: string }) {
         onClick={() =>
           start(async () => {
             const res = await runAction(syncSheetNow())
-            if (res.ok) toast.success(`Synced ${res.data.rows} parts to Google Sheets`)
+            if (res.ok) toast.success(`Synced ${res.data.rows} parts and ${res.data.checkouts} checkouts to Google Sheets`)
           })
         }
       >

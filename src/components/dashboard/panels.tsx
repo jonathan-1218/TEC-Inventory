@@ -9,11 +9,12 @@ import { STATUS_LABELS } from "@/lib/labels"
 import { projectProgress, teamSnapshot } from "./data"
 import { daysBetween, plural } from "./util"
 
-export async function InventoryHealthBody() {
-  const rows = await getInventoryHealth()
-  const total = rows.reduce((n, r) => n + r.total, 0)
-  const available = rows.reduce((n, r) => n + r.available, 0)
-  if (!rows.length) return <p className="py-8 text-center font-mono text-xs text-muted-foreground">No components yet</p>
+export async function InventoryHealthBody({ maxRows = 6 }: { maxRows?: number }) {
+  const all = await getInventoryHealth()
+  const rows = [...all].sort((a, b) => b.total - a.total).slice(0, maxRows)
+  const total = all.reduce((n, r) => n + r.total, 0)
+  const available = all.reduce((n, r) => n + r.available, 0)
+  if (!rows.length) return <p className="py-8 text-center font-mono text-[13px] text-muted-foreground">No components yet</p>
   return (
     <div className="flex flex-col gap-4">
       <p className="flex items-baseline gap-2">
@@ -31,9 +32,9 @@ export async function InventoryHealthBody() {
 
 // ---------- Projects in motion ----------
 
-export async function ProjectsBody() {
+export async function ProjectsBody({ limit = 4 }: { limit?: number }) {
   const all = await projectProgress()
-  const active = all.filter((p) => ACTIVE_STATUSES.includes(p.status))
+  const active = all.filter((p) => ACTIVE_STATUSES.includes(p.status)).slice(0, limit)
   const today = toDateInput(todayNoonUTC())
   const rest = (["ON_HOLD", "COMPLETED"] as const)
     .map((s) => [s, all.filter((p) => p.status === s).length] as const)
@@ -48,10 +49,10 @@ export async function ProjectsBody() {
           ))}
         </ul>
       ) : (
-        <p className="py-8 text-center font-mono text-xs text-muted-foreground">No project is being planned or built right now</p>
+        <p className="py-8 text-center font-mono text-[13px] text-muted-foreground">No project is being planned or built right now</p>
       )}
       {rest.length > 0 && (
-        <p className="mt-2 border-t border-dashed border-border pt-3 font-mono text-[11px] text-muted-foreground">
+        <p className="mt-2 border-t border-dashed border-border pt-3 font-mono text-[13px] text-muted-foreground">
           Also {rest.map(([s, n]) => `${n} ${STATUS_LABELS[s].toLowerCase()}`).join(" · ")}
         </p>
       )}
@@ -72,7 +73,7 @@ function ProjectRow({ p, today }: { p: ProjectProgress; today: string }) {
           </Link>
           <ProjectStatusBadge status={p.status} />
         </div>
-        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground @min-[34rem]:gap-x-2">
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground @min-[34rem]:gap-x-2">
           {p.team ? (
             <Link href={`/teams/${p.team.id}`} className="hover:text-foreground hover:underline">
               {p.team.name}
@@ -91,11 +92,11 @@ function ProjectRow({ p, today }: { p: ProjectProgress; today: string }) {
         </p>
       </div>
       <ProgressTrace project={p} today={today} className="hidden @min-[34rem]:block" />
-      <div className="text-right font-mono text-xs leading-tight tabular-nums">
+      <div className="text-right font-mono text-[13px] leading-tight tabular-nums">
         {p.targetDate ? (
           <>
             <p>{formatDay(toDateInput(p.targetDate))}</p>
-            <p className={cn("mt-0.5 text-[11px]", late ? "font-medium text-danger" : "text-muted-foreground")}>
+            <p className={cn("mt-0.5 text-[13px]", late ? "font-medium text-danger" : "text-muted-foreground")}>
               {late ? `${-left}d late` : left === 0 ? "due today" : `${left}d left`}
             </p>
           </>
@@ -136,7 +137,7 @@ function TaskMeter({ done, total }: { done: number; total: number }) {
 function ProgressTrace({ project: p, today, className }: { project: ProjectProgress; today: string; className?: string }) {
   const W = 120
   const H = 34
-  if (!p.series.length) return <span className={cn("font-mono text-[10px] text-muted-foreground", className)}>no updates yet</span>
+  if (!p.series.length) return <span className={cn("font-mono text-[13px] text-muted-foreground", className)}>no updates yet</span>
   const first = p.series[0].date
   const start = p.startDate && toDateInput(p.startDate) < first ? toDateInput(p.startDate) : first
   const span = Math.max(1, daysBetween(start, today))
@@ -176,9 +177,10 @@ function ProgressTrace({ project: p, today, className }: { project: ProjectProgr
 
 // ---------- Teams ----------
 
-export async function TeamsBody() {
-  const [teams, projects] = await Promise.all([teamSnapshot(), projectProgress()])
-  if (!teams.length) return <p className="py-8 text-center font-mono text-xs text-muted-foreground">No teams yet</p>
+export async function TeamsBody({ limit = 3 }: { limit?: number }) {
+  const [all, projects] = await Promise.all([teamSnapshot(), projectProgress()])
+  const teams = all.slice(0, limit)
+  if (!teams.length) return <p className="py-8 text-center font-mono text-[13px] text-muted-foreground">No teams yet</p>
   return (
     <ul className="-mt-1 flex flex-1 flex-col divide-y divide-border">
       {teams.map((t) => (
@@ -187,7 +189,7 @@ export async function TeamsBody() {
             <Link href={`/teams/${t.id}`} className="truncate font-medium outline-none hover:text-brand-strong focus-visible:underline">
               {t.name}
             </Link>
-            <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+            <span className="shrink-0 font-mono text-[13px] text-muted-foreground tabular-nums">
               {t.avgProgress === null ? (
                 "no open projects"
               ) : (
@@ -216,7 +218,7 @@ export async function TeamsBody() {
 /** What the team is building right now, as links. */
 function TeamProjects({ projects }: { projects: ProjectProgress[] }) {
   return (
-    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+    <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
       {projects.length
         ? projects.map((p, i) => (
             <span key={p.id}>
@@ -234,7 +236,7 @@ function TeamProjects({ projects }: { projects: ProjectProgress[] }) {
 function Readout({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex min-w-0 flex-col-reverse gap-0.5">
-      <dt className="truncate text-[10px] tracking-[0.1em] text-muted-foreground uppercase">{label}</dt>
+      <dt className="truncate text-[13px] tracking-[0.1em] text-muted-foreground uppercase">{label}</dt>
       <dd className={cn("font-mono text-sm font-semibold tabular-nums", value === 0 && "text-muted-foreground")}>{value}</dd>
     </div>
   )

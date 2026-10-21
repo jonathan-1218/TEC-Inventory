@@ -5,7 +5,7 @@ import Link from "next/link"
 import type { Designation, ProjectStatus } from "@prisma/client"
 import { ArrowRight, Crown, MoreHorizontal, Pencil, Trash2, UserMinus, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,13 +52,20 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase()
 
+const MAX_PROJECTS = 2
+const MAX_AVATARS = 5
+
+/**
+ * One tile in the teams grid. Every tile has the same anatomy and (the grid stretches them) the same height:
+ * a progress strip along the top, monogram + name, four readouts, up to two projects, and a footer with the
+ * member avatars pinned to the bottom. Roles, adding and removing people live on the team's own page.
+ */
 export function TeamCard({
   team,
-  candidates,
 }: {
   team: TeamCardData
-  /** Active members not yet on this team. */
-  candidates: Candidate[]
+  /** Kept for the grid's call site; member management happens on the team page. */
+  candidates?: Candidate[]
 }) {
   const isAdmin = useIsAdmin()
   const [editOpen, setEditOpen] = useState(false)
@@ -66,25 +73,44 @@ export function TeamCard({
   const stats = [
     { label: "Members", value: team.members.length },
     { label: "Active", value: team.stats.activeProjects },
-    { label: "Open tasks", value: team.stats.openTasks },
-    { label: "Units on loan", value: team.stats.unitsOnLoan },
+    { label: "Tasks", value: team.stats.openTasks },
+    { label: "On loan", value: team.stats.unitsOnLoan },
   ]
+  const progress = team.projects.length
+    ? Math.round(team.projects.reduce((n, p) => n + p.progressPercent, 0) / team.projects.length)
+    : 0
+  const lead = team.members.find((m) => m.isLead)
+  const shown = team.projects.slice(0, MAX_PROJECTS)
+  const hiddenProjects = team.projects.length - shown.length
 
   return (
     // :target highlights the card when opened via /teams#<id>.
-    <Card id={team.id} className="scroll-mt-20 transition-shadow target:ring-2 target:ring-brand">
-      <CardHeader>
-        <p className="eyebrow">Team</p>
-        <CardTitle className="text-lg">
-          <h2>
+    <Card
+      id={team.id}
+      className="group/team relative h-full scroll-mt-20 [--card-spacing:--spacing(6)] transition-shadow hover:ring-foreground/25 target:ring-2 target:ring-brand"
+    >
+      {/* Team's average progress, drawn as a strip along the top edge. */}
+      <div aria-hidden className="bg-muted absolute inset-x-0 top-0 h-1">
+        <div className="bg-brand h-full" style={{ width: `${progress}%` }} />
+      </div>
+
+      <div className="flex items-center gap-4 px-(--card-spacing) pt-1">
+        <span
+          aria-hidden
+          className="bg-foreground text-background font-display grid size-12 shrink-0 place-items-center rounded-xl text-xl font-extrabold"
+        >
+          {team.name.trim()[0]?.toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="eyebrow">Team · {progress}% avg</p>
+          <h2 className="font-heading truncate text-lg leading-snug font-semibold tracking-tight">
             <Link href={`/teams/${team.id}`} className="hover:text-brand-strong">
               {team.name}
             </Link>
           </h2>
-        </CardTitle>
-        {team.description && <CardDescription>{team.description}</CardDescription>}
+        </div>
         {isAdmin && (
-          <CardAction>
+          <div className="shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${team.name}`}>
@@ -111,52 +137,76 @@ export function TeamCard({
               successMessage="Team deleted"
               onConfirm={() => deleteTeam({ id: team.id })}
             />
-          </CardAction>
+          </div>
         )}
-      </CardHeader>
+      </div>
 
-      <CardContent className="grid gap-5">
-        <dl className="grid grid-cols-2 rounded-lg border sm:grid-cols-4 sm:divide-x max-sm:[&>div:nth-child(odd)]:border-r max-sm:[&>div:nth-child(-n+2)]:border-b">
-          {stats.map((s) => (
-            <div key={s.label} className="grid gap-0.5 px-3 py-2.5">
-              <dt className="eyebrow text-[10px]">{s.label}</dt>
-              <dd className="font-display text-xl font-bold tabular-nums">{s.value}</dd>
+      <CardContent className="flex flex-1 flex-col gap-5">
+        <p className="text-muted-foreground line-clamp-2 min-h-10 text-sm text-pretty">
+          {team.description ?? (lead ? `Led by ${lead.name}.` : "No description yet.")}
+        </p>
+
+        <dl className="bg-muted/50 grid grid-cols-4 divide-x rounded-xl py-3">
+          {stats.map((st) => (
+            <div key={st.label} className="grid justify-items-center gap-0.5 px-1">
+              <dd className="font-display text-2xl leading-none font-bold tabular-nums">{st.value}</dd>
+              <dt className="eyebrow text-center text-[11px] tracking-[0.06em]">{st.label}</dt>
             </div>
           ))}
         </dl>
 
-        <section className="grid gap-2">
-          <h3 className="eyebrow">Projects</h3>
-          {team.projects.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No projects yet.</p>
-          ) : (
-            <ul className="grid gap-1">
-              {team.projects.map((p) => (
-                <li key={p.id} className="flex items-center gap-3 py-1">
-                  <ProgressRing value={p.progressPercent} size="sm" label={`${p.title} progress`} />
-                  <Link href={`/projects/${p.id}`} className="hover:text-brand-strong min-w-0 flex-1 truncate text-sm font-medium">
-                    {p.title}
-                  </Link>
-                  <ProjectStatusBadge status={p.status} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        {/* Fixed height for two rows, so tiles with fewer projects stay the same size. */}
+        <ul className="grid min-h-[5.5rem] content-start gap-2">
+          {shown.length === 0 && <li className="text-muted-foreground text-sm">No projects yet.</li>}
+          {shown.map((p) => (
+            <li key={p.id} className="flex items-center gap-3">
+              <ProgressRing value={p.progressPercent} size="sm" label={`${p.title} progress`} />
+              <Link href={`/projects/${p.id}`} className="hover:text-brand-strong min-w-0 flex-1 truncate text-sm font-medium">
+                {p.title}
+              </Link>
+              <ProjectStatusBadge status={p.status} />
+            </li>
+          ))}
+          {hiddenProjects > 0 && <li className="text-muted-foreground text-xs">+{hiddenProjects} more on the team page</li>}
+        </ul>
 
-        <section className="grid gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="eyebrow">Members</h3>
-            {isAdmin && <AddTeamMember teamId={team.id} teamName={team.name} candidates={candidates} />}
-          </div>
-          <TeamMemberList team={team} members={team.members} />
-        </section>
-
-        <Button variant="ghost" size="sm" asChild className="-ms-2 w-fit">
-          <Link href={`/teams/${team.id}`}>
-            Tasks, loans and activity <ArrowRight />
-          </Link>
-        </Button>
+        {/* Pinned to the bottom of every tile. */}
+        <div className="mt-auto flex items-center gap-3 border-t pt-4">
+          <ul className="flex -space-x-1.5" aria-label={`${team.members.length} members`}>
+            {team.members.slice(0, MAX_AVATARS).map((m) => (
+              <li
+                key={m.id}
+                title={`${m.name}${m.isLead ? " · lead" : ""}`}
+                className={cn(
+                  "ring-card grid size-8 place-items-center rounded-full font-mono text-[11px] ring-2",
+                  m.isLead ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
+                  !m.isActive && "opacity-50"
+                )}
+              >
+                {initials(m.name)}
+              </li>
+            ))}
+            {team.members.length > MAX_AVATARS && (
+              <li className="bg-card text-muted-foreground ring-card grid size-8 place-items-center rounded-full font-mono text-[11px] ring-2 outline outline-border">
+                +{team.members.length - MAX_AVATARS}
+              </li>
+            )}
+          </ul>
+          <p className="text-muted-foreground min-w-0 flex-1 truncate text-sm">
+            {lead ? (
+              <>
+                Led by <span className="text-foreground font-medium">{lead.name}</span>
+              </>
+            ) : (
+              "No team lead"
+            )}
+          </p>
+          <Button variant="ghost" size="icon-sm" asChild>
+            <Link href={`/teams/${team.id}`} aria-label={`Open ${team.name}`}>
+              <ArrowRight />
+            </Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

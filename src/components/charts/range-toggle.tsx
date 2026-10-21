@@ -55,7 +55,7 @@ export function RangeToggle({
       aria-label={label}
       data-pending={pending || undefined}
       className={cn(
-        "inline-flex h-8 items-center max-sm:h-11 rounded-md border border-border bg-muted/50 p-0.5 font-mono text-[11px] data-pending:[&_[data-state=on]]:animate-pulse",
+        "inline-flex h-8 items-center max-sm:h-11 rounded-md border border-border bg-muted/50 p-0.5 font-mono text-[13px] data-pending:[&_[data-state=on]]:animate-pulse",
         className
       )}
     >

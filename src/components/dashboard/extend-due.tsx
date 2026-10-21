@@ -39,7 +39,7 @@ export function ExtendDue({ id, due, label }: { id: string; due: string; label: 
       <PopoverContent align="end" className="w-64">
         <PopoverHeader>
           <PopoverTitle>Extend due date</PopoverTitle>
-          <PopoverDescription className="text-xs">
+          <PopoverDescription className="text-[13px]">
             {label} · due {formatDay(due)}
           </PopoverDescription>
         </PopoverHeader>
@@ -47,7 +47,7 @@ export function ExtendDue({ id, due, label }: { id: string; due: string; label: 
           {QUICK.map((n) => {
             const value = addDays(base, n)
             return (
-              <Button key={n} type="button" variant="outline" size="sm" disabled={pending} onClick={() => save(value)} className="font-mono text-[11px]">
+              <Button key={n} type="button" variant="outline" size="sm" disabled={pending} onClick={() => save(value)} className="font-mono text-[13px]">
                 +{n === 7 ? "1w" : n === 14 ? "2w" : `${n}d`}
               </Button>
             )
@@ -60,7 +60,7 @@ export function ExtendDue({ id, due, label }: { id: string; due: string; label: 
             save(date)
           }}
         >
-          <Input type="date" aria-label="New due date" value={date} min={today} onChange={(e) => setDate(e.target.value)} required className="h-8 font-mono text-xs" />
+          <Input type="date" aria-label="New due date" value={date} min={today} onChange={(e) => setDate(e.target.value)} required className="h-8 font-mono text-[13px]" />
           <Button type="submit" size="sm" disabled={pending || !date} className="h-8">
             {pending ? "Saving…" : "Set"}
           </Button>

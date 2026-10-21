@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, MoreHorizontal, Pencil, Search, Trash2, X } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, LayoutGrid, List, MoreHorizontal, Pencil, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -17,6 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ConfirmDelete } from "@/components/confirm-delete"
 import { useIsAdmin } from "@/components/admin-context"
 import { ActiveBadge, DesignationBadge, MemberAvatar, designationRank } from "@/components/members/member-badges"
+import { MembersCards } from "@/components/members/members-cards"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { MemberFormDialog, type MemberFormValues } from "@/components/members/member-form-dialog"
 import { deleteMember } from "@/app/actions/members"
 import { DESIGNATIONS, DESIGNATION_LABELS } from "@/lib/labels"
@@ -76,6 +78,7 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
   const [year, setYear] = useState(ALL)
   const [status, setStatus] = useState(ALL)
   const [sort, setSort] = useState<Sort>({ key: "designation", dir: 1 })
+  const [view, setView] = useState<"cards" | "table">("cards")
 
   const years = useMemo(() => [...new Set(members.map((m) => m.yearOfStudy))].sort((a, b) => a - b), [members])
 
@@ -178,7 +181,19 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
         <p className="eyebrow tabular-nums sm:ml-auto" aria-live="polite">
           {rows.length} / {members.length} members
         </p>
+        <ToggleGroup type="single" variant="outline" value={view} onValueChange={(v) => v && setView(v as "cards" | "table")} aria-label="View">
+          <ToggleGroupItem value="cards" aria-label="Cards">
+            <LayoutGrid />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="table" aria-label="Table">
+            <List />
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
+
+      {view === "cards" ? (
+        <MembersCards members={rows} departments={departments} admin={admin} />
+      ) : (
 
       <div className="bg-card overflow-hidden rounded-xl border">
         <Table className="[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4">
@@ -270,11 +285,12 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
           </TableBody>
         </Table>
       </div>
+      )}
     </div>
   )
 }
 
-function RowActions({ member, departments }: { member: MemberRow; departments: string[] }) {
+export function RowActions({ member, departments }: { member: MemberRow; departments: string[] }) {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const roles = member.teamCount + member.projectCount

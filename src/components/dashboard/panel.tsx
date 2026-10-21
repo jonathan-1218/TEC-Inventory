@@ -38,9 +38,9 @@ export function Panel({
       data-panel
       id={id}
       style={{ "--i": i } as React.CSSProperties}
-      className={cn("min-w-0 scroll-mt-20", className)}
+      className={cn("min-w-0 scroll-mt-20 [--card-spacing:--spacing(6)] sm:[--card-spacing:--spacing(8)]", className)}
     >
-      <CardHeader>
+      <CardHeader className="gap-1.5">
         {/* col-start-1 keeps the text in one column when a phone layout moves the action under it. */}
         {eyebrow && <p className="eyebrow col-start-1">{eyebrow}</p>}
         <CardTitle role="heading" aria-level={2} className="col-start-1">

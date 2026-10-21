@@ -1,7 +1,7 @@
 "use client"
 
 import { Children, useState, useTransition } from "react"
-import type { Member } from "@prisma/client"
+import type { Designation, Member } from "@prisma/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { FormField } from "@/components/form-field"
 import { createMember, updateMember } from "@/app/actions/members"
 import { formValues, runAction } from "@/lib/client"
@@ -23,7 +24,7 @@ import { DESIGNATIONS, DESIGNATION_LABELS } from "@/lib/labels"
 
 export type MemberFormValues = Pick<
   Member,
-  "id" | "name" | "rollNumber" | "department" | "yearOfStudy" | "designation" | "email" | "phone" | "isActive"
+  "id" | "name" | "rollNumber" | "department" | "yearOfStudy" | "designation" | "email" | "phone" | "photo" | "bio" | "isActive"
 >
 
 const YEARS = ["1", "2", "3", "4", "5", "6"]
@@ -38,8 +39,11 @@ export function MemberFormDialog({
   trigger,
   open: openProp,
   onOpenChange,
+  defaultDesignation,
 }: {
   member?: MemberFormValues
+  /** Pre-selected designation when adding (e.g. an office bearer from the cards view). */
+  defaultDesignation?: Designation
   /** Existing departments, offered as suggestions. */
   departments: string[]
   trigger?: React.ReactNode
@@ -65,7 +69,7 @@ export function MemberFormDialog({
           </DialogDescription>
         </DialogHeader>
         {/* Mounted only while open, so form state resets each time. */}
-        <MemberForm member={member} departments={departments} onDone={() => setOpen(false)} />
+        <MemberForm member={member} departments={departments} defaultDesignation={defaultDesignation} onDone={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   )
@@ -74,10 +78,12 @@ export function MemberFormDialog({
 function MemberForm({
   member,
   departments,
+  defaultDesignation,
   onDone,
 }: {
   member?: MemberFormValues
   departments: string[]
+  defaultDesignation?: Designation
   onDone: () => void
 }) {
   const [pending, startTransition] = useTransition()
@@ -146,7 +152,7 @@ function MemberForm({
             </Select>
           </FormField>
           <FormField label="Designation" error={errors.designation}>
-            <Select name="designation" defaultValue={member?.designation ?? "MEMBER"} required>
+            <Select name="designation" defaultValue={member?.designation ?? defaultDesignation ?? "MEMBER"} required>
               <SelectTrigger className="w-full" aria-label="Designation">
                 <SelectValue />
               </SelectTrigger>
@@ -181,6 +187,10 @@ function MemberForm({
             />
           </FormField>
         </div>
+        <PhotoField initial={member?.photo ?? ""} error={errors.photo?.[0]} />
+        <FormField label="About (optional)" htmlFor="member-bio" error={errors.bio} hint="Shown on the member's card. A sentence or two.">
+          <Textarea id="member-bio" name="bio" rows={3} maxLength={1000} defaultValue={member?.bio ?? ""} />
+        </FormField>
         <div className="grid gap-1.5">
           <div className="flex items-center gap-2">
             <Switch id="member-active" name="isActive" defaultChecked={member?.isActive ?? true} />
@@ -200,5 +210,67 @@ function MemberForm({
         </Button>
       </DialogFooter>
     </>
+  )
+}
+
+const PHOTO_W = 360
+const PHOTO_H = 480
+
+/** Reads an image file, crops it to 3:4 and re-encodes a small JPEG, so the stored photo stays ~40 KB. */
+async function resizeToJpeg(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file)
+  const canvas = document.createElement("canvas")
+  canvas.width = PHOTO_W
+  canvas.height = PHOTO_H
+  const scale = Math.max(PHOTO_W / bitmap.width, PHOTO_H / bitmap.height)
+  const w = bitmap.width * scale
+  const h = bitmap.height * scale
+  canvas.getContext("2d")!.drawImage(bitmap, (PHOTO_W - w) / 2, (PHOTO_H - h) / 2, w, h)
+  return canvas.toDataURL("image/jpeg", 0.82)
+}
+
+function PhotoField({ initial, error }: { initial: string; error?: string }) {
+  const [photo, setPhoto] = useState(initial)
+  const [problem, setProblem] = useState<string>()
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor="member-photo">Photo (optional)</Label>
+      {/* The resized image travels with the form in this hidden field. */}
+      <input type="hidden" name="photo" value={photo} />
+      <div className="flex items-center gap-3">
+        <span className="bg-muted ring-border grid h-20 w-[3.75rem] shrink-0 place-items-center overflow-hidden rounded-lg ring-1">
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} alt="" className="size-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="text-muted-foreground text-xs">No photo</span>
+          )}
+        </span>
+        <div className="grid gap-1.5">
+          <input
+            id="member-photo"
+            type="file"
+            accept="image/*"
+            className="text-muted-foreground file:bg-secondary file:text-secondary-foreground text-sm file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm file:font-medium"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              try {
+                setProblem(undefined)
+                setPhoto(await resizeToJpeg(file))
+              } catch {
+                setProblem("Couldn't read that image. Try a JPG or PNG.")
+              }
+            }}
+          />
+          {photo && (
+            <Button type="button" variant="ghost" size="xs" className="w-fit" onClick={() => setPhoto("")}>
+              Remove photo
+            </Button>
+          )}
+        </div>
+      </div>
+      {(problem || error) && <p className="text-danger text-xs font-medium">{problem ?? error}</p>}
+    </div>
   )
 }

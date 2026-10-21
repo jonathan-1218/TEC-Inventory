@@ -38,7 +38,7 @@ export function CheckoutPanel({ data, initialRange, i, className }: { data: Chec
       // Phones: the toggle drops under the text instead of squeezing it.
       actionClassName="max-sm:col-start-1 max-sm:row-span-1 max-sm:row-start-auto max-sm:mt-2 max-sm:justify-self-start"
     >
-      <TrendChart data={rows} series={SERIES} height={236} emptyMessage="No checkouts in this range" />
+      <TrendChart data={rows} series={SERIES} height={330} emptyMessage="No checkouts in this range" />
     </Panel>
   )
 }

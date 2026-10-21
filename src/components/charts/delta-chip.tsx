@@ -26,7 +26,7 @@ export function DeltaChip({
   const better = dir !== "flat" && dir === good
   const worse = dir !== "flat" && !better
   return (
-    <span className={cn("inline-flex items-center gap-1.5 font-mono text-[11px] whitespace-nowrap tabular-nums", className)}>
+    <span className={cn("inline-flex items-center gap-1.5 font-mono text-[13px] whitespace-nowrap tabular-nums", className)}>
       <span
         className={cn(
           "inline-flex h-5 items-center gap-1 rounded-sm px-1.5",
@@ -35,7 +35,7 @@ export function DeltaChip({
           dir === "flat" && "bg-muted text-muted-foreground"
         )}
       >
-        <span aria-hidden className="text-[9px]">{dir === "up" ? "▲" : dir === "down" ? "▼" : "■"}</span>
+        <span aria-hidden className="text-[13px]">{dir === "up" ? "▲" : dir === "down" ? "▼" : "■"}</span>
         <span className="sr-only">{dir === "flat" ? "no change" : dir}</span>
         {Math.abs(value)}
         {suffix}

@@ -99,7 +99,7 @@ export function TrendChart({
               onClick={() => toggle(s.key)}
               className="-mx-1.5 flex flex-col items-start gap-0.5 rounded-md px-1.5 py-0.5 text-left transition-opacity outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none aria-[pressed=false]:opacity-40"
             >
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
                 <SeriesKey s={s} />
                 {s.label}
               </span>
@@ -176,7 +176,7 @@ export function TrendChart({
           </ChartContainer>
         )}
         {data.length > 0 && allZero && (
-          <p className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto w-fit rounded-full border border-border bg-card/90 px-3 py-1 font-mono text-[11px] text-muted-foreground">
+          <p className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto w-fit rounded-full border border-border bg-card/90 px-3 py-1 font-mono text-[13px] text-muted-foreground">
             {emptyMessage}
           </p>
         )}
@@ -219,7 +219,7 @@ function MarkerDot({ cx, cy, index, value, peak, last, color, format }: DotProps
   return (
     <g>
       {index === peak && (
-        <text x={cx} y={cy - 9} textAnchor="middle" className="fill-foreground font-mono text-[10px] font-semibold tabular-nums">
+        <text x={cx} y={cy - 9} textAnchor="middle" className="fill-foreground font-mono text-[13px] font-semibold tabular-nums">
           {format(Number(value) || 0)}
         </text>
       )}
@@ -235,7 +235,7 @@ export function EmptyPlot({ height, message }: { height: number; message: string
       className="grid place-items-center rounded-md border border-dashed border-border"
       style={{ height, backgroundImage: `repeating-linear-gradient(to bottom, transparent 0 ${height / 4 - 1}px, ${mix(CHART.grid, 70)} ${height / 4 - 1}px ${height / 4}px)` }}
     >
-      <p className="rounded-full border border-border bg-card px-3 py-1 font-mono text-[11px] text-muted-foreground">{message}</p>
+      <p className="rounded-full border border-border bg-card px-3 py-1 font-mono text-[13px] text-muted-foreground">{message}</p>
     </div>
   )
 }

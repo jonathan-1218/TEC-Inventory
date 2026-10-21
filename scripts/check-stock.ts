@@ -15,7 +15,7 @@ import { ActionError } from "@/lib/action-error"
 import { parseDateInput, toDateInput, todayNoonUTC } from "@/lib/dates"
 import { extendDueSchema, issueSchema, projectCreateSchema, taskUpdateSchema } from "@/lib/validators"
 import { createVerify, generateKeyPairSync } from "node:crypto"
-import { categoryFromType, clubRows, configuredSheetUrl, pushToSheet, SHEET_HEADER, sheetsConfig, signJwt, typeFor } from "@/lib/sheets"
+import { CHECKLIST_HEADER, categoryFromType, checklistRows, clubRows, configuredSheetUrl, pushChecklist, pushToSheet, SHEET_HEADER, sheetsConfig, signJwt, typeFor } from "@/lib/sheets"
 import { withStock } from "@/lib/queries"
 
 if (existsSync(".env")) process.loadEnvFile(".env")
@@ -249,6 +249,7 @@ async function checkSheets() {
   let written: { values: unknown[][] } | undefined
   const tableEnd = 3 // header + 2 rows
   let header = [...SHEET_HEADER]
+  let checklistHeader = [...CHECKLIST_HEADER]
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const u = decodeURIComponent(String(input)), m = init?.method ?? "GET"
     calls.push(`${m} ${u.replace(/^https:\/\/[^/]+/, "").replace(/\?.*/, "")}`)
@@ -256,8 +257,8 @@ async function checkSheets() {
     if (u.includes("oauth2")) return ok({ access_token: "tok", expires_in: 3600 })
     assert.equal(new Headers(init?.headers).get("authorization"), "Bearer tok")
     if (u.includes("FORBIDDEN")) return new Response(JSON.stringify({ error: { message: "denied" } }), { status: 403 })
-    if (m === "GET" && u.includes("fields=sheets")) return ok({ sheets: [{ properties: { sheetId: 7, title: "CHECK-LIST" } }, { properties: { sheetId: 0, title: "COMPONENTS" }, tables: [{ tableId: "T1", range: { startRowIndex: 0, endRowIndex: tableEnd } }] }] })
-    if (m === "GET") return ok({ values: [header, ["ARDUINO NANO", 2, "DEVELOPMENT KITS"]] })
+    if (m === "GET" && u.includes("fields=sheets")) return ok({ sheets: [{ properties: { sheetId: 7, title: "CHECK-LIST" }, tables: [{ tableId: "T2", range: { startRowIndex: 0, endRowIndex: 3 } }] }, { properties: { sheetId: 0, title: "COMPONENTS" }, tables: [{ tableId: "T1", range: { startRowIndex: 0, endRowIndex: tableEnd } }] }] })
+    if (m === "GET") return ok({ values: [u.includes("CHECK-LIST") ? checklistHeader : header, ["ARDUINO NANO", 2, "DEVELOPMENT KITS"]] })
     if (m === "PUT") written = JSON.parse(String(init?.body))
     if (m === "POST" && u.includes("batchUpdate")) {
       const req = JSON.parse(String(init?.body)).requests[0].updateTable
@@ -284,6 +285,20 @@ async function checkSheets() {
     await assert.rejects(pushToSheet(cfg, (types) => clubRows(parts, usage, types)), /columns changed/)
     assert.ok(!calls.some((c) => c.startsWith("PUT")))
     await assert.rejects(pushToSheet({ ...raw, sheetId: "FORBIDDEN" }, () => []), /403: denied — share the sheet with the service account/)
+
+    // CHECK-LIST: one row per issuance record, oldest first; returned ones ticked with their date; the table
+    // (2 body rows) is padded with a blank row (unticked checkbox) when there is only 1 loan.
+    const loan = (over: object) => ({ quantity: 2, issuedDate: new Date("2026-10-01T12:00:00Z"), returnedDate: null, notes: "Rover wheels", project: { title: "LFB" }, component: { name: "N20 Motor" }, issuedTo: { name: "Asha K", rollNumber: "21ECE001" }, ...over })
+    assert.deepEqual(checklistRows([loan({}), loan({ quantity: 1, returnedDate: new Date("2026-10-05T12:00:00Z"), notes: null })]), [
+      ["21ECE001", "Asha K", "N20 Motor", 2, "Rover wheels", "2026-10-01", false, ""],
+      ["21ECE001", "Asha K", "N20 Motor", 1, "LFB", "2026-10-01", true, "2026-10-05"],
+    ])
+    calls.length = 0
+    assert.deepEqual(await pushChecklist(cfg, checklistRows([loan({})])), { rows: 1 })
+    assert.deepEqual(calls.at(-1), "PUT /v4/spreadsheets/S1/values/'CHECK-LIST'!A2:H3")
+    assert.deepEqual(written!.values[1], ["", "", "", "", "", "", false, ""])
+    checklistHeader = ["REG NO", ...CHECKLIST_HEADER.slice(1)]
+    await assert.rejects(pushChecklist(cfg, []), /"CHECK-LIST" columns changed/)
   } finally {
     globalThis.fetch = realFetch
   }

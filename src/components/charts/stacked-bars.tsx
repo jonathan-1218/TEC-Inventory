@@ -57,7 +57,7 @@ export function StackedBars({
 
   return (
     <figure className={cn("flex min-w-0 flex-col gap-3", className)}>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground" aria-hidden>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-muted-foreground" aria-hidden>
         {meta.map((s, i) => (
           <li key={s.key} className="flex items-center gap-1.5">
             <SeriesKey s={s} />

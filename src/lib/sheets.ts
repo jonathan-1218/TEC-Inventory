@@ -1,7 +1,8 @@
 /**
- * Live mirror of the inventory into the club's existing Google Sheet ("COMPONENTS" tab), one-way: app → sheet.
- * It fills that tab's own table — COMPONENT NAME · TOTAL · TYPE · TEC CLUB USAGE · USED QTY · RETURN STATUS ·
- * AVAILABLE QTY · PURPOSE · PROJECT NAME — and leaves the header, formatting and every other tab alone.
+ * Live mirror of the inventory into the club's existing Google Sheet, one-way: app → sheet. It fills two tabs' own
+ * tables — COMPONENTS (COMPONENT NAME · TOTAL · TYPE · TEC CLUB USAGE · USED QTY · RETURN STATUS · AVAILABLE QTY ·
+ * PURPOSE · PROJECT NAME) and CHECK-LIST (REG. NO. · NAME · COMPONENT · QTY · PURPOSE · COLLECTED DATE · RETURN
+ * STATUS · RETURN DATE) — and leaves the headers, formatting and every other tab alone.
  *
  * Auth is a Google service account (server-to-server, no browser login): we sign a JWT with Node's crypto and
  * trade it for an access token. Each sync rewrites the whole tab from the database, so the sheet can't drift —
@@ -17,7 +18,6 @@ import { issuedCounts } from "@/lib/stock"
 import { withStock, type ComponentWithStock } from "@/lib/queries"
 import type { Category } from "@prisma/client"
 
-const TAB = "COMPONENTS"
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
 const API = "https://sheets.googleapis.com/v4/spreadsheets"
 
@@ -136,11 +136,18 @@ export function typeFor(category: Category, current: string | undefined): string
   return known && categoryFromType(current) === category ? current : CATEGORY_TO_TYPE[category]
 }
 
+/** A tab we own: its name, the exact header we expect in row 1, and an empty table row (checkboxes unticked). */
+type TabSpec = { tab: string; header: string[]; blank: Cell[] }
+
 export const SHEET_HEADER = [
   "COMPONENT NAME", "TOTAL", "TYPE", "TEC CLUB USAGE", "USED QTY", "RETURN STATUS", "AVAILABLE QTY", "PURPOSE", "PROJECT NAME",
 ]
-const WIDTH = SHEET_HEADER.length
-const BLANK_ROW: Cell[] = ["", "", "", false, "", false, "", "", ""]
+const COMPONENTS: TabSpec = { tab: "COMPONENTS", header: SHEET_HEADER, blank: ["", "", "", false, "", false, "", "", ""] }
+
+export const CHECKLIST_HEADER = ["REG. NO.", "NAME", "COMPONENT", "QTY", "PURPOSE", "COLLECTED DATE", "RETURN STATUS", "RETURN DATE"]
+const CHECKLIST: TabSpec = { tab: "CHECK-LIST", header: CHECKLIST_HEADER, blank: ["", "", "", "", "", "", false, ""] }
+
+const colLetter = (n: number) => String.fromCharCode(64 + n)
 export const sheetKey = (name: string) => name.trim().replace(/\s+/g, " ").toUpperCase()
 
 /** A component's checkout history, as far as the sheet needs it. */
@@ -173,15 +180,17 @@ export function clubRows(components: ComponentWithStock[], usage: Map<string, Us
   })
 }
 
-const values = (sheetId: string, a1: string) => `${API}/${sheetId}/values/${encodeURIComponent(`'${TAB}'!${a1}`)}`
+const values = (sheetId: string, tab: string, a1: string) => `${API}/${sheetId}/values/${encodeURIComponent(`'${tab}'!${a1}`)}`
 
 type TableInfo = { gid: number; tableId?: string; endRowIndex: number }
 
-/** The COMPONENTS tab and its table (rows A1:I…), plus the TYPE currently shown for each component name. */
-async function readSheet(cfg: SheetsConfig, token: string): Promise<{ table: TableInfo; currentTypes: Map<string, string> }> {
+/** A tab, its table (rows from A1) and its current values; refuses if the header isn't the one we expect. */
+async function readTab(cfg: SheetsConfig, token: string, spec: TabSpec): Promise<{ table: TableInfo; grid: Cell[][] }> {
+  const { tab: TAB, header: HEADER } = spec
+  const last = colLetter(HEADER.length)
   const [meta, grid] = (await Promise.all([
     api(token, "GET", `${API}/${cfg.sheetId}?fields=sheets(properties(sheetId,title),tables(tableId,range))`),
-    api(token, "GET", `${values(cfg.sheetId, "A1:I")}?valueRenderOption=UNFORMATTED_VALUE`),
+    api(token, "GET", `${values(cfg.sheetId, TAB, `A1:${last}`)}?valueRenderOption=UNFORMATTED_VALUE`),
   ])) as [
     { sheets?: { properties?: { sheetId?: number; title?: string }; tables?: { tableId?: string; range?: { startRowIndex?: number; startColumnIndex?: number; endRowIndex?: number } }[] }[] },
     { values?: Cell[][] },
@@ -189,26 +198,36 @@ async function readSheet(cfg: SheetsConfig, token: string): Promise<{ table: Tab
   const tab = meta.sheets?.find((s) => s.properties?.title === TAB)
   if (!tab) throw new Error(`The sheet has no "${TAB}" tab.`)
   const header = (grid.values?.[0] ?? []).map((h) => String(h).trim().toUpperCase())
-  if (SHEET_HEADER.some((h, i) => header[i] !== h)) {
+  if (HEADER.some((h, i) => header[i] !== h)) {
     // Refuse rather than write numbers under the wrong headings if someone reorders or renames the columns.
-    throw new Error(`"${TAB}" columns changed — expected ${SHEET_HEADER.join(" · ")} in A1:I1.`)
+    throw new Error(`"${TAB}" columns changed — expected ${HEADER.join(" · ")} in A1:${last}1.`)
   }
   const table = tab.tables?.find((t) => !t.range?.startRowIndex && !t.range?.startColumnIndex)
   const rows = grid.values?.length ?? 1
+  return {
+    table: { gid: tab.properties?.sheetId ?? 0, tableId: table?.tableId, endRowIndex: table?.range?.endRowIndex ?? rows },
+    grid: grid.values ?? [],
+  }
+}
+
+/** The COMPONENTS tab, plus the TYPE currently shown for each component name. */
+async function readSheet(cfg: SheetsConfig, token: string): Promise<{ table: TableInfo; currentTypes: Map<string, string> }> {
+  const { table, grid } = await readTab(cfg, token, COMPONENTS)
   // First occurrence wins for duplicate names — the same rule the one-off import used.
   const currentTypes = new Map<string, string>()
-  for (const r of (grid.values ?? []).slice(1)) {
+  for (const r of grid.slice(1)) {
     const key = sheetKey(String(r[0] ?? ""))
     if (key && !currentTypes.has(key)) currentTypes.set(key, String(r[2] ?? ""))
   }
-  return { table: { gid: tab.properties?.sheetId ?? 0, tableId: table?.tableId, endRowIndex: table?.range?.endRowIndex ?? rows }, currentTypes }
+  return { table, currentTypes }
 }
 
 /**
  * Write the rows under the header. The table keeps its size: unused rows below are blanked (checkboxes unticked),
  * and it grows if there are more components than rows — so formatting, dropdowns and checkboxes stay intact.
  */
-async function writeTable(cfg: SheetsConfig, token: string, table: TableInfo, rows: Cell[][]) {
+async function writeTable(cfg: SheetsConfig, token: string, spec: TabSpec, table: TableInfo, rows: Cell[][]) {
+  const WIDTH = spec.header.length
   const height = Math.max(table.endRowIndex - 1, rows.length)
   if (table.tableId && rows.length + 1 > table.endRowIndex) {
     await api(token, "POST", `${API}/${cfg.sheetId}:batchUpdate`, {
@@ -220,9 +239,9 @@ async function writeTable(cfg: SheetsConfig, token: string, table: TableInfo, ro
       }],
     })
   }
-  const body = [...rows, ...Array.from({ length: height - rows.length }, () => BLANK_ROW)]
+  const body = [...rows, ...Array.from({ length: height - rows.length }, () => spec.blank)]
   // RAW: values are stored as typed, so a part named "=IMPORTXML(...)" stays text, never a formula.
-  await api(token, "PUT", `${values(cfg.sheetId, `A2:I${height + 1}`)}?valueInputOption=RAW`, { values: body })
+  await api(token, "PUT", `${values(cfg.sheetId, spec.tab, `A2:${colLetter(WIDTH)}${height + 1}`)}?valueInputOption=RAW`, { values: body })
 }
 
 /** Rewrite the COMPONENTS table from the database. Returns null when syncing isn't configured. */
@@ -254,8 +273,63 @@ export async function pushToSheet(cfg: SheetsConfig, build: (currentTypes: Map<s
   const token = await accessToken(cfg)
   const { table, currentTypes } = await readSheet(cfg, token)
   const rows = build(currentTypes)
-  await writeTable(cfg, token, table, rows)
+  await writeTable(cfg, token, COMPONENTS, table, rows)
   return { rows: rows.length, url: sheetUrl(cfg.sheetId) }
+}
+
+type Loan = {
+  quantity: number
+  issuedDate: Date
+  returnedDate: Date | null
+  notes: string | null
+  project: { title: string } | null
+  component: { name: string }
+  issuedTo: { name: string; rollNumber: string }
+}
+const day = (d: Date) => d.toISOString().slice(0, 10)
+
+/**
+ * One CHECK-LIST row per issuance record, oldest first: REG. NO. and NAME are the member's roll number and name,
+ * PURPOSE the checkout's note (else its project), RETURN STATUS ticked once returned. A partial return leaves two
+ * records (the part still out, the part back), so quantities always add up to what was issued.
+ */
+export function checklistRows(loans: Loan[]): Cell[][] {
+  return loans.map((l) => [
+    l.issuedTo.rollNumber,
+    l.issuedTo.name,
+    l.component.name,
+    l.quantity,
+    l.notes?.trim() || l.project?.title || "",
+    day(l.issuedDate),
+    l.returnedDate !== null,
+    l.returnedDate ? day(l.returnedDate) : "",
+  ])
+}
+
+/** Rewrite the CHECK-LIST table from the issuances. Header mismatch or a missing tab throws. */
+export async function pushChecklist(cfg: SheetsConfig, rows: Cell[][]) {
+  const token = await accessToken(cfg)
+  const { table } = await readTab(cfg, token, CHECKLIST)
+  await writeTable(cfg, token, CHECKLIST, table, rows)
+  return { rows: rows.length }
+}
+
+export async function syncChecklistToSheet(): Promise<{ rows: number } | null> {
+  const cfg = sheetsConfig()
+  if (!cfg) return null
+  const loans = await db.issuance.findMany({
+    orderBy: [{ issuedDate: "asc" }, { createdAt: "asc" }],
+    select: {
+      quantity: true,
+      issuedDate: true,
+      returnedDate: true,
+      notes: true,
+      project: { select: { title: true } },
+      component: { select: { name: true } },
+      issuedTo: { select: { name: true, rollNumber: true } },
+    },
+  })
+  return pushChecklist(cfg, checklistRows(loans))
 }
 
 /**
@@ -267,10 +341,13 @@ export async function pushToSheet(cfg: SheetsConfig, build: (currentTypes: Map<s
 export function scheduleSheetSync() {
   if (!process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_KEY) return
   after(async () => {
-    try {
-      await syncComponentsToSheet()
-    } catch (e) {
-      console.error("[sheets] sync failed:", e instanceof Error ? e.message : e)
+    // Independent: a problem with one tab (renamed header…) must not stop the other from syncing.
+    for (const sync of [syncComponentsToSheet, syncChecklistToSheet]) {
+      try {
+        await sync()
+      } catch (e) {
+        console.error(`[sheets] ${sync.name} failed:`, e instanceof Error ? e.message : e)
+      }
     }
   })
 }

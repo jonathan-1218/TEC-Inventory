@@ -26,14 +26,14 @@ export function BarList({
 }) {
   const rows = [...items].sort((a, b) => b.value - a.value).slice(0, limit)
   const max = Math.max(1, ...rows.map((r) => r.value))
-  if (rows.length === 0) return <p className="py-6 text-center font-mono text-[11px] text-muted-foreground">Nothing to rank yet</p>
+  if (rows.length === 0) return <p className="py-6 text-center font-mono text-[13px] text-muted-foreground">Nothing to rank yet</p>
 
   return (
     <ol aria-label={summary} className={cn("flex flex-col gap-1.5", className)}>
       {rows.map((r, i) => {
         const body = (
           <>
-            <span className="w-5 shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+            <span className="w-5 shrink-0 font-mono text-[13px] text-muted-foreground tabular-nums">{String(i + 1).padStart(2, "0")}</span>
             <span className="relative flex h-7 min-w-0 flex-1 items-center">
               <span
                 aria-hidden
@@ -49,7 +49,7 @@ export function BarList({
               />
               <span className="relative truncate px-2.5 text-[13px]">
                 {r.label}
-                {r.hint && <span className="ml-1.5 text-xs text-muted-foreground">{r.hint}</span>}
+                {r.hint && <span className="ml-1.5 text-[13px] text-muted-foreground">{r.hint}</span>}
               </span>
             </span>
             <span className="w-12 shrink-0 text-right font-mono text-[13px] font-semibold tabular-nums">{formatValue(r.value)}</span>

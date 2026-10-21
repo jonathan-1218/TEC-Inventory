@@ -102,7 +102,7 @@ export default async function TeamsPage() {
           {newTeam}
         </EmptyState>
       ) : (
-        <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="grid items-stretch gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {cards.map((team) => (
             <TeamCard
               key={team.id}

@@ -8,7 +8,7 @@ import { APP_TIME_ZONE, parseDateInput, toDateInput, todayNoonUTC } from "@/lib/
 import { getComponentsWithStock } from "@/lib/queries"
 import { daysBetween } from "./util"
 
-const FEED_SIZE = 10
+const FEED_SIZE = 6
 const link = "font-medium underline-offset-4 hover:underline"
 const person = { select: { id: true, name: true } }
 const item = { select: { id: true, name: true } }
@@ -153,7 +153,7 @@ export async function ActivityFeed() {
   }
 
   const activity = events.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, FEED_SIZE)
-  if (!activity.length) return <p className="py-8 text-center font-mono text-xs text-muted-foreground">No activity yet</p>
+  if (!activity.length) return <p className="py-8 text-center font-mono text-[13px] text-muted-foreground">No activity yet</p>
 
   const today = toDateInput(todayNoonUTC())
   const days = Map.groupBy(activity, (a) => toDateInput(a.date))
@@ -178,7 +178,7 @@ export async function ActivityFeed() {
                   </span>
                   <div className="min-w-0 pt-0.5">
                     <p className="text-sm leading-snug text-pretty">{a.body}</p>
-                    {a.detail && <div className="mt-1 truncate text-xs text-muted-foreground">{a.detail}</div>}
+                    {a.detail && <div className="mt-1 truncate text-[13px] text-muted-foreground">{a.detail}</div>}
                   </div>
                 </li>
               )

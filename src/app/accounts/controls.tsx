@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Check, Pencil, Plus, Trash2, X } from "lucide-react"
+import { Check, KeyRound, Pencil, Plus, Trash2, Wand2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -14,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { ConfirmDelete } from "@/components/confirm-delete"
 import { FormField } from "@/components/form-field"
-import { approveAccount, createMentor, deleteAccount, deleteMentor, updateMentor } from "@/app/actions/accounts"
+import { approveAccount, createMentor, deleteAccount, deleteMentor, resetTeamPassword, updateMentor } from "@/app/actions/accounts"
 import { formValues, runAction } from "@/lib/client"
 
 export function ApproveButtons({ id, title }: { id: string; title: string }) {
@@ -136,6 +137,79 @@ export function MentorDialog({ mentor }: { mentor?: MentorValues }) {
           <DialogFooter>
             <Button type="submit" variant="brand" disabled={pending}>
               {pending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Random 16-letter password in four groups (no look-alike characters), e.g. "k7m2-x9qd-p4wn-t8rc". */
+function generatePassword() {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789"
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  const raw = Array.from(bytes, (b) => chars[b % chars.length]).join("")
+  return raw.match(/.{4}/g)!.join("-")
+}
+
+export function ResetPassword({ id, email }: { id: string; email: string }) {
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string>()
+  const [pending, start] = useTransition()
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        setPassword("")
+        setError(undefined)
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={`Reset password for ${email}`}>
+          <KeyRound />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reset password</DialogTitle>
+          <DialogDescription>
+            New password for <span className="font-mono">{email}</span>. The old one and any open sessions stop working. Tell the
+            team the new password in person.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            start(async () => {
+              const res = await runAction(resetTeamPassword({ id, password }), "Password changed")
+              if (res.ok) setOpen(false)
+              else setError(res.error)
+            })
+          }}
+        >
+          <FormField label="New password" htmlFor={`reset-${id}`} error={error} hint="10+ characters; a long generated one is best.">
+            <div className="flex gap-2">
+              <Input
+                id={`reset-${id}`}
+                value={password}
+                autoComplete="off"
+                required
+                maxLength={200}
+                className="font-mono"
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Button type="button" variant="outline" onClick={() => setPassword(generatePassword())}>
+                <Wand2 /> Generate
+              </Button>
+            </div>
+          </FormField>
+          <DialogFooter>
+            <Button type="submit" variant="brand" disabled={pending || !password}>
+              {pending ? "Saving…" : "Set password"}
             </Button>
           </DialogFooter>
         </form>

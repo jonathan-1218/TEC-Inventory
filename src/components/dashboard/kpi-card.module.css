@@ -1,0 +1,85 @@
+/* Dashboard stat tile: a tinted gradient pours in from the top-right corner; each tile has its own hue. */
+.tile {
+  --tone: #e99704;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease;
+}
+
+.tile[data-tone="green"] { --tone: #14b8a6; }
+.tile[data-tone="orange"] { --tone: #e99704; }
+.tile[data-tone="red"] { --tone: #ef4444; }
+.tile[data-tone="blue"] { --tone: #3b82f6; }
+
+/* The gradient itself. It sits behind the content and scales from the corner on hover. */
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in oklab, var(--tone) 42%, transparent) 0%, transparent 58%),
+    linear-gradient(225deg, color-mix(in oklab, var(--tone) 26%, transparent) 0%, color-mix(in oklab, var(--tone) 7%, transparent) 38%, transparent 66%);
+  background-repeat: no-repeat;
+  transform-origin: 100% 0%;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.4s ease;
+  opacity: 0.85;
+}
+
+/* A thin tinted edge along the top and right, like the corner catching light. */
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(225deg, color-mix(in oklab, var(--tone) 70%, transparent), transparent 45%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 0.4s ease;
+}
+
+.num {
+  display: inline-block;
+  transform-origin: left bottom;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.arrow {
+  transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s ease;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .tile:hover {
+    transform: translateY(-5px);
+    box-shadow:
+      0 18px 34px -18px color-mix(in oklab, var(--tone) 65%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--tone) 38%, transparent);
+  }
+  .tile:hover::before {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+  .tile:hover::after {
+    opacity: 1;
+  }
+  .tile:hover .num {
+    transform: scale(1.08);
+  }
+  .tile:hover .arrow {
+    transform: translate(3px, -3px);
+    opacity: 1;
+  }
+  .tile:active {
+    transform: translateY(-2px) scale(0.99);
+  }
+}
+
+:global(.dark) .tile::before {
+  opacity: 1;
+}

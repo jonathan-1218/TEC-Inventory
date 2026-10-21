@@ -97,6 +97,9 @@ model Member {
   // Optional: members added through a team sign-up only give name, roll number, department and year.
   email       String?     @unique
   phone       String?
+  // Shown on the member's About card: a small JPEG as a data URL (uploaded in the member form) or an https link.
+  photo       String?
+  bio         String?
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

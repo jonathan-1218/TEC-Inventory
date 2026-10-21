@@ -171,8 +171,8 @@ export function Readout({
     .map((s) => ({ s, v: payload.find((p) => p.dataKey === s.key)?.value }))
     .filter((r): r is { s: SeriesMeta; v: number } => typeof r.v === "number")
   return (
-    <div className="pointer-events-none min-w-40 rounded-md border border-border bg-popover/95 px-3 py-2 font-mono text-[11px] text-popover-foreground shadow-lg backdrop-blur-sm">
-      <div className="mb-1.5 border-b border-dashed border-border pb-1.5 text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+    <div className="pointer-events-none min-w-40 rounded-md border border-border bg-popover/95 px-3 py-2 font-mono text-[13px] text-popover-foreground shadow-lg backdrop-blur-sm">
+      <div className="mb-1.5 border-b border-dashed border-border pb-1.5 text-[13px] tracking-[0.12em] text-muted-foreground uppercase">
         {formatLabel(label)}
       </div>
       <div className="grid grid-cols-[auto_auto_1fr] items-center gap-x-2.5 gap-y-1">

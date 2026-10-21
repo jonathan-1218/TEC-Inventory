@@ -12,7 +12,7 @@ import { storedSignupSchema } from "@/lib/validators"
 import { GoalDialog } from "@/components/projects/goal-dialog"
 import { getClubGoal } from "@/lib/goals"
 import { toDateInput } from "@/lib/dates"
-import { ApproveButtons, MentorDialog, RemoveLogin, RemoveMentor } from "./controls"
+import { ApproveButtons, MentorDialog, RemoveLogin, RemoveMentor, ResetPassword } from "./controls"
 
 export const metadata: Metadata = { title: "Sign-ups, mentors & goals" }
 
@@ -177,6 +177,7 @@ export default async function AccountsPage() {
                         {a.email} · approved {formatDate(a.approvedAt)}
                       </p>
                     </div>
+                    <ResetPassword id={a.id} email={a.email} />
                     <RemoveLogin id={a.id} email={a.email} />
                   </li>
                 ))}

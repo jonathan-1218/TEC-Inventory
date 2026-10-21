@@ -96,6 +96,16 @@ const memberBase = z.object({
     z.email("Must be a valid email").max(200).nullable()
   ),
   phone: optStr(20),
+  // Admin-uploaded JPEG (resized in the browser, ~40 KB) or an https image link. Nothing else is stored.
+  photo: z.preprocess(
+    emptyToNull,
+    z
+      .string()
+      .max(150_000, "Photo is too large")
+      .refine((v) => /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/\S+$/.test(v), "Use a JPEG upload or an https link")
+      .nullable()
+  ),
+  bio: optStr(1000),
   isActive: bool,
 })
 
@@ -286,6 +296,11 @@ export const signupSchema = storedSignupSchema
     }
   })
 export type SignupInput = z.input<typeof signupSchema>
+
+export const resetPasswordSchema = z.object({
+  id,
+  password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`).max(200),
+})
 
 export const teamLoginSchema = z.object({ email, password: z.string().min(1, "Enter your password").max(200) })
 

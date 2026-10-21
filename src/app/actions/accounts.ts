@@ -7,9 +7,12 @@ import { db } from "@/lib/db"
 import { ActionError, adminAction, errorMessage, type ActionResult } from "@/lib/action"
 import { TEAM_COOKIE, hashPassword, sessionValue, verifyPassword } from "@/lib/team-auth"
 import { MINUTE, allowAll, clearLimit, clientIp } from "@/lib/throttle"
+import { passwordProblems } from "@/lib/password-strength"
 import {
   idSchema,
   mentorSchema,
+  personalWords,
+  resetPasswordSchema,
   signupSchema,
   storedSignupSchema,
   teamLoginSchema,
@@ -136,6 +139,22 @@ export const approveAccount = adminAction(idSchema, async ({ id }) => {
 /** Rejects a pending sign-up, or revokes an approved login (the project and its data stay). */
 export const deleteAccount = adminAction(idSchema, async ({ id }) => {
   await db.account.delete({ where: { id } })
+  return { id }
+})
+
+/**
+ * Admin: set a new password for a team's login (a forgotten password). Same strength rules as sign-up; the old
+ * password and every open session stop working (the session cookie is bound to the password hash), and any
+ * login lockout is lifted.
+ */
+export const resetTeamPassword = adminAction(resetPasswordSchema, async ({ id, password }) => {
+  const account = await db.account.findUnique({ where: { id }, select: { email: true, signup: true } })
+  if (!account) throw new ActionError("This login no longer exists.")
+  const s = storedSignupSchema.safeParse(account.signup)
+  const problem = passwordProblems(password, personalWords(account.email, s.success ? s.data.members : []))[0]
+  if (problem) throw new ActionError(problem)
+  await db.account.update({ where: { id }, data: { passwordHash: await hashPassword(password) } })
+  await clearLimit(`team-login:email:${account.email}`)
   return { id }
 })
 
