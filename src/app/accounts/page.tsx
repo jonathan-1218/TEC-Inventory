@@ -13,7 +13,8 @@ import { storedSignupSchema } from "@/lib/validators"
 import { GoalDialog } from "@/components/projects/goal-dialog"
 import { getClubGoal } from "@/lib/goals"
 import { toDateInput } from "@/lib/dates"
-import { ApproveButtons, DesignationDialog, MentorDialog, RemoveDesignation, RemoveLogin, RemoveMentor, ResetPassword } from "./controls"
+import { DesignationDialog } from "@/components/designation-dialog"
+import { ApproveButtons, MentorDialog, RemoveDesignation, RemoveLogin, RemoveMentor, ResetPassword } from "./controls"
 
 export const metadata: Metadata = { title: "Sign-ups, mentors & goals" }
 

@@ -15,10 +15,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { ConfirmDelete } from "@/components/confirm-delete"
 import { FormField } from "@/components/form-field"
-import { createDesignation, deleteDesignation, updateDesignation } from "@/app/actions/designations"
+import { deleteDesignation } from "@/app/actions/designations"
 import { approveAccount, createMentor, deleteAccount, deleteMentor, resetTeamPassword, updateMentor } from "@/app/actions/accounts"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { TIER_LABELS, type DesignationOpt, type DesignationTier } from "@/lib/designations"
 import { formValues, runAction } from "@/lib/client"
 
 export function ApproveButtons({ id, title }: { id: string; title: string }) {
@@ -235,75 +233,5 @@ export function RemoveDesignation({ id, label }: { id: string; label: string }) 
       successMessage="Designation removed"
       onConfirm={() => deleteDesignation({ id })}
     />
-  )
-}
-
-/** Add a designation, or edit one: its name, which group it belongs to, and where it sorts. */
-export function DesignationDialog({ designation, nextRank }: { designation?: DesignationOpt; nextRank: number }) {
-  const [open, setOpen] = useState(false)
-  const [tier, setTier] = useState<DesignationTier>(designation?.tier ?? "OFFICE")
-  const [pending, start] = useTransition()
-  const [errors, setErrors] = useState<Record<string, string[]>>({})
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {designation ? (
-          <Button variant="ghost" size="icon-sm" aria-label={`Edit ${designation.label}`}>
-            <Pencil />
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm">
-            <Plus /> Add designation
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{designation ? `Edit ${designation.label}` : "Add designation"}</DialogTitle>
-          <DialogDescription>Designations are the roles you can give a member, like President or Core Member.</DialogDescription>
-        </DialogHeader>
-        <form
-          className="grid gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            const values = { ...formValues(e.currentTarget), tier }
-            start(async () => {
-              const res = await runAction(
-                designation ? updateDesignation({ ...values, id: designation.id }) : createDesignation(values),
-                designation ? "Designation updated" : "Designation added"
-              )
-              if (res.ok) setOpen(false)
-              else setErrors(res.fieldErrors ?? {})
-            })
-          }}
-        >
-          <FormField label="Name" htmlFor="designation-label" error={errors.label}>
-            <Input id="designation-label" name="label" required maxLength={60} defaultValue={designation?.label} placeholder="e.g. Technical Lead" />
-          </FormField>
-          <FormField label="Group" error={errors.tier} hint="Office bearers are shown as cards on the Members page.">
-            <Select value={tier} onValueChange={(v) => setTier(v as DesignationTier)}>
-              <SelectTrigger className="w-full" aria-label="Group">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(TIER_LABELS) as DesignationTier[]).map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {TIER_LABELS[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-          <FormField label="Order" htmlFor="designation-rank" error={errors.rank} hint="Lower numbers come first (President is 10, Vice President 20…).">
-            <Input id="designation-rank" name="rank" type="number" min={0} max={10000} required defaultValue={designation?.rank ?? nextRank} />
-          </FormField>
-          <DialogFooter>
-            <Button type="submit" variant="brand" disabled={pending}>
-              {pending ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }

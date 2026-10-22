@@ -21,6 +21,9 @@ import { FormField } from "@/components/form-field"
 import { createMember, updateMember } from "@/app/actions/members"
 import { formValues, runAction } from "@/lib/client"
 import { useDesignations } from "@/components/designations-context"
+import type { DesignationOpt } from "@/lib/designations"
+import { DesignationDialog } from "@/components/designation-dialog"
+import { useIsAdmin } from "@/components/admin-context"
 
 export type MemberFormValues = Pick<
   Member,
@@ -87,6 +90,12 @@ function MemberForm({
   onDone: () => void
 }) {
   const roles = useDesignations()
+  const admin = useIsAdmin()
+  const [designationId, setDesignationId] = useState(member?.designation ?? defaultDesignation ?? "MEMBER")
+  const [addingRole, setAddingRole] = useState(false)
+  // Designations created from this form show up at once, before the page's shared list has refreshed.
+  const [added, setAdded] = useState<DesignationOpt[]>([])
+  const roleList = [...roles.list, ...added.filter((a) => !roles.list.some((r) => r.id === a.id))].sort((a, b) => a.rank - b.rank)
   const [pending, startTransition] = useTransition()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
 
@@ -153,18 +162,39 @@ function MemberForm({
             </Select>
           </FormField>
           <FormField label="Designation" error={errors.designation}>
-            <Select name="designation" defaultValue={member?.designation ?? defaultDesignation ?? "MEMBER"} required>
+            <Select
+              name="designation"
+              value={designationId}
+              // Ignore "" : Radix reports it for a moment when the chosen item (a designation just created) hasn't mounted yet.
+              onValueChange={(v) => (v === NEW_ROLE ? setAddingRole(true) : v && setDesignationId(v))}
+              required
+            >
               <SelectTrigger className="w-full" aria-label="Designation">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roles.list.map((d) => (
+                {roleList.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.label}
                   </SelectItem>
                 ))}
+                {admin && (
+                  <SelectItem value={NEW_ROLE} className="text-brand-strong font-medium">
+                    + Add new designation…
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
+            <DesignationDialog
+              open={addingRole}
+              onOpenChange={setAddingRole}
+              nextRank={(roleList.at(-1)?.rank ?? 0) + 10}
+              defaultTier={defaultDesignation ? "OFFICE" : "CORE"}
+              onSaved={(d) => {
+                setAdded((a) => [...a, d])
+                setDesignationId(d.id)
+              }}
+            />
           </FormField>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -214,6 +244,7 @@ function MemberForm({
   )
 }
 
+const NEW_ROLE = "__new__"
 const PHOTO_W = 360
 const PHOTO_H = 480
 
