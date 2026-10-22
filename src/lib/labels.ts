@@ -1,4 +1,4 @@
-import type { Category, Designation, ProjectStatus, ReturnCondition } from "@prisma/client"
+import type { Category, ProjectStatus, ReturnCondition } from "@prisma/client"
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   MICROCONTROLLER: "Microcontroller",
@@ -10,16 +10,6 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   TOOL: "Tool",
   CONSUMABLE: "Consumable",
   MISC: "Misc",
-}
-
-export const DESIGNATION_LABELS: Record<Designation, string> = {
-  PRESIDENT: "President",
-  VICE_PRESIDENT: "Vice President",
-  SECRETARY: "Secretary",
-  JOINT_SECRETARY: "Joint Secretary",
-  TREASURER: "Treasurer",
-  CORE_MEMBER: "Core Member",
-  MEMBER: "Member",
 }
 
 export const STATUS_LABELS: Record<ProjectStatus, string> = {
@@ -37,7 +27,6 @@ export const CONDITION_LABELS: Record<ReturnCondition, string> = {
 }
 
 export const CATEGORIES = Object.keys(CATEGORY_LABELS) as Category[]
-export const DESIGNATIONS = Object.keys(DESIGNATION_LABELS) as Designation[]
 export const STATUSES = Object.keys(STATUS_LABELS) as ProjectStatus[]
 export const CONDITIONS = Object.keys(CONDITION_LABELS) as ReturnCondition[]
 

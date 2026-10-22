@@ -6,13 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EmptyState } from "@/components/empty-state"
 import { PageHeader } from "@/components/page-header"
 import { db } from "@/lib/db"
+import { getDesignations, TIER_LABELS } from "@/lib/designations"
 import { isAdmin } from "@/lib/auth"
 import { formatDate } from "@/lib/dates"
 import { storedSignupSchema } from "@/lib/validators"
 import { GoalDialog } from "@/components/projects/goal-dialog"
 import { getClubGoal } from "@/lib/goals"
 import { toDateInput } from "@/lib/dates"
-import { ApproveButtons, MentorDialog, RemoveLogin, RemoveMentor, ResetPassword } from "./controls"
+import { ApproveButtons, DesignationDialog, MentorDialog, RemoveDesignation, RemoveLogin, RemoveMentor, ResetPassword } from "./controls"
 
 export const metadata: Metadata = { title: "Sign-ups, mentors & goals" }
 
@@ -20,14 +21,17 @@ export default async function AccountsPage() {
   if (!(await isAdmin())) {
     return <EmptyState icon={KeyRound} title="Admins only" description="Log in as a club admin to review sign-ups." />
   }
-  const [accounts, mentors, club] = await Promise.all([
+  const [accounts, mentors, club, designations, roleUse] = await Promise.all([
     db.account.findMany({
       select: { id: true, email: true, signup: true, approvedAt: true, createdAt: true, project: { select: { id: true, title: true } } },
       orderBy: { createdAt: "desc" },
     }),
     db.mentor.findMany({ include: { _count: { select: { projects: true } } }, orderBy: { name: "asc" } }),
     getClubGoal(),
+    getDesignations(),
+    db.member.groupBy({ by: ["designation"], _count: true }),
   ])
+  const usedBy = new Map(roleUse.map((r) => [r.designation, r._count]))
   const mentorName = new Map(mentors.map((m) => [m.id, `${m.name} · ${m.designation}`]))
   const pending = accounts.filter((a) => !a.approvedAt)
   const approved = accounts.filter((a) => a.approvedAt)
@@ -110,6 +114,36 @@ export default async function AccountsPage() {
               )
             })
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="border-b">
+          <p className="eyebrow">Designations</p>
+          <CardTitle>Roles you can give a member</CardTitle>
+          <CardDescription>
+            Add your own, rename them or change their order. Office bearers appear as cards on the Members page; a designation can only be removed when no member has it.
+          </CardDescription>
+          <div className="pt-2">
+            <DesignationDialog nextRank={(designations.at(-1)?.rank ?? 0) + 10} />
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          <ul>
+            {designations.map((d) => (
+              <li key={d.id} className="flex items-center gap-3 border-b px-4 py-2.5 last:border-b-0">
+                <span className="text-muted-foreground w-10 font-mono text-xs tabular-nums">{d.rank}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{d.label}</p>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {TIER_LABELS[d.tier]} · {usedBy.get(d.id) ?? 0} {(usedBy.get(d.id) ?? 0) === 1 ? "member" : "members"}
+                  </p>
+                </div>
+                <DesignationDialog designation={d} nextRank={d.rank} />
+                {d.id !== "MEMBER" && <RemoveDesignation id={d.id} label={d.label} />}
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
 

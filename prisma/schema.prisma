@@ -25,16 +25,6 @@ enum Category {
   MISC
 }
 
-enum Designation {
-  PRESIDENT
-  VICE_PRESIDENT
-  SECRETARY
-  JOINT_SECRETARY
-  TREASURER
-  CORE_MEMBER
-  MEMBER
-}
-
 enum ProjectStatus {
   PLANNING
   IN_PROGRESS
@@ -88,21 +78,23 @@ model Component {
 }
 
 model Member {
-  id          String      @id @default(cuid())
+  id          String            @id @default(cuid())
   name        String
-  rollNumber  String      @unique
+  rollNumber  String            @unique
   department  String
   yearOfStudy Int
-  designation Designation @default(MEMBER)
+  // Id of a DesignationOption (the old enum names were kept as ids, e.g. "PRESIDENT").
+  designation String            @default("MEMBER")
+  role        DesignationOption @relation(fields: [designation], references: [id], onDelete: Restrict, onUpdate: Cascade)
   // Optional: members added through a team sign-up only give name, roll number, department and year.
-  email       String?     @unique
+  email       String?           @unique
   phone       String?
   // Shown on the member's About card: a small JPEG as a data URL (uploaded in the member form) or an https link.
   photo       String?
   bio         String?
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   teams           TeamMember[]
   projects        ProjectMember[]
@@ -283,4 +275,23 @@ model RateLimit {
   key         String   @id
   count       Int
   windowStart DateTime
+}
+
+enum DesignationTier {
+  OFFICE
+  CORE
+  MEMBER
+}
+
+/**
+ * A member designation. Admins add, rename, reorder and remove these in the app; `tier` decides where it appears.
+ */
+model DesignationOption {
+  id      String          @id @default(cuid())
+  label   String          @unique
+  /// OFFICE shows as a card on the Members page; CORE and MEMBER are listed in the table.
+  tier    DesignationTier
+  /// Display order, lowest first.
+  rank    Int
+  members Member[]
 }

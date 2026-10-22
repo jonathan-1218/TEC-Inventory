@@ -1,15 +1,11 @@
-import type { Designation } from "@prisma/client"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { PriorityBars } from "@/components/badges"
-import { DESIGNATIONS, DESIGNATION_LABELS } from "@/lib/labels"
+import type { DesignationTier } from "@/lib/designations"
 import { cn } from "@/lib/utils"
 
-/** Office bearers (President … Treasurer) come first in DESIGNATIONS. */
-export const designationRank = (d: Designation) => DESIGNATIONS.indexOf(d)
-
 /** Quiet hierarchy: signal bars (3 office bearer · 2 core · 1 member) + label, no coloured chips. */
-export function DesignationBadge({ designation, className }: { designation: Designation; className?: string }) {
-  const level = designation === "MEMBER" ? "LOW" : designation === "CORE_MEMBER" ? "MEDIUM" : "HIGH"
+export function DesignationBadge({ label, tier, className }: { label: string; tier: DesignationTier; className?: string }) {
+  const level = tier === "MEMBER" ? "LOW" : tier === "CORE" ? "MEDIUM" : "HIGH"
   return (
     <span
       className={cn(
@@ -19,7 +15,7 @@ export function DesignationBadge({ designation, className }: { designation: Desi
       )}
     >
       <PriorityBars priority={level} className={cn(level === "HIGH" && "text-brand-strong")} />
-      {DESIGNATION_LABELS[designation]}
+      {label}
     </span>
   )
 }

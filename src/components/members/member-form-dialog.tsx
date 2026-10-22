@@ -1,7 +1,7 @@
 "use client"
 
 import { Children, useState, useTransition } from "react"
-import type { Designation, Member } from "@prisma/client"
+import type { Member } from "@prisma/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { FormField } from "@/components/form-field"
 import { createMember, updateMember } from "@/app/actions/members"
 import { formValues, runAction } from "@/lib/client"
-import { DESIGNATIONS, DESIGNATION_LABELS } from "@/lib/labels"
+import { useDesignations } from "@/components/designations-context"
 
 export type MemberFormValues = Pick<
   Member,
@@ -43,7 +43,7 @@ export function MemberFormDialog({
 }: {
   member?: MemberFormValues
   /** Pre-selected designation when adding (e.g. an office bearer from the cards view). */
-  defaultDesignation?: Designation
+  defaultDesignation?: string
   /** Existing departments, offered as suggestions. */
   departments: string[]
   trigger?: React.ReactNode
@@ -83,9 +83,10 @@ function MemberForm({
 }: {
   member?: MemberFormValues
   departments: string[]
-  defaultDesignation?: Designation
+  defaultDesignation?: string
   onDone: () => void
 }) {
+  const roles = useDesignations()
   const [pending, startTransition] = useTransition()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
 
@@ -157,9 +158,9 @@ function MemberForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {DESIGNATIONS.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {DESIGNATION_LABELS[d]}
+                {roles.list.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label}
                   </SelectItem>
                 ))}
               </SelectContent>

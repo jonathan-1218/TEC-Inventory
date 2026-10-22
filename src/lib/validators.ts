@@ -1,6 +1,6 @@
 import { z } from "zod"
-import type { Category, Designation, ProjectStatus, ReturnCondition, TaskPriority, TaskStatus } from "@prisma/client"
-import { CATEGORIES, CONDITIONS, DESIGNATIONS, STATUSES, TECH_STACK_KEYS } from "@/lib/labels"
+import type { Category, ProjectStatus, ReturnCondition, TaskPriority, TaskStatus } from "@prisma/client"
+import { CATEGORIES, CONDITIONS, STATUSES, TECH_STACK_KEYS } from "@/lib/labels"
 import { parseDateInput, todayNoonUTC } from "@/lib/dates"
 import { PASSWORD_MIN, passwordProblems } from "@/lib/password-strength"
 
@@ -32,7 +32,8 @@ const dateStr = z
 const optDate = z.preprocess(emptyToNull, dateStr.nullable())
 
 const category = z.enum(CATEGORIES as [Category, ...Category[]])
-const designation = z.enum(DESIGNATIONS as [Designation, ...Designation[]])
+// A DesignationOption id; the database rejects an id that doesn't exist.
+const designation = z.string().min(1, "Choose a designation")
 const status = z.enum(STATUSES as [ProjectStatus, ...ProjectStatus[]])
 const condition = z.enum(CONDITIONS as [ReturnCondition, ...ReturnCondition[]])
 
@@ -296,6 +297,12 @@ export const signupSchema = storedSignupSchema
     }
   })
 export type SignupInput = z.input<typeof signupSchema>
+
+export const designationSchema = z.object({
+  label: reqStr(60),
+  tier: z.enum(["OFFICE", "CORE", "MEMBER"]),
+  rank: int().max(10_000, "Too large"),
+})
 
 export const resetPasswordSchema = z.object({
   id,

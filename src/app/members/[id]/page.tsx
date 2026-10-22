@@ -19,6 +19,7 @@ import { Readout } from "@/components/issuances/readout"
 import { ReturnDialog } from "@/components/return-dialog"
 import { ExtendDueDialog } from "@/components/issuances/extend-due-dialog"
 import { MemberActions } from "@/components/members/member-actions"
+import { designationMap, getDesignations, labelOf } from "@/lib/designations"
 import { ActiveBadge, DesignationBadge, MemberAvatar } from "@/components/members/member-badges"
 import { getMemberActivity } from "@/lib/analytics"
 import { isAdmin } from "@/lib/auth"
@@ -59,6 +60,7 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
 export default async function MemberPage(props: PageProps<"/members/[id]">) {
   const { id } = await props.params
   const admin = await isAdmin() // cookie check, no DB round trip
+  const roles = designationMap(await getDesignations())
   // One parallel round of queries (admin-only form data included) instead of member first, then the rest.
   const [member, adminOptions, departments, activity] = await Promise.all([
     getMember(id),
@@ -132,7 +134,7 @@ export default async function MemberPage(props: PageProps<"/members/[id]">) {
           description={
             <span className="grid gap-2">
               <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <DesignationBadge designation={member.designation} />
+                <DesignationBadge label={labelOf(roles, member.designation)} tier={roles.get(member.designation)?.tier ?? "MEMBER"} />
                 <span aria-hidden className="text-border">
                   /
                 </span>

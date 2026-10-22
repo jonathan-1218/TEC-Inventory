@@ -16,12 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ConfirmDelete } from "@/components/confirm-delete"
 import { useIsAdmin } from "@/components/admin-context"
-import { ActiveBadge, DesignationBadge, MemberAvatar, designationRank } from "@/components/members/member-badges"
+import { ActiveBadge, DesignationBadge, MemberAvatar } from "@/components/members/member-badges"
 import { MembersCards } from "@/components/members/members-cards"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { MemberFormDialog, type MemberFormValues } from "@/components/members/member-form-dialog"
 import { deleteMember } from "@/app/actions/members"
-import { DESIGNATIONS, DESIGNATION_LABELS } from "@/lib/labels"
+import { useDesignations } from "@/components/designations-context"
 import { cn } from "@/lib/utils"
 
 export type MemberRow = MemberFormValues & {
@@ -64,14 +64,15 @@ function SortHead({
   )
 }
 
-function compare(a: MemberRow, b: MemberRow, key: SortKey): number {
-  if (key === "designation") return designationRank(a.designation) - designationRank(b.designation)
+function compare(a: MemberRow, b: MemberRow, key: SortKey, rank: (id: string) => number): number {
+  if (key === "designation") return rank(a.designation) - rank(b.designation)
   if (key === "yearOfStudy") return a.yearOfStudy - b.yearOfStudy
   return a[key].localeCompare(b[key])
 }
 
 export function MembersTable({ members, departments }: { members: MemberRow[]; departments: string[] }) {
   const admin = useIsAdmin()
+  const roles = useDesignations()
   const [query, setQuery] = useState("")
   const [designation, setDesignation] = useState(ALL)
   const [department, setDepartment] = useState(ALL)
@@ -96,8 +97,8 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
           (year === ALL || String(m.yearOfStudy) === year) &&
           (status === ALL || m.isActive === (status === "active"))
       )
-      .sort((a, b) => compare(a, b, sort.key) * sort.dir || a.name.localeCompare(b.name))
-  }, [members, query, designation, department, year, status, sort])
+      .sort((a, b) => compare(a, b, sort.key, roles.rank) * sort.dir || a.name.localeCompare(b.name))
+  }, [members, query, designation, department, year, status, sort, roles])
 
   const filtered = query !== "" || [designation, department, year, status].some((v) => v !== ALL)
 
@@ -130,9 +131,9 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All designations</SelectItem>
-            {DESIGNATIONS.map((d) => (
-              <SelectItem key={d} value={d}>
-                {DESIGNATION_LABELS[d]}
+            {roles.list.map((d) => (
+              <SelectItem key={d.id} value={d.id}>
+                {d.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -241,7 +242,7 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
                   <TableCell className="hidden min-w-32 whitespace-normal md:table-cell">{m.department}</TableCell>
                   <TableCell className="hidden font-mono text-xs tabular-nums sm:table-cell">Y{m.yearOfStudy}</TableCell>
                   <TableCell>
-                    <DesignationBadge designation={m.designation} />
+                    <DesignationBadge label={roles.label(m.designation)} tier={roles.tier(m.designation)} />
                   </TableCell>
                   <TableCell className="hidden xl:table-cell">
                     {m.email ? (

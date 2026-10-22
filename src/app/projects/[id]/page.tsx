@@ -24,6 +24,7 @@ import {
 import { ProgressUpdateForm } from "@/components/projects/progress-update-form"
 import { GoalBanner } from "@/components/projects/goal-banner"
 import { GoalDialog } from "@/components/projects/goal-dialog"
+import { designationMap, getDesignations, labelOf } from "@/lib/designations"
 import { getClubGoal, goalFor, goalStatus } from "@/lib/goals"
 import { ProjectTasks } from "@/components/tasks/project-tasks"
 import { db } from "@/lib/db"
@@ -31,7 +32,7 @@ import { isAdmin } from "@/lib/auth"
 import { teamSession } from "@/lib/team-auth"
 import { AdminProvider } from "@/components/admin-context"
 import { calendarDay, daysOverdue, formatDate, isOverdue, toDateInput, todayNoonUTC } from "@/lib/dates"
-import { DESIGNATION_LABELS, TECH_STACK_KEYS, TECH_STACK_LABELS, parseTechStack } from "@/lib/labels"
+import { TECH_STACK_KEYS, TECH_STACK_LABELS, parseTechStack } from "@/lib/labels"
 import { getSelectOptions, withStock } from "@/lib/queries"
 import { issuedCounts } from "@/lib/stock"
 import { cn } from "@/lib/utils"
@@ -59,6 +60,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   // A signed-in team may post progress and manage tasks on its own project (the actions re-check this).
   const canEdit = admin || (await teamSession())?.projectId === id
   // One parallel round of queries; the write-control data (admins only) loads alongside the project.
+  const roles = designationMap(await getDesignations())
   const [project, issued, options, teams, clubGoal] = await Promise.all([
     db.project.findUnique({
       where: { id },
@@ -362,7 +364,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                           </Link>
                           <p className="text-muted-foreground truncate text-xs">
                             <span className="text-foreground">{roleInProject}</span> ·{" "}
-                            {DESIGNATION_LABELS[member.designation]}
+                            {labelOf(roles, member.designation)}
                             {open > 0 && ` · ${open} open ${open === 1 ? "task" : "tasks"}`}
                           </p>
                         </div>

@@ -1,19 +1,22 @@
+"use client"
+
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { MemberFormDialog } from "@/components/members/member-form-dialog"
 import { OfficerCard } from "@/components/members/officer-card"
-import { designationRank } from "@/components/members/member-badges"
+import { useDesignations } from "@/components/designations-context"
 import type { MemberRow } from "@/components/members/members-table"
 
 /** Cards view: the club's office bearers only. The list view (toggle) shows every member. */
 export function MembersCards({ members, departments, admin }: { members: MemberRow[]; departments: string[]; admin: boolean }) {
+  const roles = useDesignations()
   const officers = members
-    .filter((m) => m.designation !== "MEMBER" && m.designation !== "CORE_MEMBER")
-    .sort((a, b) => designationRank(a.designation) - designationRank(b.designation) || a.name.localeCompare(b.name))
+    .filter((m) => roles.tier(m.designation) === "OFFICE")
+    .sort((a, b) => roles.rank(a.designation) - roles.rank(b.designation) || a.name.localeCompare(b.name))
   const add = admin && (
     <MemberFormDialog
       departments={departments}
-      defaultDesignation="SECRETARY"
+      defaultDesignation={roles.list.find((d) => d.tier === "OFFICE")?.id}
       trigger={
         <Button variant="outline" size="sm">
           <Plus /> Add office bearer

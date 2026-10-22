@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { MemberFormDialog } from "@/components/members/member-form-dialog"
 import { RowActions, type MemberRow } from "@/components/members/members-table"
-import { DESIGNATION_LABELS } from "@/lib/labels"
+import { useDesignations } from "@/components/designations-context"
 import mark from "@/assets/tec-mark.png"
 import { cn } from "@/lib/utils"
 import styles from "./officer-card.module.css"
@@ -25,7 +25,7 @@ const initials = (name: string) =>
 export function OfficerCard({ m, departments, admin }: { m: MemberRow; departments: string[]; admin: boolean }) {
   const [open, setOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const role = DESIGNATION_LABELS[m.designation]
+  const role = useDesignations().label(m.designation)
 
   return (
     <>
@@ -94,7 +94,7 @@ export function OfficerCard({ m, departments, admin }: { m: MemberRow; departmen
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl">
           <div className="grid gap-6 sm:grid-cols-[11rem_1fr]">
-            <div className={styles.aboutPhoto}>
+            <div className={cn(styles.aboutPhoto, "mx-auto sm:mx-0")}>
               {m.photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={m.photo} alt={m.name} referrerPolicy="no-referrer" />

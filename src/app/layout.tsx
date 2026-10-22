@@ -11,6 +11,8 @@ import { Intro } from "@/components/intro/intro"
 import { SiteHeader } from "@/components/site-header"
 import { isAdmin } from "@/lib/auth"
 import { teamSession } from "@/lib/team-auth"
+import { getDesignations } from "@/lib/designations"
+import { DesignationsProvider } from "@/components/designations-context"
 import "./globals.css"
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] })
@@ -25,7 +27,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Reading cookies makes every page render per-request, so data is always fresh.
-  const [admin, team, cookieStore] = await Promise.all([isAdmin(), teamSession(), cookies()])
+  const [admin, team, cookieStore, designations] = await Promise.all([isAdmin(), teamSession(), cookies(), getDesignations()])
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
 
   return (
@@ -34,6 +36,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Intro />
           <TooltipProvider>
+            <DesignationsProvider designations={designations}>
             <AdminProvider isAdmin={admin} team={team && { projectId: team.projectId, projectTitle: team.projectTitle }}>
               <SidebarProvider defaultOpen={sidebarOpen}>
                 <AppSidebar />
@@ -43,6 +46,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 </SidebarInset>
               </SidebarProvider>
             </AdminProvider>
+            </DesignationsProvider>
           </TooltipProvider>
           <Toaster position="top-right" />
         </ThemeProvider>

@@ -18,6 +18,8 @@ Anyone can browse. Adding, editing, issuing, returning and deleting require the 
 
 **Admin 2FA.** Run `npm run totp:setup` (it writes the key to `~/.config/tec-inventory/admin-totp.txt`, never to the screen), add that key to an authenticator app (Google Authenticator, Authy, 1Password…), and set `ADMIN_TOTP_SECRET` to it in Vercel (and `.env`). `/admin` then also asks for the 6-digit code; each code works once. Setting or changing it signs every admin out. Remove the variable to turn 2FA off.
 
+**Designations.** Member designations (President, Core Member…) are rows in the `DesignationOption` table, managed by admins under **Sign-ups & goals → Designations**: add your own, rename, reorder (lower order number first) and choose each one's group. *Office bearer* designations appear as cards on the Members page; *Core team* and *Member* are listed in the table. A designation can be removed only when no member has it, and "Member" (the default for new sign-ups) can be renamed but not removed. The defaults come from `prisma/designations.sql`, which `npm run db:push` runs before the schema push (idempotent; it also converted the old fixed enum without touching anyone's designation).
+
 **Goals.** Admins set a club-wide goal (e.g. 50% by a date) on `/accounts`, and can override it per project from the project page (**Set goal**). Expected progress rises in a straight line from the project's start to the goal; a project more than 10 points below that pace, or short of the goal after its date, is flagged on its project page, on the team's **My project** page, and under **Needs attention** on the dashboard.
 
 Stack: Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Prisma 6 · Postgres on Supabase · zod.

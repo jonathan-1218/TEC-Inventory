@@ -1,10 +1,10 @@
 import type { TaskPriority, TaskStatus } from "@prisma/client"
 import { db } from "@/lib/db"
+import { designationMap, getDesignations, labelOf } from "@/lib/designations"
 import { calendarDay, isOverdue, toDateInput } from "@/lib/dates"
 import {
   CATEGORY_LABELS,
   CONDITION_LABELS,
-  DESIGNATION_LABELS,
   STATUS_LABELS,
   TECH_STACK_KEYS,
   TECH_STACK_LABELS,
@@ -71,6 +71,7 @@ export const EXPORTS: Record<string, () => Promise<Table>> = {
   },
 
   async members() {
+    const roles = designationMap(await getDesignations())
     const members = await db.member.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -81,7 +82,7 @@ export const EXPORTS: Record<string, () => Promise<Table>> = {
     return {
       headers: ["Name", "Roll number", "Department", "Year", "Designation", "Email", "Phone", "Active", "Teams", "Projects"],
       rows: members.map((m) => [
-        m.name, m.rollNumber, m.department, m.yearOfStudy, DESIGNATION_LABELS[m.designation], m.email, m.phone,
+        m.name, m.rollNumber, m.department, m.yearOfStudy, labelOf(roles, m.designation), m.email, m.phone,
         m.isActive ? "Yes" : "No",
         m.teams.map((t) => `${t.team.name} (${t.roleInTeam})`).join("; "),
         m.projects.map((p) => `${p.project.title} (${p.roleInProject})`).join("; "),

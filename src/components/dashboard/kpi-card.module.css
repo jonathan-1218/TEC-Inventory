@@ -75,8 +75,19 @@
     transform: translate(3px, -3px);
     opacity: 1;
   }
+}
+
+/* Touch: no hover, so pressing a tile lifts the glow and dips the card, then it springs back. */
+@media (prefers-reduced-motion: no-preference) {
   .tile:active {
-    transform: translateY(-2px) scale(0.99);
+    transform: scale(0.97);
+  }
+  .tile:active::before {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+  .tile:active .num {
+    transform: scale(1.06);
   }
 }
 

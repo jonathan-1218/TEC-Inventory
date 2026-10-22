@@ -10,7 +10,6 @@ import { existsSync } from "node:fs"
 import {
   PrismaClient,
   type Category,
-  type Designation,
   type ProjectStatus,
   type ReturnCondition,
   type TaskPriority,
@@ -95,7 +94,7 @@ type M = {
   rollNumber: string
   department: string
   yearOfStudy: number
-  designation: Designation
+  designation: string // a DesignationOption id (see prisma/designations.sql)
   phone?: string
   isActive?: boolean
 }

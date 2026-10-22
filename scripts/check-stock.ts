@@ -39,6 +39,8 @@ async function rejects(p: Promise<unknown>, pattern: RegExp) {
 }
 
 async function main() {
+  // Members default to the "MEMBER" designation, which production gets from prisma/designations.sql.
+  await db.designationOption.create({ data: { id: "MEMBER", label: "Member", tier: "MEMBER", rank: 70 } })
   const comp = await db.component.create({
     data: { name: "Servo", category: "ACTUATOR_MOTOR", quantityTotal: 10, quantityWorking: 8, quantityDamaged: 1, quantityUnderRepair: 1 },
   })

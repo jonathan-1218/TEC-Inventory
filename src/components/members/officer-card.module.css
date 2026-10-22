@@ -64,8 +64,12 @@
   }
 }
 
-.wrapper:active .card {
-  transform: rotateX(15deg) rotateY(-5deg) scale(0.98);
+/* Touch has no hover, so a press gives the card its tilt: it tips and settles back on release. */
+@media (prefers-reduced-motion: no-preference) {
+  .wrapper:active .card {
+    transform: rotateX(8deg) rotateY(-8deg) scale(0.985);
+    transition-duration: 0.2s;
+  }
 }
 
 .card:focus-visible {
@@ -111,7 +115,8 @@
   pointer-events: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
+/* The slow "breathing" runs only with a mouse; on phones it would just drain the battery. */
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .main::before {
     animation: arcs 10s ease-in-out infinite alternate;
   }
@@ -298,6 +303,7 @@
 /* About view photo: framed like the card's, sized modestly. */
 .aboutPhoto {
   width: 11rem;
+  max-width: 100%;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: 0.9rem;

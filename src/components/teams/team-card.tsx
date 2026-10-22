@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import type { Designation, ProjectStatus } from "@prisma/client"
+import type { ProjectStatus } from "@prisma/client"
 import { ArrowRight, Crown, MoreHorizontal, Pencil, Trash2, UserMinus, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,13 +20,13 @@ import { ConfirmDelete } from "@/components/confirm-delete"
 import { TeamDialog } from "@/components/teams/team-dialog"
 import { TeamMemberDialog } from "@/components/teams/team-member-dialog"
 import { deleteTeam, removeTeamMember } from "@/app/actions/teams"
-import { DESIGNATION_LABELS } from "@/lib/labels"
+import { useDesignations } from "@/components/designations-context"
 import { cn } from "@/lib/utils"
 
 export type TeamMemberData = {
   id: string
   name: string
-  designation: Designation
+  designation: string
   isActive: boolean
   roleInTeam: string
   isLead: boolean
@@ -142,7 +142,7 @@ export function TeamCard({
       </div>
 
       <CardContent className="flex flex-1 flex-col gap-5">
-        <p className="text-muted-foreground line-clamp-2 min-h-10 text-sm text-pretty">
+        <p className="text-muted-foreground line-clamp-2 md:min-h-10 text-sm text-pretty">
           {team.description ?? (lead ? `Led by ${lead.name}.` : "No description yet.")}
         </p>
 
@@ -156,7 +156,7 @@ export function TeamCard({
         </dl>
 
         {/* Fixed height for two rows, so tiles with fewer projects stay the same size. */}
-        <ul className="grid min-h-[5.5rem] content-start gap-2">
+        <ul className="grid content-start gap-2 md:min-h-[5.5rem]">
           {shown.length === 0 && <li className="text-muted-foreground text-sm">No projects yet.</li>}
           {shown.map((p) => (
             <li key={p.id} className="flex items-center gap-3">
@@ -251,6 +251,7 @@ export function TeamMemberList({
   notes?: Record<string, string>
 }) {
   const isAdmin = useIsAdmin()
+  const roles = useDesignations()
   if (members.length === 0) return <p className="text-muted-foreground text-sm">No members yet.</p>
   return (
     <ul className="grid gap-1">
@@ -287,7 +288,7 @@ export function TeamMemberList({
               {!m.isActive && <ToneBadge tone="muted">Inactive</ToneBadge>}
             </div>
             <p className="text-muted-foreground truncate text-xs">
-              {DESIGNATION_LABELS[m.designation]}
+              {roles.label(m.designation)}
               {notes?.[m.id] && ` · ${notes[m.id]}`}
             </p>
           </div>
