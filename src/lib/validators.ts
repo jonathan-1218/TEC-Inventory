@@ -309,6 +309,28 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`).max(200),
 })
 
+// ---------- Team portal settings (what a team lead may change about their own project) ----------
+
+export const portalProjectSchema = z
+  .object({
+    projectId: id,
+    title: reqStr(120),
+    description: optStr(5000),
+    status,
+    techStack: techStackSchema,
+    startDate: optDate,
+    targetDate: optDate,
+  })
+  .superRefine(checkProjectDates)
+
+export const portalTeamSchema = z.object({ projectId: id, name: reqStr(80), description: optStr(1000) })
+export const portalMemberRoleSchema = z.object({ projectId: id, memberId: id, roleInProject: reqStr(60) })
+
+export const changePasswordSchema = z.object({
+  current: z.string().min(1, "Enter your current password").max(200),
+  password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`).max(200),
+})
+
 export const teamLoginSchema = z.object({ email, password: z.string().min(1, "Enter your password").max(200) })
 
 export const mentorSchema = z.object({

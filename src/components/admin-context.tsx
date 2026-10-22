@@ -4,6 +4,7 @@ import { createContext, useContext, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { logout } from "@/app/actions/auth"
 import { runAction } from "@/lib/client"
+import { showOverlay } from "@/lib/overlay"
 
 const AdminContext = createContext(false)
 export type TeamInfo = { projectId: string; projectTitle: string } | null
@@ -47,6 +48,7 @@ export function useLogout() {
   const [pending, startTransition] = useTransition()
   const logOut = () =>
     startTransition(async () => {
+      showOverlay("Logging out…", 1500) // the page stays put, so this just covers the refresh
       await runAction(logout(), "Logged out")
       router.refresh()
     })

@@ -46,7 +46,7 @@ export const NAV = [
 ]
 /** Shown only to the matching viewer. */
 const ADMIN_NAV = { href: "/accounts", label: "Sign-ups & goals", icon: UserCheck, group: "People" }
-const TEAM_NAV = { href: "/my", label: "My project", icon: Rocket, group: "Your team" }
+const TEAM_NAV = { href: "/team", label: "Team portal", icon: Rocket, group: "Your team" }
 
 export const isNavActive = (pathname: string, href: string) =>
   href === "/" ? pathname === "/" : pathname.startsWith(href)
@@ -130,10 +130,10 @@ export function AppSidebar() {
                 <span>Log out</span>
               </SidebarMenuButton>
             ) : (
-              <SidebarMenuButton asChild tooltip="Log in">
-                <Link href={`/login?next=${encodeURIComponent(pathname)}`} onClick={close}>
+              <SidebarMenuButton asChild tooltip="Team login">
+                <Link href="/team/login" onClick={close}>
                   <LogIn />
-                  <span>Log in</span>
+                  <span>Team login</span>
                 </Link>
               </SidebarMenuButton>
             )}

@@ -6,13 +6,12 @@ import type { ProjectStatus } from "@prisma/client"
 import { TriangleAlert } from "lucide-react"
 import { ProjectStatusBadge } from "@/components/badges"
 import type { ProjectCardData } from "@/components/projects/project-list"
-import { formatDate, parseDateInput } from "@/lib/dates"
+import { formatDate, monthShort, parseDateInput } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 
 const DAY = 86_400_000
 const monthStart = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 12))
 const addMonths = (d: Date, n: number) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1, 12))
-const MONTH = new Intl.DateTimeFormat("en-IN", { month: "short", timeZone: "UTC" })
 
 const BAR: Record<ProjectStatus, { bar: string; fill: string }> = {
   PLANNING: { bar: "border-border bg-card", fill: "bg-brand/60" },
@@ -63,7 +62,7 @@ export function ProjectRoadmap({ projects, today }: { projects: ProjectCardData[
                   style={{ left: `${pct(m)}%` }}
                 >
                   <span className="eyebrow absolute top-2 left-2 text-[10px] whitespace-nowrap">
-                    {MONTH.format(m)}
+                    {monthShort(m)}
                     {m.getUTCMonth() === 0 || m.getTime() === from.getTime() ? ` ${m.getUTCFullYear()}` : ""}
                   </span>
                 </div>

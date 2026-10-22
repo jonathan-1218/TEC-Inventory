@@ -5,6 +5,7 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import styles from "./panel.module.css"
 
 /**
  * A dashboard panel: DESIGN.md card anatomy (eyebrow → title → description, action top-right) and a reveal slot.
@@ -20,6 +21,7 @@ export function Panel({
   actionClassName,
   className,
   contentClassName,
+  tone = "orange",
   children,
 }: {
   i: number
@@ -31,14 +33,17 @@ export function Panel({
   actionClassName?: string
   className?: string
   contentClassName?: string
+  /** Hue of the hover glow and top line. */
+  tone?: "orange" | "red" | "blue" | "teal"
   children: React.ReactNode
 }) {
   return (
     <Card
       data-panel
       id={id}
+      data-tone={tone}
       style={{ "--i": i } as React.CSSProperties}
-      className={cn("min-w-0 scroll-mt-20 [--card-spacing:--spacing(6)] sm:[--card-spacing:--spacing(8)]", className)}
+      className={cn(styles.panel, "min-w-0 scroll-mt-20 [--card-spacing:--spacing(6)] sm:[--card-spacing:--spacing(8)]", className)}
     >
       <CardHeader className="gap-1.5">
         {/* col-start-1 keeps the text in one column when a phone layout moves the action under it. */}

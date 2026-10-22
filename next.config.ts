@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }]
   },
+  // Project teams have their own portal under /team; keep the old addresses working.
+  async redirects() {
+    return [
+      { source: "/login", destination: "/team/login", permanent: false },
+      { source: "/signup", destination: "/team/signup", permanent: false },
+      { source: "/my", destination: "/team", permanent: false },
+    ]
+  },
   // The /chart-kit showcase is dev-only. Its page-level notFound() streams as a soft 404 (HTTP 200) under
   // app/loading.tsx, so send it to an unmatched path in production for a real 404.
   async rewrites() {

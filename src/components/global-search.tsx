@@ -34,7 +34,7 @@ import { NAV } from "@/components/app-sidebar"
 import { IssueDialog } from "@/components/issue-dialog"
 import { ComponentFormDialog } from "@/components/inventory/component-form-dialog"
 import { search } from "@/app/actions/search"
-import { issueOptions } from "@/app/issuances/actions"
+import { issueOptions } from "@/app/(app)/issuances/actions"
 import type { SearchResult, SelectOptions } from "@/lib/queries"
 
 const GROUPS = [
@@ -130,7 +130,7 @@ export function GlobalSearch() {
   function runAction(id: ActionId) {
     if (id === "issue") return void openIssue()
     if (id === "project") return go("/projects?new=1")
-    if (id === "login") return go("/login")
+    if (id === "login") return go("/team/login")
     close()
     if (id === "component") setDialog("component")
     else if (id === "theme") setTheme(resolvedTheme === "dark" ? "light" : "dark")

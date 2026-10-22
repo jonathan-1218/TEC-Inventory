@@ -237,3 +237,70 @@
     transparent 1.5px 5px
   );
 }
+
+/* Login / logout loading screen (see components/transition-overlay.tsx). */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes overlay-bar {
+  from {
+    left: -35%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+/* The overlay's pulse symbol. With reduced motion it simply shows the finished line. */
+.overlay-pulse {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .overlay-pulse {
+    animation: overlay-draw 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    filter: drop-shadow(0 0 3px rgb(233 151 4 / 0.9));
+  }
+  .overlay-tile {
+    animation: overlay-glow 1.5s ease-in-out infinite;
+  }
+  .overlay-ripple {
+    animation: overlay-ripple 1.5s ease-out infinite;
+  }
+}
+@keyframes overlay-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  60% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  85%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+@keyframes overlay-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgb(233 151 4 / 0.35), 0 0 0 0 rgb(233 151 4 / 0);
+  }
+  60% {
+    box-shadow: 0 0 0 1px rgb(233 151 4 / 0.7), 0 0 28px 2px rgb(233 151 4 / 0.45);
+  }
+}
+@keyframes overlay-ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}

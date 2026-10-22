@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Google service account key files (project-id-<12 hex>.json) — never commit
 /*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
+
+# Local-only test login for the team portal (created by scripts, never committed)
+/.dev-team-login.txt

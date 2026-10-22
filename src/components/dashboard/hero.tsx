@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button"
 import { IssueDialog } from "@/components/issue-dialog"
 import { ComponentFormDialog } from "@/components/inventory/component-form-dialog"
 import { ProjectFormDialog } from "@/components/projects/project-form"
-import { APP_TIME_ZONE, toDateInput, todayNoonUTC } from "@/lib/dates"
+import { APP_TIME_ZONE, dayLabel, toDateInput, todayNoonUTC } from "@/lib/dates"
 import { getSelectOptions } from "@/lib/queries"
 import { teamSnapshot } from "./data"
 
-const dateFmt = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: APP_TIME_ZONE })
 const hourFmt = new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: APP_TIME_ZONE })
 
 /** Same buckets as the intro's welcome note, so the greeting carries straight on from it. */
@@ -30,7 +29,7 @@ export function Hero({ admin }: { admin: boolean }) {
       <div className="min-w-0">
         <p className="eyebrow mb-4 flex items-center gap-2">
           <span aria-hidden className="h-2.5 w-[3px] rounded-[1px] bg-brand" />
-          <time dateTime={toDateInput(todayNoonUTC())}>{dateFmt.format(now).replace(/, (\d{4})$/, " $1")}</time>
+          <time dateTime={toDateInput(todayNoonUTC())}>{dayLabel(now, APP_TIME_ZONE, { weekday: true, year: true })}</time>
         </p>
         <h1 id="dash-greeting" className="font-display text-[1.75rem] leading-[1.1] font-extrabold tracking-[-0.03em] text-balance sm:text-[2.25rem]">
           {greeting(now)}.

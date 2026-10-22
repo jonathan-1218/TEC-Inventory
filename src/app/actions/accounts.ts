@@ -5,10 +5,11 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { ActionError, adminAction, errorMessage, type ActionResult } from "@/lib/action"
-import { TEAM_COOKIE, hashPassword, sessionValue, verifyPassword } from "@/lib/team-auth"
+import { TEAM_COOKIE, hashPassword, sessionValue, teamSession, verifyPassword } from "@/lib/team-auth"
 import { MINUTE, allowAll, clearLimit, clientIp } from "@/lib/throttle"
 import { passwordProblems } from "@/lib/password-strength"
 import {
+  changePasswordSchema,
   idSchema,
   mentorSchema,
   personalWords,
@@ -79,6 +80,49 @@ export async function teamLogin(raw: { email: string; password: string }): Promi
   })
   revalidatePath("/", "layout")
   return { ok: true, data: { projectId: account.projectId } }
+}
+
+/**
+ * A signed-in team changes its own password (current one required). Sessions are bound to the password hash, so
+ * the old sessions on other devices end and this browser is given a fresh cookie.
+ */
+export async function changeOwnPassword(raw: { current: string; password: string }): Promise<ActionResult> {
+  const team = await teamSession()
+  if (!team) return { ok: false, error: "Please log in again." }
+  const parsed = changePasswordSchema.safeParse(raw)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    return { ok: false, error: issue.message, fieldErrors: { [String(issue.path[0] ?? "current")]: [issue.message] } }
+  }
+  // Counted before the current password is checked, so this form can't be used to guess it.
+  const key = `team-pw:${team.accountId}`
+  if (!(await allowAll([[key, 5, 15 * MINUTE]]))) return { ok: false, error: "Too many attempts. Please wait 15 minutes and try again." }
+  const account = await db.account.findUnique({ where: { id: team.accountId }, select: { passwordHash: true, signup: true, email: true } })
+  if (!account || !(await verifyPassword(parsed.data.current, account.passwordHash))) {
+    return { ok: false, error: "That isn't your current password.", fieldErrors: { current: ["That isn't your current password."] } }
+  }
+  if (parsed.data.password === parsed.data.current) {
+    return { ok: false, error: "Choose a different password.", fieldErrors: { password: ["Choose a different password."] } }
+  }
+  const stored = storedSignupSchema.safeParse(account.signup)
+  const problem = passwordProblems(parsed.data.password, personalWords(account.email, stored.success ? stored.data.members : []))[0]
+  if (problem) return { ok: false, error: problem, fieldErrors: { password: [problem] } }
+
+  const passwordHash = await hashPassword(parsed.data.password)
+  await db.account.update({ where: { id: team.accountId }, data: { passwordHash } })
+  await clearLimit(key)
+  const value = sessionValue(team.accountId, passwordHash)
+  if (value) {
+    ;(await cookies()).set(TEAM_COOKIE, value, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    })
+  }
+  revalidatePath("/", "layout")
+  return { ok: true, data: undefined }
 }
 
 /** Turns a pending sign-up into a Project with its Members (existing roll numbers are reused, not edited). */

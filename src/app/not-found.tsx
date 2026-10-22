@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header"
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col gap-6">
+    <main className="dotgrid mx-auto flex min-h-svh w-full max-w-3xl flex-col justify-center gap-6 p-6">
       <PageHeader eyebrow="Error 404 · No signal" title="Nothing on this channel" />
       <EmptyState
         icon={Unplug}
@@ -26,6 +26,6 @@ export default function NotFound() {
           </Button>
         </div>
       </EmptyState>
-    </div>
+    </main>
   )
 }

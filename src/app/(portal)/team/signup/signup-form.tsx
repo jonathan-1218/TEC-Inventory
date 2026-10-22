@@ -103,7 +103,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
           with <span className="text-foreground font-mono">{email}</span>.
         </p>
         <Button asChild variant="brand" className="mt-2">
-          <Link href="/login">Go to login</Link>
+          <Link href="/team/login">Go to login</Link>
         </Button>
       </div>
     )

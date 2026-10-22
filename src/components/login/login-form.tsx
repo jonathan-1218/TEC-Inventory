@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +8,7 @@ import { FormField } from "@/components/form-field"
 import { login } from "@/app/actions/auth"
 import { teamLogin } from "@/app/actions/accounts"
 import { runAction } from "@/lib/client"
+import { hideOverlay, showOverlay } from "@/lib/overlay"
 
 /** Team login (email + password) on /login; the admin password form lives only on /admin. */
 export function LoginForm({ next, mode, totp = false }: { next: string; mode: "team" | "admin"; totp?: boolean }) {
@@ -25,14 +25,21 @@ export function LoginForm({ next, mode, totp = false }: { next: string; mode: "t
           const form = new FormData(e.currentTarget)
           const password = String(form.get("password") ?? "")
           startTransition(async () => {
+            showOverlay("Signing you in…")
             if (mode === "admin") {
               const res = await runAction(login({ password, code: String(form.get("code") ?? "") }), "Welcome, admin")
-              if (!res.ok) return setError(res.error)
+              if (!res.ok) {
+                hideOverlay()
+                return setError(res.error)
+              }
               router.replace(next)
             } else {
               const res = await runAction(teamLogin({ email: String(form.get("email") ?? ""), password }), "Welcome back")
-              if (!res.ok) return setError(res.error)
-              router.replace(next === "/" ? "/my" : next)
+              if (!res.ok) {
+                hideOverlay()
+                return setError(res.error)
+              }
+              router.replace("/team")
             }
             router.refresh()
           })
@@ -71,14 +78,6 @@ export function LoginForm({ next, mode, totp = false }: { next: string; mode: "t
         <Button type="submit" variant="brand" className="h-10" disabled={pending}>
           {pending ? "Checking…" : "Log in"}
         </Button>
-        {mode === "team" && (
-          <p className="text-muted-foreground text-center text-sm">
-            New project?{" "}
-            <Link href="/signup" className="text-foreground font-medium underline underline-offset-4">
-              Register your team
-            </Link>
-          </p>
-        )}
       </form>
     </div>
   )

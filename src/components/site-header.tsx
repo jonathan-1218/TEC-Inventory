@@ -57,9 +57,9 @@ export function SiteHeader() {
           </Button>
         ) : (
           <Button variant="outline" size="sm" asChild>
-            <Link href={pathname === "/login" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`}>
+            <Link href="/team/login">
               <LogIn />
-              <span className="hidden sm:inline">Log in</span>
+              <span className="hidden sm:inline">Team login</span>
             </Link>
           </Button>
         )}

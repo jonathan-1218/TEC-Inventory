@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { LoginScreen } from "@/app/login/login-screen"
+import { LoginScreen } from "@/components/login/login-screen"
 
 export const metadata: Metadata = { title: "Admin login", robots: { index: false } }
 

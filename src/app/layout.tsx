@@ -1,18 +1,14 @@
 import type { Metadata } from "next"
-import { cookies } from "next/headers"
 import { Archivo, Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "next-themes"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AdminProvider } from "@/components/admin-context"
-import { AppSidebar } from "@/components/app-sidebar"
-import { Intro } from "@/components/intro/intro"
-import { SiteHeader } from "@/components/site-header"
 import { isAdmin } from "@/lib/auth"
 import { teamSession } from "@/lib/team-auth"
 import { getDesignations } from "@/lib/designations"
 import { DesignationsProvider } from "@/components/designations-context"
+import { TransitionOverlay } from "@/components/transition-overlay"
 import "./globals.css"
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] })
@@ -25,29 +21,25 @@ export const metadata: Metadata = {
   description: "Inventory and project tracker for the TEC tech club",
 }
 
+/**
+ * Shared by both halves of the site: the club app ((app) — sidebar, dashboard, admin) and the project-team
+ * portal ((portal) — /team). Each group adds its own shell.
+ */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // Reading cookies makes every page render per-request, so data is always fresh.
-  const [admin, team, cookieStore, designations] = await Promise.all([isAdmin(), teamSession(), cookies(), getDesignations()])
-  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
+  const [admin, team, designations] = await Promise.all([isAdmin(), teamSession(), getDesignations()])
 
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} antialiased`}>
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <Intro />
           <TooltipProvider>
             <DesignationsProvider designations={designations}>
-            <AdminProvider isAdmin={admin} team={team && { projectId: team.projectId, projectTitle: team.projectTitle }}>
-              <SidebarProvider defaultOpen={sidebarOpen}>
-                <AppSidebar />
-                <SidebarInset className="dotgrid">
-                  <SiteHeader />
-                  <main className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-6">{children}</main>
-                </SidebarInset>
-              </SidebarProvider>
-            </AdminProvider>
+              <AdminProvider isAdmin={admin} team={team && { projectId: team.projectId, projectTitle: team.projectTitle }}>
+                {children}
+              </AdminProvider>
             </DesignationsProvider>
           </TooltipProvider>
+          <TransitionOverlay />
           <Toaster position="top-right" />
         </ThemeProvider>
       </body>

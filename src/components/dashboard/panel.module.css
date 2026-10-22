@@ -1,0 +1,84 @@
+/* Hover and press feedback for the dashboard panels. Each panel has its own hue (set via data-tone).
+   Lift uses the individual `translate` property so it can't clash with the page's entrance animation (`transform`). */
+.panel {
+  --tone: #e99704;
+  position: relative;
+  isolation: isolate;
+  transition: translate 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease;
+}
+
+.panel[data-tone="orange"] { --tone: #e99704; }
+.panel[data-tone="red"] { --tone: #ef4444; }
+.panel[data-tone="blue"] { --tone: #3b82f6; }
+.panel[data-tone="teal"] { --tone: #14b8a6; }
+
+/* A quiet wash of the panel's colour in the top-right corner; it spreads on hover. */
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 100% 0%, color-mix(in oklab, var(--tone) 15%, transparent), transparent 55%);
+  background-repeat: no-repeat;
+  transform-origin: 100% 0%;
+  opacity: 0.8;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.4s ease;
+  pointer-events: none;
+}
+
+/* A coloured line that draws itself along the top edge. */
+.panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 1;
+  background: linear-gradient(90deg, var(--tone), transparent);
+  transform: scaleX(0.14);
+  transform-origin: left;
+  opacity: 0.7;
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* Header arrows ("All projects →") nudge forward. */
+.panel :global([data-slot="card-action"]) svg {
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .panel:hover {
+    translate: 0 -3px;
+    box-shadow:
+      0 16px 30px -18px color-mix(in oklab, var(--tone) 55%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--tone) 32%, transparent);
+  }
+  .panel:hover::before {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+  .panel:hover::after {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  .panel:hover :global([data-slot="card-action"]) svg {
+    transform: translateX(3px);
+  }
+}
+
+/* Touch has no hover: a press gives the same line and glow, plus a small dip. */
+@media (prefers-reduced-motion: no-preference) {
+  .panel:active {
+    scale: 0.995;
+  }
+  .panel:active::after {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  .panel:active::before {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+}

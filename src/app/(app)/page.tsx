@@ -34,19 +34,19 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           <Checkouts range={parseRange(range).range} />
         </Suspense>
 
-        <Panel i={6} id="attention" eyebrow="Needs attention" title="Due, late and running low">
+        <Panel i={6} id="attention" tone="red" eyebrow="Needs attention" title="Due, late and running low">
           <Suspense fallback={<PanelSkeleton rows={5} />}>
             <AttentionBody admin={admin} />
           </Suspense>
         </Panel>
 
-        <Panel i={8} eyebrow="Work" title="Projects in motion" action={<PanelLink href="/projects">All projects</PanelLink>}>
+        <Panel i={8} tone="blue" eyebrow="Work" title="Projects in motion" action={<PanelLink href="/projects">All projects</PanelLink>}>
           <Suspense fallback={<PanelSkeleton rows={3} />}>
             <ProjectsBody limit={3} />
           </Suspense>
         </Panel>
 
-        <Panel i={9} eyebrow="Stock" title="Inventory health" action={<PanelLink href="/inventory">Inventory</PanelLink>}>
+        <Panel i={9} tone="teal" eyebrow="Stock" title="Inventory health" action={<PanelLink href="/inventory">Inventory</PanelLink>}>
           <Suspense fallback={<PanelSkeleton height={240} />}>
             <InventoryHealthBody maxRows={5} />
           </Suspense>

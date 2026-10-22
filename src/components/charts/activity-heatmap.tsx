@@ -2,14 +2,13 @@
 
 import * as React from "react"
 import { cn } from "cn"
-import { parseDateInput, toDateInput, todayNoonUTC } from "@/lib/dates"
+import { monthShort, parseDateInput, toDateInput, todayNoonUTC } from "@/lib/dates"
 import { CHART, formatDay, formatDayLong, formatNumber, mix } from "./shared"
 
 export type HeatmapDay = { date: string; count: number }
 
 const LEVELS = [mix(CHART.muted, 13), mix(CHART.brand, 30), mix(CHART.brand, 55), mix(CHART.brand, 80), CHART.brand]
 const WEEKDAYS = ["Mon", "", "Wed", "", "Fri", "", ""]
-const monthFmt = new Intl.DateTimeFormat("en-IN", { month: "short", timeZone: "UTC" })
 const DAY = 86_400_000
 
 const scrollToEnd = (el: HTMLDivElement | null) => {
@@ -69,7 +68,7 @@ export function ActivityHeatmap({
     const prev = col > 0 ? parseDateInput(cells[(col - 1) * 7].date) : null
     if (!prev || prev.getUTCMonth() !== d.getUTCMonth()) {
       if (months.length && col - months[months.length - 1].col < 3) months.pop()
-      months.push({ col, label: monthFmt.format(d) })
+      months.push({ col, label: monthShort(d) })
     }
   }
 

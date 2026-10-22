@@ -1,6 +1,6 @@
 // Shared bits for the chart kit. No hooks and no "use client": safe in server and client components.
 import type * as React from "react"
-import { parseDateInput } from "@/lib/dates"
+import { dayLabel, parseDateInput } from "@/lib/dates"
 
 // Colours only come from theme tokens; the hex values are fallbacks for when a token is missing.
 export const CHART = {
@@ -55,17 +55,15 @@ const numberFmt = new Intl.NumberFormat("en-IN")
 export const formatNumber = (n: number) => numberFmt.format(n)
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
-const dayFmt = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "UTC" })
-const longDayFmt = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
 
 /** "2026-09-12" -> "12 Sept". Anything that is not a YYYY-MM-DD string is returned as-is. */
 export function formatDay(value: unknown): string {
-  return typeof value === "string" && ISO_DAY.test(value) ? dayFmt.format(parseDateInput(value)) : String(value ?? "")
+  return typeof value === "string" && ISO_DAY.test(value) ? dayLabel(parseDateInput(value)) : String(value ?? "")
 }
 
 /** "2026-09-12" -> "Sat, 12 Sept 2026" (tooltip / table header). */
 export function formatDayLong(value: unknown): string {
-  return typeof value === "string" && ISO_DAY.test(value) ? longDayFmt.format(parseDateInput(value)) : String(value ?? "")
+  return typeof value === "string" && ISO_DAY.test(value) ? dayLabel(parseDateInput(value), "UTC", { weekday: true, year: true }) : String(value ?? "")
 }
 
 /** Visually hidden data table: the screen-reader twin of a chart. */
