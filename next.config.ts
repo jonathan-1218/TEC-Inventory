@@ -13,6 +13,8 @@ const SECURITY_HEADERS = [
 ]
 
 const nextConfig: NextConfig = {
+  // Hides the round "N" dev-tools badge that floats bottom-left in `next dev` (it never exists in production).
+  devIndicators: false,
   // Pin the project root so a stray lockfile in a parent folder isn't picked up.
   turbopack: { root: __dirname },
   async headers() {

@@ -3,20 +3,20 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import type { ProjectStatus } from "@prisma/client"
-import { CalendarDays, Columns3, Cpu, FolderKanban, GanttChart, LayoutGrid, Search, Users } from "lucide-react"
+import { ArrowRight, CalendarDays, CircleCheck, Columns3, Cpu, FolderKanban, GanttChart, LayoutGrid, Search, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ProjectStatusBadge } from "@/components/badges"
-import { ProgressRing } from "@/components/charts"
 import { EmptyState } from "@/components/empty-state"
 import { ProjectBoard, TaskTally } from "@/components/projects/project-board"
 import { ProjectRoadmap } from "@/components/projects/project-roadmap"
-import { formatDate } from "@/lib/dates"
+import { formatDate, parseDateInput } from "@/lib/dates"
 import { STATUSES, STATUS_LABELS, TECH_STACK_KEYS, type TechStack } from "@/lib/labels"
 import { cn } from "@/lib/utils"
 import type { TeamOption } from "@/components/projects/project-form"
+import styles from "./project-card.module.css"
 
 export type View = "grid" | "board" | "roadmap"
 
@@ -194,8 +194,8 @@ export function ProjectList({
         <ProjectRoadmap projects={shown} today={today} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {shown.map((p) => (
-            <ProjectCard key={p.id} project={p} />
+          {shown.map((p, i) => (
+            <ProjectCard key={p.id} project={p} index={i} today={today} />
           ))}
         </div>
       )}
@@ -203,19 +203,50 @@ export function ProjectList({
   )
 }
 
-function ProjectCard({ project: p }: { project: ProjectCardData }) {
+const TONE: Record<ProjectStatus, "orange" | "blue" | "violet" | "green" | "red"> = {
+  IN_PROGRESS: "orange",
+  PLANNING: "blue",
+  ON_HOLD: "violet",
+  COMPLETED: "green",
+  DROPPED: "red",
+}
+const DAY = 86_400_000
+
+/** "12 days left", "3d over", "Completed"… as a small coloured chip. */
+function TimeChip({ p, today }: { p: ProjectCardData; today: string }) {
+  const base = "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap"
+  if (p.status === "COMPLETED")
+    return (
+      <span className={cn(base, "bg-[#16a34a]/15 text-[#166534] dark:text-[#4ade80]")}>
+        <CircleCheck className="size-3.5" /> Completed
+      </span>
+    )
+  if (p.status === "DROPPED") return <span className={cn(base, "bg-muted text-muted-foreground")}>Dropped</span>
+  if (!p.targetDate) return <span className={cn(base, "bg-muted text-muted-foreground")}>No target date</span>
+  const days = Math.round((p.targetDate.getTime() - parseDateInput(today).getTime()) / DAY)
+  if (days < 0) return <span className={cn(base, "bg-danger-soft text-danger")}>{-days}d past target</span>
+  if (days <= 7) return <span className={cn(base, "bg-[#e99704]/20 text-[#7a4200] dark:text-[#fbbf24]")}>{days === 0 ? "Due today" : `${days}d left`}</span>
+  return <span className={cn(base, "bg-muted text-foreground")}>{days} days left</span>
+}
+
+function ProjectCard({ project: p, index, today }: { project: ProjectCardData; index: number; today: string }) {
   const tags = tagsOf(p)
+  const pct = Math.round(Math.min(100, Math.max(0, p.progressPercent)))
 
   return (
-    <article className="bg-card hover:border-foreground/25 relative flex flex-col gap-4 rounded-xl border p-5 transition-colors">
+    <article
+      data-tone={TONE[p.status]}
+      className={styles.card}
+      style={{ "--i": Math.min(index, 12), "--w": `${pct}%` } as React.CSSProperties}
+    >
       <header className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="eyebrow mb-1.5 truncate">{p.team?.name ?? "Independent"}</p>
-          <h2 className="line-clamp-2 text-base leading-snug font-semibold">
+          <h2 className="line-clamp-2 text-lg leading-snug font-bold">
             {/* Stretched link: the whole card opens the project. */}
             <Link
               href={`/projects/${p.id}`}
-              className="after:absolute after:inset-0 after:rounded-xl hover:underline focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+              className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
             >
               {p.title}
             </Link>
@@ -223,15 +254,35 @@ function ProjectCard({ project: p }: { project: ProjectCardData }) {
         </div>
         <ProjectStatusBadge status={p.status} />
       </header>
+
       {p.description && <p className="text-muted-foreground line-clamp-2 text-sm">{p.description}</p>}
-      <div className="flex items-center gap-4 border-y border-dashed py-3">
-        <ProgressRing value={p.progressPercent} size="sm" label={`${p.title} progress`} />
-        <div className="grid min-w-0 gap-1 text-xs">
+
+      {/* Progress */}
+      <div className="grid gap-2.5">
+        <div className="flex items-end justify-between gap-3">
+          <span className={styles.pct}>
+            {pct}
+            <span className="text-muted-foreground ml-0.5 text-lg font-bold">%</span>
+          </span>
+          <TimeChip p={p} today={today} />
+        </div>
+        <div
+          role="progressbar"
+          aria-label={`${p.title} progress`}
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          className={styles.track}
+        >
+          <div className={styles.fill} />
+        </div>
+        <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
           <TaskTally tasks={p.tasks} />
-          <span className="text-muted-foreground">{p.lastUpdate ? `Updated ${formatDate(p.lastUpdate)}` : "No updates yet"}</span>
+          <span>{p.lastUpdate ? `Updated ${formatDate(p.lastUpdate)}` : "No updates yet"}</span>
         </div>
       </div>
-      <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+
+      <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 border-t border-dashed pt-3 text-xs">
         <span className="flex items-center gap-1">
           <CalendarDays className="size-3.5" />
           {p.startDate || p.targetDate ? (
@@ -255,8 +306,9 @@ function ProjectCard({ project: p }: { project: ProjectCardData }) {
           </span>
         )}
       </div>
-      {tags.length > 0 && (
-        <div className="mt-auto flex flex-wrap gap-1">
+
+      <div className="mt-auto flex items-end justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap gap-1">
           {tags.slice(0, MAX_CHIPS).map((t) => (
             <Badge key={t} variant="secondary">
               {t}
@@ -264,7 +316,10 @@ function ProjectCard({ project: p }: { project: ProjectCardData }) {
           ))}
           {tags.length > MAX_CHIPS && <Badge variant="outline">+{tags.length - MAX_CHIPS} more</Badge>}
         </div>
-      )}
+        <span className={styles.open} aria-hidden>
+          Open <ArrowRight className="size-4" />
+        </span>
+      </div>
     </article>
   )
 }

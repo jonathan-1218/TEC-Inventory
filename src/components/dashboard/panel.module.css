@@ -50,7 +50,14 @@
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .panel:hover {
-    translate: 0 -3px;
+    translate: 0 -4px;
+    /* Light theme: a real, dark shadow (a coloured glow disappears on a light page). */
+    box-shadow:
+      0 22px 36px -16px rgb(20 19 15 / 0.38),
+      0 8px 14px -8px rgb(20 19 15 / 0.22),
+      0 0 0 1px color-mix(in oklab, var(--tone) 55%, rgb(20 19 15 / 0.45));
+  }
+  :global(.dark) .panel:hover {
     box-shadow:
       0 16px 30px -18px color-mix(in oklab, var(--tone) 55%, transparent),
       0 0 0 1px color-mix(in oklab, var(--tone) 32%, transparent);

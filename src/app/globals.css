@@ -71,7 +71,7 @@
 /* Contrast (WCAG, computed): foreground/bg 17.6 · muted-fg on bg 5.5, on muted 5.0 · brand-strong on card 5.6,
    on brand-soft 5.0 · ink on brand 7.9 · danger on card 5.5, white on danger 5.5 · ring on paper 3.3 (non-text). */
 :root {
-  --background: #faf9f5; /* paper */
+  --background: #f1eee6; /* paper (a touch darker so white cards stand out) */
   --foreground: #14130f; /* ink */
   --card: #ffffff;
   --card-foreground: #14130f;
@@ -79,23 +79,23 @@
   --popover-foreground: #14130f;
   --primary: #14130f;
   --primary-foreground: #faf9f5;
-  --secondary: #f1efe9;
+  --secondary: #e6e1d6;
   --secondary-foreground: #14130f;
-  --muted: #f1efe9;
-  --muted-foreground: #6a655c;
-  --accent: #f1eee6;
+  --muted: #e8e4d9;
+  --muted-foreground: #4b473e; /* 9:1 on white, 8:1 on the page — readable for everyone */
+  --accent: #e8e4d9;
   --accent-foreground: #14130f;
-  --border: #e5e2da;
-  --input: #d9d5cc;
+  --border: #b9b3a4; /* visible card and divider edges (was almost invisible) */
+  --input: #8d877a; /* form-field borders: 3.5:1 */
   --ring: #c27800;
 
   --brand: #e99704; /* signal orange — fills, bars, LEDs, chart-1. Not for text on light. */
   --brand-foreground: #14130f;
-  --brand-strong: #9a5700; /* orange text / icons on light surfaces (AA) */
-  --brand-soft: #fcf1dc;
-  --danger: #c4321c;
+  --brand-strong: #7a4200; /* orange text / icons on light surfaces (AAA, 8:1) */
+  --brand-soft: #fae6bd;
+  --danger: #a3200d;
   --danger-foreground: #ffffff;
-  --danger-soft: #fcebe7;
+  --danger-soft: #fadcd5;
   --destructive: var(--danger);
 
   --chart-1: #e99704;
@@ -106,16 +106,16 @@
 
   --radius: 0.5rem;
 
-  --sidebar: #f3f1eb;
+  --sidebar: #e9e5da;
   --sidebar-foreground: #14130f;
   --sidebar-primary: #14130f;
   --sidebar-primary-foreground: #faf9f5;
-  --sidebar-accent: #e9e6de;
+  --sidebar-accent: #dcd7c9;
   --sidebar-accent-foreground: #14130f;
-  --sidebar-border: #e5e2da;
+  --sidebar-border: #b9b3a4;
   --sidebar-ring: #c27800;
 
-  --dot: color-mix(in oklab, var(--foreground) 9%, transparent);
+  --dot: color-mix(in oklab, var(--foreground) 14%, transparent);
   --logo-trace: var(--brand); /* PCB traces inside the logo's C block */
 }
 

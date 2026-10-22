@@ -35,7 +35,7 @@ export function TransitionOverlay() {
           </span>
         </div>
         <p className="font-display text-lg font-extrabold tracking-tight">{message}</p>
-        <div aria-hidden className="bg-muted relative h-1 w-44 overflow-hidden rounded-full">
+        <div aria-hidden className="bg-foreground/15 relative h-1.5 w-48 overflow-hidden rounded-full">
           <span className="bg-brand absolute inset-y-0 w-1/3 rounded-full motion-safe:animate-[overlay-bar_1.2s_ease-in-out_infinite]" />
         </div>
       </div>

@@ -87,7 +87,7 @@ export function TeamCard({
     // :target highlights the card when opened via /teams#<id>.
     <Card
       id={team.id}
-      className="group/team relative h-full scroll-mt-20 [--card-spacing:--spacing(6)] transition-[translate,box-shadow] duration-300 hover:ring-foreground/25 motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-[0_16px_30px_-18px_rgb(233_151_4/0.55)] motion-safe:active:scale-[0.995] target:ring-2 target:ring-brand"
+      className="group/team relative h-full scroll-mt-20 [--card-spacing:--spacing(6)] transition-[translate,box-shadow] duration-300 hover:ring-foreground/25 motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-[0_22px_36px_-16px_rgb(20_19_15/0.38),0_8px_14px_-8px_rgb(20_19_15/0.22)] dark:motion-safe:hover:shadow-[0_16px_30px_-18px_rgb(233_151_4/0.55)] motion-safe:active:scale-[0.995] target:ring-2 target:ring-brand"
     >
       {/* Team's average progress, drawn as a strip along the top edge. */}
       <div aria-hidden className="bg-muted absolute inset-x-0 top-0 h-1">

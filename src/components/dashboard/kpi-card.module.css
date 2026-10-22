@@ -57,6 +57,13 @@
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .tile:hover {
     transform: translateY(-5px);
+    /* Light theme: a real, dark shadow (a coloured glow disappears on a light page). */
+    box-shadow:
+      0 24px 40px -16px rgb(20 19 15 / 0.4),
+      0 8px 16px -8px rgb(20 19 15 / 0.24),
+      0 0 0 1px color-mix(in oklab, var(--tone) 60%, rgb(20 19 15 / 0.5));
+  }
+  :global(.dark) .tile:hover {
     box-shadow:
       0 18px 34px -18px color-mix(in oklab, var(--tone) 65%, transparent),
       0 0 0 1px color-mix(in oklab, var(--tone) 38%, transparent);

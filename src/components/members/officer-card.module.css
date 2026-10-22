@@ -1,14 +1,48 @@
 /* Office-bearer card: the ticket's layout and motion in a plain rounded shape, with a small photo. */
 .wrapper {
-  --c-bg: #16140f;
-  --c-bg-light: #1e1b15;
-  --c-accent: #e99704;
-  --c-glow: rgba(233, 151, 4, 0.42);
-  --c-text: #faf6ee;
-  --c-muted: #a39b8a;
+  /* Light theme (default): a white card, dark ink, a deep-orange accent. The dark theme is restored below. */
+  --c-bg: #ffffff;
+  --c-bg-light: #f1ece0;
+  --c-accent: #e99704; /* fills and focus ring */
+  --c-accent-text: #7a4200; /* orange used as text / thin lines on white (8:1) */
+  --c-glow: rgba(20, 19, 15, 0.28);
+  --c-text: #14130f;
+  --c-muted: #4b473e;
+  --c-edge: rgba(20, 19, 15, 0.22);
+  --c-line: rgba(20, 19, 15, 0.3);
+  --c-wash: rgba(233, 151, 4, 0.26);
+  --c-arc: rgba(154, 87, 0, 0.2);
+  --c-band: rgba(154, 87, 0, 0.14);
+  --c-title-from: #14130f;
+  --c-title-to: #8a4a00;
+  --c-lift-1: 0 24px 38px -14px rgba(20, 19, 15, 0.45);
+  --c-lift-2: 0 8px 16px -8px rgba(20, 19, 15, 0.28);
+  --c-rest: 0 14px 26px -16px rgba(20, 19, 15, 0.4);
+  --c-menu-hover: rgba(20, 19, 15, 0.1);
   font-size: 12px;
   perspective: 1000px;
   height: 100%;
+}
+
+/* Dark theme: the original dark card. */
+:global(.dark) .wrapper {
+  --c-bg: #16140f;
+  --c-bg-light: #1e1b15;
+  --c-accent-text: #e99704;
+  --c-glow: rgba(233, 151, 4, 0.42);
+  --c-text: #faf6ee;
+  --c-muted: #a39b8a;
+  --c-edge: rgba(255, 255, 255, 0.05);
+  --c-line: rgba(255, 255, 255, 0.2);
+  --c-wash: rgba(233, 151, 4, 0.16);
+  --c-arc: rgba(233, 151, 4, 0.11);
+  --c-band: rgba(233, 151, 4, 0.07);
+  --c-title-from: #ffffff;
+  --c-title-to: #fbd48a;
+  --c-lift-1: 12px 18px 30px -12px rgba(0, 0, 0, 0.6);
+  --c-lift-2: -4px -4px 18px rgba(233, 151, 4, 0.42);
+  --c-rest: 0 14px 26px -14px rgba(0, 0, 0, 0.55);
+  --c-menu-hover: rgba(255, 255, 255, 0.12);
 }
 
 .card {
@@ -24,7 +58,7 @@
   cursor: pointer;
   outline: none;
   transform-style: preserve-3d;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 14px 26px -14px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: var(--c-rest), 0 0 0 1px var(--c-edge);
   transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.6s ease;
 }
 
@@ -56,8 +90,7 @@
   /* Hover is read from the (static) wrapper, so the tilted card moving away can't make the hover flicker. */
   .wrapper:hover .card {
     transform: rotateX(5deg) rotateY(-10deg) scale(1.02);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 12px 18px 30px -12px rgba(0, 0, 0, 0.6), -4px -4px 18px var(--c-glow),
-      0 0 0 1px rgba(233, 151, 4, 0.3);
+    box-shadow: var(--c-lift-1), var(--c-lift-2), 0 0 0 1px var(--c-accent-text);
   }
   .wrapper:hover .card::after {
     background-position: 0% 0%;
@@ -87,7 +120,7 @@
   flex-direction: column;
   overflow: hidden;
   padding: 1.7em 1.8em 1.5em;
-  background-image: radial-gradient(90% 60% at 0% 0%, rgba(233, 151, 4, 0.16), transparent 62%);
+  background-image: radial-gradient(90% 60% at 0% 0%, var(--c-wash), transparent 62%);
 }
 
 /* Background: concentric arcs radiating from the bottom-right corner, breathing slowly, over a faint diagonal band. */
@@ -95,7 +128,7 @@
   content: "";
   position: absolute;
   inset: -20%;
-  background-image: repeating-radial-gradient(circle at 100% 100%, transparent 0 34px, rgba(233, 151, 4, 0.11) 34px 35px);
+  background-image: repeating-radial-gradient(circle at 100% 100%, transparent 0 34px, var(--c-arc) 34px 35px);
   transform-origin: 100% 100%;
   pointer-events: none;
 }
@@ -107,9 +140,9 @@
   background-image: linear-gradient(
     125deg,
     transparent 0 52%,
-    rgba(233, 151, 4, 0.07) 52% 52.4%,
+    var(--c-band) 52% 52.4%,
     transparent 52.4% 62%,
-    rgba(233, 151, 4, 0.045) 62% 62.3%,
+    var(--c-band) 62% 62.3%,
     transparent 62.3%
   );
   pointer-events: none;
@@ -167,8 +200,8 @@
   font-size: 0.75em;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  color: var(--c-accent);
-  border: 1px solid var(--c-accent);
+  color: var(--c-accent-text);
+  border: 1px solid var(--c-accent-text);
   padding: 0.4em 0.9em;
   border-radius: 99em;
   font-weight: 700;
@@ -186,8 +219,8 @@
 }
 
 .menu button:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--c-menu-hover);
+  color: var(--c-text);
 }
 
 .placeholder {
@@ -212,7 +245,7 @@
   line-height: 1.1;
   margin: 0 0 0.2em;
   text-transform: uppercase;
-  background: linear-gradient(135deg, #fff 0%, #fbd48a 100%);
+  background: linear-gradient(135deg, var(--c-title-from) 0%, var(--c-title-to) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -288,11 +321,11 @@
   top: 0;
   left: 1.4em;
   right: 1.4em;
-  border-top: 2px dashed rgba(255, 255, 255, 0.2);
+  border-top: 2px dashed var(--c-line);
 }
 
 .footer svg {
-  color: var(--c-accent);
+  color: var(--c-accent-text);
   transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
 }
 

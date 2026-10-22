@@ -23,7 +23,7 @@ export function SiteHeader() {
   return (
     <header className="bg-background/85 sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b px-3 backdrop-blur-sm md:px-4">
       <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-1 data-[orientation=vertical]:h-4" />
+      <Separator orientation="vertical" className="mr-1 data-vertical:self-center data-[orientation=vertical]:h-4" />
       {/* Phones/tablets: the sidebar is a sheet, so the header carries the logo (and is the intro's landing spot). */}
       <Link href="/" aria-label="TEC home" className="mr-1 shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden">
         <span data-intro-target="logo" className="block">
