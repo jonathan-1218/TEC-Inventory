@@ -3,8 +3,9 @@
 import { useTransition } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { ListChecks, LogOut, Moon, PackageOpen, Rocket, Settings, Sun, TrendingUp } from "lucide-react"
+import { ListChecks, LogOut, PackageOpen, Rocket, Settings, TrendingUp } from "lucide-react"
 import { useTheme } from "next-themes"
+import SwitchButton from "@/components/ui/switch-button"
 import { Button } from "@/components/ui/button"
 import { TecLogo } from "@/components/tec-logo"
 import { logout } from "@/app/actions/auth"
@@ -55,10 +56,7 @@ export function PortalHeader({ team }: { team: { projectTitle: string } | null }
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
-          <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
-            <Sun className="hidden dark:block" />
-            <Moon className="dark:hidden" />
-          </Button>
+          <SwitchButton size="sm" showLabel={false} theme={resolvedTheme === "dark" ? "dark" : "light"} onThemeChange={setTheme} />
                     {team && (
             <Button
               variant="outline"

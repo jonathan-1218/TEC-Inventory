@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogIn, LogOut, Moon, Sun } from "lucide-react"
+import { LogIn, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
+import SwitchButton from "@/components/ui/switch-button"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
@@ -41,15 +42,7 @@ export function SiteHeader() {
       )}
       <GlobalSearch />
       <div className="ml-auto flex items-center gap-1.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Toggle theme"
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        >
-          <Sun className="hidden dark:block" />
-          <Moon className="dark:hidden" />
-        </Button>
+        <SwitchButton size="sm" showLabel={false} theme={resolvedTheme === "dark" ? "dark" : "light"} onThemeChange={setTheme} />
         {admin || team ? (
           <Button variant="outline" size="sm" disabled={pending} onClick={logOut}>
             <LogOut />
