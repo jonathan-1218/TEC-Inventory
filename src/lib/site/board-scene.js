@@ -62,6 +62,9 @@ export function initBoard(box, fonts) {
         if (k % 2 === 0 && L.length > 3) padc((L[2][0] + L[3][0]) / 2, (L[2][1] + L[3][1]) / 2, .13, .8);
         if (k === 2 && bi % 2 === 0) ends.push(t); }
     });
+    // solder pads under every lead foot, joined to the bus traces that start at r = 3.3
+    [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([ox, oz]) => { for (let i = -7; i <= 7; i++) { const ax = ox * 3.5 - oz * i * .4, az = oz * 3.5 + ox * i * .4, w = ox ? .8 : .22, h = ox ? .22 : .8;
+      c.fillStyle = 'rgba(' + OR + ',.95)'; c.fillRect(X(ax - w / 2), Z(az - h / 2), w * SC, h * SC); c.fillStyle = 'rgba(' + PA + ',.35)'; c.fillRect(X(ax - w / 2 + (ox ? .08 : 0)), Z(az - h / 2 + (oz ? .08 : 0)), (ox ? w - .16 : w) * SC, (oz ? h - .16 : h) * SC); } });
     c.strokeStyle = 'rgba(' + PA + ',.4)'; c.lineWidth = 3; c.strokeRect(X(-4.3), Z(-4.3), 8.6 * SC, 8.6 * SC); txt('TEC-01  REV A  LICET', 0, 5.2, 30, .45); txt('INSPIRING THE NEXT', 0, -4.8, 24, .35);
     const tex = new T.CanvasTexture(cv); tex.anisotropy = r.capabilities.getMaxAnisotropy(); tex.encoding = T.sRGBEncoding;
     sc.add(new T.Mesh(new T.PlaneGeometry(60, 34).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: .55, roughness: .9, metalness: .1 })));
@@ -84,13 +87,13 @@ export function initBoard(box, fonts) {
     const ink = '#e9e6dc';
     t.fillStyle = ink; t.font = '900 250px ' + DISPLAY; t.textAlign = 'center'; t.fillText('TEC', 512, 520);
     // the logo's pulse line, laser-etched in signal orange across the wordmark
-    const px = (x) => 150 + (x - 24) / 983 * 724, pz = (y) => 330 + (y - 154) / 432 * 260;
+    const px = (x) => 150 + (x - 24) / 983 * 724, pz = (y) => 340 + (y - 225.5) / 315.5 * 180;   // pulse stays inside the wordmark band (y 340-520)
     t.strokeStyle = '#e99704'; t.lineWidth = 12; t.lineJoin = t.lineCap = 'round'; t.beginPath();
-    [[36, 365.5], [176, 365], [240.5, 541], [262.5, 225.5], [323.5, 451.5], [362, 313.5], [421, 480], [460.5, 361.5], [652, 361]].forEach(([x, y], k) => k ? t.lineTo(px(x), pz(y) + 120) : t.moveTo(px(x), pz(y) + 120)); t.stroke();
+    [[36, 365.5], [176, 365], [240.5, 541], [262.5, 225.5], [323.5, 451.5], [362, 313.5], [421, 480], [460.5, 361.5], [652, 361]].forEach(([x, y], k) => k ? t.lineTo(px(x), pz(y)) : t.moveTo(px(x), pz(y))); t.stroke();
     t.fillStyle = ink; t.textAlign = 'left'; t.font = '500 34px ' + MONO;
     t.fillText('TEC-01', 110, 220); t.fillText('REV A', 110, 262);
-    t.textAlign = 'center'; t.font = '500 30px ' + MONO; t.fillText('I N S P I R I N G   T H E   N E X T', 512, 700);
-    t.fillStyle = 'rgba(233,230,220,.62)'; t.font = '500 26px ' + MONO; t.fillText('LICET  ·  CHENNAI  ·  DESIGNED IN-HOUSE', 512, 750);
+    t.textAlign = 'center'; t.font = '500 30px ' + MONO; t.fillText('I N S P I R I N G   T H E   N E X T', 512, 650);
+    t.fillStyle = 'rgba(233,230,220,.62)'; t.font = '500 26px ' + MONO; t.fillText('DESIGNED IN-HOUSE', 512, 710);
     t.textAlign = 'left'; t.fillText('LOT 26W43', 110, 912); t.fillText('XX-0192-A', 110, 950);
     t.save(); t.translate(780, 740); const DM = 14, cell = 14; t.fillStyle = ink;    // data-matrix style block
     for (let i = 0; i < DM; i++) for (let j = 0; j < DM; j++) { const edge = i === 0 || j === DM - 1 ? true : (i === DM - 1 || j === 0) ? (i + j) % 2 === 0 : rng() < .5; if (edge) t.fillRect(i * cell, j * cell, cell - 2, cell - 2); }
@@ -141,13 +144,13 @@ export function initBoard(box, fonts) {
     const tgp = new T.Group(); inner.add(tgp);
     const inst = (geo, mat, cnt, f) => { const im = new T.InstancedMesh(geo, mat, cnt); for (let i = 0; i < cnt; i++) { f(i); im.setMatrixAt(i, m4); } tgp.add(im); return im; };
     const finM = new T.MeshStandardMaterial({ color: 0xa9bbd0, roughness: .28, metalness: .6, emissive: 0x0d1624 });
-    const gateM = new T.MeshStandardMaterial({ color: 0xc97d00, emissive: 0xe99704, emissiveIntensity: .12, roughness: .35, metalness: .6 });
+    const gateM = new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe99704, emissiveIntensity: .05, roughness: .35, metalness: .6 });
     const cu = new T.MeshStandardMaterial({ color: 0xb87333, metalness: .9, roughness: .3, emissive: 0x2a1405 });
     const cuHi = new T.MeshStandardMaterial({ color: 0xd99a55, metalness: .92, roughness: .24, emissive: 0x3a2108 });
     const stiM = new T.MeshStandardMaterial({ color: 0x1b1d23, roughness: .75, metalness: .1 });
     const spacerM = new T.MeshStandardMaterial({ color: 0x2c2f37, roughness: .6, metalness: .2 });
-    const epiN = new T.MeshStandardMaterial({ color: 0x5f8fcf, roughness: .32, metalness: .55, emissive: 0x0b1a33 });
-    const epiP = new T.MeshStandardMaterial({ color: 0xd9822b, roughness: .32, metalness: .55, emissive: 0x2e1204 });
+    const epiN = new T.MeshStandardMaterial({ color: 0x5f8fcf, roughness: .32, metalness: .55, emissive: 0x2a64c8, emissiveIntensity: .08 });
+    const epiP = new T.MeshStandardMaterial({ color: 0xd9822b, roughness: .32, metalness: .55, emissive: 0xd9822b, emissiveIntensity: .08 });
     const wM = new T.MeshStandardMaterial({ color: 0x9aa1ab, roughness: .3, metalness: .95 });
     const gx = (i) => -HW + (i + .5) * SP, fz = (i) => -HW + (i + .5) * SP;   // gate column / fin row positions
     // shallow-trench-isolation slab the fins stand in
@@ -163,7 +166,8 @@ export function initBoard(box, fonts) {
     // gates: dark spacer shell, orange metal core, split into cells along z
     const NSEG = 4, GAP = .03, SL = (HW * 2) / NSEG - GAP;
     inst(new T.BoxGeometry(.018, .028, SL), spacerM, NG * NSEG, (k) => m4.makeTranslation(gx(Math.floor(k / NSEG)), Y0 + .017, -HW + (k % NSEG + .5) * (HW * 2 / NSEG)));
-    inst(new T.BoxGeometry(.01, .031, SL), gateM, NG * NSEG, (k) => m4.makeTranslation(gx(Math.floor(k / NSEG)), Y0 + .0185, -HW + (k % NSEG + .5) * (HW * 2 / NSEG)));
+    const gateIM = inst(new T.BoxGeometry(.01, .031, SL), gateM, NG * NSEG, (k) => m4.makeTranslation(gx(Math.floor(k / NSEG)), Y0 + .0185, -HW + (k % NSEG + .5) * (HW * 2 / NSEG)));
+    const gcol = new T.Color(); for (let k = 0; k < NG * NSEG; k++) gateIM.setColorAt(k, gcol.setRGB(.8, .45, 0));
     // tungsten contacts land on most source/drain blocks
     const contacts = []; for (let c = 0; c < NG; c++) for (let r = 0; r < NG; r++) if (rng() < .7) contacts.push([gx(c) + SP / 2, fz(r)]);
     inst(new T.CylinderGeometry(.003, .0036, .02, 8), wM, contacts.length, (k) => m4.makeTranslation(contacts[k][0], Y0 + .03, contacts[k][1]));
@@ -203,7 +207,7 @@ export function initBoard(box, fonts) {
       Object.assign(die.material, { map: im, emissiveMap: im, emissiveIntensity: .12, bumpMap: mk(bc), bumpScale: .012, roughnessMap: mk(rc), roughness: .55, metalness: .75, envMap: env, envMapIntensity: 1.3 }); die.material.needsUpdate = true; };
     dimg.src = '/site/die.png';
     const glow = new T.PointLight(0xe99704, 0, 3); glow.position.set(0, .7, 0); inner.add(glow);
-    const K = [{ pos: [0, 34, 8], tg: [0, 0, 0] }, { pos: [13, 10, 14], tg: [0, 0, 0] }, { pos: [0, 5, 3.2], tg: [0, .4, 0] }, { pos: [.05, 2.9, .9], tg: [0, .25, 0] }, { pos: [.1, .345, .52], tg: [0, .283, -.06] }], KB = [0, .28, .52, .74, 1];
+    const K = [{ pos: [0, 34, 8], tg: [0, 0, 0] }, { pos: [13, 10, 14], tg: [0, 0, 0] }, { pos: [0, 5, 3.2], tg: [0, .4, 0] }, { pos: [.05, 2.9, .9], tg: [0, .25, 0] }, { pos: [.05, .42, .24], tg: [0, .272, -.07] }], KB = [0, .28, .52, .74, 1];
     const ss = (x) => x * x * (3 - 2 * x), lr = (a, b, k) => a + (b - a) * k; let lastT = 0;
     const onResize = () => { r.setSize(W(), H()); cam.aspect = W() / H(); cam.updateProjectionMatrix(); }; window.addEventListener('resize', onResize);
     return { dispose: () => { window.removeEventListener('resize', onResize); r.dispose(); r.domElement.remove(); }, update: (p, mx, my, now) => {
@@ -217,7 +221,9 @@ export function initBoard(box, fonts) {
       const op = 1 - ss(Math.max(0, Math.min(1, (4.4 - cy) / 1.4))); skin.forEach((m) => { m.opacity = op; m.depthWrite = m === shadow ? false : op > .98; });
       inner.visible = op < .999; rim.intensity = (1 - op) * 2.2; { const sw = Math.max(0, Math.min(1, (p - .5) / .3)); rim.position.set(lr(-3.2, 3.2, sw), 1.2, lr(2.6, -1, sw)); }
       const gr = ss(Math.max(0, Math.min(1, (1.6 - cy) / 1.1))); tgp.scale.set(1, Math.max(.001, gr), 1); tgp.position.y = Y0 * (1 - gr); tgp.visible = gr > .01; glow.intensity = (1 - op) * 1.6; key.intensity = 1.2 + ss(p) * 1.6;
-      onL += ((Math.sin(now * 1.2) > 0 ? 1 : 0) - onL) * Math.min(1, dt * 4); gateM.emissiveIntensity = .1 + onL * .75; eMat.opacity = .12 + .88 * onL;   // ON / OFF
+      onL += ((Math.sin(now * 1.2) > 0 ? 1 : 0) - onL) * Math.min(1, dt * 4); const wave = (col) => onL * (.5 + .5 * Math.sin(now * 4 - col * .45));   // clock edge sweeping across the gates
+      for (let k = 0; k < NG * NSEG; k++) { const v = .4 + 1.5 * wave(Math.floor(k / NSEG)); gateIM.setColorAt(k, gcol.setRGB(.91 * v, .5 * v, 0)); } gateIM.instanceColor.needsUpdate = true;
+      epiN.emissiveIntensity = epiP.emissiveIntensity = .08 + .7 * onL; eMat.opacity = .12 + .88 * onL;   // ON / OFF
       el.forEach((u, i) => { u.s += u.sp * dt * (.15 + onL * .9); if (u.s > 1) u.s = 0; ep[i * 3] = -HW + u.s * HW * 2; ep[i * 3 + 1] = Y0 + .0285; ep[i * 3 + 2] = -HW + (u.f + .5) * SP; });
       eg.attributes.position.needsUpdate = true;
       pul.forEach((u, i) => { u.s += u.sp * dt; if (u.s > 1) u.s = 0;
