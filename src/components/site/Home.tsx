@@ -145,7 +145,7 @@ export default function Home() {
     <div ref={rootRef} className="tec-site" style={{ overflowX: "clip", position: "relative" }}>
       <div data-bar style={{ position: "fixed", top: 0, left: 0, height: 3, width: 0, background: "#e99704", zIndex: 80 }} />
 
-      <nav className="mono" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px var(--gx)", background: "linear-gradient(#0e0d0b 40%,rgba(14,13,11,0))" }}>
+      <nav className="mono" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px var(--gx)", background: "linear-gradient(rgba(14,13,11,.94) 45%,rgba(14,13,11,0))", backdropFilter: "blur(10px)" }}>
         <a href="#top" style={{ display: "flex", alignItems: "center", gap: 12, color: "#f2f0ea" }}>
           <span style={{ background: "#f1eee6", borderRadius: 8, padding: "5px 8px", display: "flex" }}>
             {/* eslint-disable-next-line @next/next/no-img-element -- tiny inline SVG logo */}
@@ -307,9 +307,11 @@ export default function Home() {
         <div style={{ borderTop: "1px solid #2a2824" }}>
           {core.map((m) => (
             <div key={m.n} data-rv className="core-row">
-              <span className="mono" style={{ opacity: 0.6 }}>{m.n}</span>
+              <span className="mono core-n">{m.n}</span>
+              <span className="core-av" aria-hidden>{m.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}</span>
               <span className="mono">{m.role.toUpperCase()}</span>
-              <span style={{ fontFamily: "var(--display)", fontWeight: 800, fontVariationSettings: "'wdth' 110", fontSize: 40, letterSpacing: "-.02em", lineHeight: 1 }}>{m.name}</span>
+              <span className="core-name">{m.name}</span>
+              <span className="mono core-go" aria-hidden>TEC / {m.n} →</span>
             </div>
           ))}
         </div>
@@ -322,19 +324,40 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 07 — dashboard + footer */}
-      <section id="dashboard" style={{ position: "relative", zIndex: 1, padding: "0 var(--gx) 40px" }}>
-        <Link href={DASHBOARD} data-rv className="dash">
-          <div className="mono" style={{ fontSize: 13 }}>07 — MEMBERS</div>
-          <div className="display" style={{ fontSize: "10.5vw", lineHeight: 0.85, letterSpacing: "-.04em", marginTop: 24 }}>OPEN THE<br />DASHBOARD ↗</div>
-          <div className="mono" style={{ marginTop: 36, fontSize: 13 }}>TEC-INVENTORY.VERCEL.APP</div>
-        </Link>
-        <div className="mono foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "28px 4px 0", color: "#a09b91" }}>
-          <span>TEC · THE ELECTRONICS CLUB · LICET</span>
-          <a href={GITHUB} className="foot-link">GITHUB / TEC-INVENTORY ↗</a>
-          <span>INSPIRING THE NEXT</span>
+      {/* footer */}
+      <footer className="site-foot">
+        <div className="foot-mark display" aria-hidden>THE ELECTRONICS CLUB</div>
+        <div className="foot-grid">
+          <div>
+            <span style={{ background: "#f1eee6", borderRadius: 8, padding: "5px 8px", display: "inline-flex" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- tiny inline SVG logo */}
+              <img src="/site/tec-logo.svg" alt="TEC" style={{ height: 26, display: "block" }} />
+            </span>
+            <p style={{ color: "#a09b91", lineHeight: 1.55, margin: "16px 0 0", maxWidth: 320 }}>The Electronics Club of LICET. A community that builds. Inspiring the next.</p>
+          </div>
+          <div>
+            <div className="mono foot-h">EXPLORE</div>
+            <div className="mono foot-list">
+              {["about", "events", "teams", "gallery", "core"].map((s) => <a key={s} href={"#" + s} className="foot-link">{s.toUpperCase()}</a>)}
+            </div>
+          </div>
+          <div>
+            <div className="mono foot-h">MEMBERS</div>
+            <div className="mono foot-list">
+              <Link href={DASHBOARD} className="foot-link">INVENTORY DASHBOARD ↗</Link>
+              <a href={GITHUB} className="foot-link">GITHUB / TEC-INVENTORY ↗</a>
+            </div>
+          </div>
+          <div>
+            <div className="mono foot-h">STATUS</div>
+            <div className="mono foot-list">
+              <span><i className="live" />ALL SYSTEMS ONLINE</span>
+              <a href="#top" className="foot-link">BACK TO TOP ↑</a>
+            </div>
+          </div>
         </div>
-      </section>
+        <div className="mono foot-bar"><span>TEC · THE ELECTRONICS CLUB · LICET</span><span>INSPIRING THE NEXT</span></div>
+      </footer>
     </div>
   );
 }
