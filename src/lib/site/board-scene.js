@@ -136,23 +136,62 @@ export function initBoard(box, fonts) {
       [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([sx, sz]) => { const a = sx ? new T.Vector3(sx * 2.25, .26, o) : new T.Vector3(o, .26, sz * 2.25), b = sx ? new T.Vector3(sx * 3.05, .2, o * 1.3) : new T.Vector3(o * 1.3, .2, sz * 3.05), m = a.clone().lerp(b, .4); m.y = .62;
         const pts = new T.QuadraticBezierCurve3(a, m, b).getPoints(12); for (let k = 1; k < pts.length; k++) wp.push(pts[k - 1], pts[k]); }); }
     inner.add(new T.LineSegments(new T.BufferGeometry().setFromPoints(wp), new T.LineBasicMaterial({ color: 0xd9a441 })));
+    // ---- FinFET array: STI, tapered silicon fins, N/P epitaxial source-drain, spacer + metal gates, W contacts, Cu M1-M3 ----
     const NG = 48, SP = .042, HW = NG * SP / 2, Y0 = .25;
     const tgp = new T.Group(); inner.add(tgp);
     const inst = (geo, mat, cnt, f) => { const im = new T.InstancedMesh(geo, mat, cnt); for (let i = 0; i < cnt; i++) { f(i); im.setMatrixAt(i, m4); } tgp.add(im); return im; };
-    const finM = new T.MeshStandardMaterial({ color: 0xd8c9a3, roughness: .35, metalness: .5, emissive: 0x3a2a10 });
-    const gateM = new T.MeshStandardMaterial({ color: 0xe99704, emissive: 0xe99704, emissiveIntensity: .35, roughness: .4, metalness: .4 });
+    const finM = new T.MeshStandardMaterial({ color: 0xa9bbd0, roughness: .28, metalness: .6, emissive: 0x0d1624 });
+    const gateM = new T.MeshStandardMaterial({ color: 0xc97d00, emissive: 0xe99704, emissiveIntensity: .12, roughness: .35, metalness: .6 });
     const cu = new T.MeshStandardMaterial({ color: 0xb87333, metalness: .9, roughness: .3, emissive: 0x2a1405 });
-    inst(new T.BoxGeometry(HW * 2, .018, .009), finM, NG, (i) => m4.makeTranslation(0, Y0 + .009, -HW + (i + .5) * SP));
-    inst(new T.BoxGeometry(.012, .05, HW * 2), gateM, NG, (i) => m4.makeTranslation(-HW + (i + .5) * SP, Y0 + .025, 0));
-    const NV = 700; inst(new T.BoxGeometry(.012, .06, .012), cu, NV, () => m4.makeTranslation(-HW + (Math.floor(rng() * NG) + .5) * SP, Y0 + .08, -HW + (Math.floor(rng() * NG) + .5) * SP));
-    inst(new T.BoxGeometry(HW * 2.4, .014, .014), cu, 24, (i) => m4.makeTranslation(0, Y0 + .115, -HW + (i + .5) * SP * 2));
-    inst(new T.BoxGeometry(.03, .022, HW * 2.4), cu, 12, (i) => m4.makeTranslation(-HW + (i + .5) * SP * 4, Y0 + .17, 0));
-    const NE = 160, eg = new T.BufferGeometry(), ep = new Float32Array(NE * 3); eg.setAttribute('position', new T.BufferAttribute(ep, 3));
-    const el = Array.from({ length: NE }, (_, i) => ({ f: Math.floor(rng() * NG), s: rng(), sp: .1 + rng() * .25 }));
-    inner.add(new T.Points(eg, new T.PointsMaterial({ color: 0xffd27a, size: .014, transparent: true, blending: T.AdditiveBlending, depthWrite: false })));
+    const cuHi = new T.MeshStandardMaterial({ color: 0xd99a55, metalness: .92, roughness: .24, emissive: 0x3a2108 });
+    const stiM = new T.MeshStandardMaterial({ color: 0x1b1d23, roughness: .75, metalness: .1 });
+    const spacerM = new T.MeshStandardMaterial({ color: 0x2c2f37, roughness: .6, metalness: .2 });
+    const epiN = new T.MeshStandardMaterial({ color: 0x5f8fcf, roughness: .32, metalness: .55, emissive: 0x0b1a33 });
+    const epiP = new T.MeshStandardMaterial({ color: 0xd9822b, roughness: .32, metalness: .55, emissive: 0x2e1204 });
+    const wM = new T.MeshStandardMaterial({ color: 0x9aa1ab, roughness: .3, metalness: .95 });
+    const gx = (i) => -HW + (i + .5) * SP, fz = (i) => -HW + (i + .5) * SP;   // gate column / fin row positions
+    // shallow-trench-isolation slab the fins stand in
+    const stiSlab = new T.Mesh(new T.BoxGeometry(HW * 2.02, .006, HW * 2.02), stiM); stiSlab.position.set(0, Y0 + .003, 0); tgp.add(stiSlab);
+    // fins: tapered trapezoid section, extruded along x
+    const fs = new T.Shape(); fs.moveTo(-.0055, 0); fs.lineTo(.0055, 0); fs.lineTo(.0034, .02); fs.lineTo(-.0034, .02); fs.closePath();
+    const finG = new T.ExtrudeGeometry(fs, { depth: HW * 2, bevelEnabled: false }).rotateY(-Math.PI / 2).translate(HW, 0, 0);
+    inst(finG, finM, NG, (i) => m4.makeTranslation(0, Y0 + .005, fz(i)));
+    // faceted epitaxial source/drain blocks between gates; N rows blue, P rows copper
+    const epiG = new T.OctahedronGeometry(1, 0).scale(.0145, .0105, .0115);
+    [[epiN, 0], [epiP, 1]].forEach(([mat, par]) => { const rows = Array.from({ length: NG }, (_, i) => i).filter((i) => i % 2 === par);
+      inst(epiG, mat, rows.length * NG, (k) => m4.makeTranslation(gx(k % NG) + SP / 2, Y0 + .016, fz(rows[Math.floor(k / NG)]))); });
+    // gates: dark spacer shell, orange metal core, split into cells along z
+    const NSEG = 4, GAP = .03, SL = (HW * 2) / NSEG - GAP;
+    inst(new T.BoxGeometry(.018, .028, SL), spacerM, NG * NSEG, (k) => m4.makeTranslation(gx(Math.floor(k / NSEG)), Y0 + .017, -HW + (k % NSEG + .5) * (HW * 2 / NSEG)));
+    inst(new T.BoxGeometry(.01, .031, SL), gateM, NG * NSEG, (k) => m4.makeTranslation(gx(Math.floor(k / NSEG)), Y0 + .0185, -HW + (k % NSEG + .5) * (HW * 2 / NSEG)));
+    // tungsten contacts land on most source/drain blocks
+    const contacts = []; for (let c = 0; c < NG; c++) for (let r = 0; r < NG; r++) if (rng() < .7) contacts.push([gx(c) + SP / 2, fz(r)]);
+    inst(new T.CylinderGeometry(.003, .0036, .02, 8), wM, contacts.length, (k) => m4.makeTranslation(contacts[k][0], Y0 + .03, contacts[k][1]));
+    // copper stack: M1 (along z) -> V1 -> M2 (along x) -> V2 -> M3 (along z, thick). Cut away over the focus window so the transistors show.
+    const FX = .4, FZ0 = -.5, FZ1 = .65, EXT = HW * 1.08, unit = new T.BoxGeometry(1, 1, 1), q0 = new T.Quaternion();
+    const inFocus = (x, z) => Math.abs(x) < FX && z > FZ0 && z < FZ1;
+    const bars = (mat, list) => { const im = new T.InstancedMesh(unit, mat, list.length);
+      list.forEach(([x, y, z, sx, sy, sz], k) => { m4.compose(new T.Vector3(x, y, z), q0, new T.Vector3(sx, sy, sz)); im.setMatrixAt(k, m4); }); tgp.add(im); };
+    const alongZ = (x, y, w, h) => [[x, y, (-EXT + FZ0) / 2, w, h, FZ0 + EXT], [x, y, (FZ1 + EXT) / 2, w, h, EXT - FZ1]];
+    const m1 = []; for (let i = 0; i < NG; i++) m1.push(...alongZ(gx(i) + SP / 2, Y0 + .041, .01, .007));
+    bars(cu, m1);
+    const v1 = []; for (let n = 0; n < 700 && v1.length < 220; n++) { const p = [gx(Math.floor(rng() * NG)) + SP / 2, fz(Math.floor(rng() * NG))]; if (!inFocus(p[0], p[1])) v1.push(p); }
+    inst(new T.CylinderGeometry(.0036, .0036, .03, 8), cu, v1.length, (k) => m4.makeTranslation(v1[k][0], Y0 + .056, v1[k][1]));
+    const m2 = []; for (let i = 0; i < 24; i++) { const z = fz(i * 2) + SP / 2;
+      if (z > FZ0 && z < FZ1) m2.push([(-EXT - FX) / 2, Y0 + .07, z, EXT - FX, .008, .012], [(EXT + FX) / 2, Y0 + .07, z, EXT - FX, .008, .012]); else m2.push([0, Y0 + .07, z, EXT * 2, .008, .012]); }
+    bars(cuHi, m2);
+    const v2 = []; for (let n = 0; n < 400 && v2.length < 36; n++) { const p = [-HW + (Math.floor(rng() * 12) + .5) * SP * 4, fz(Math.floor(rng() * 24) * 2) + SP / 2]; if (!inFocus(p[0], p[1])) v2.push(p); }
+    inst(new T.CylinderGeometry(.005, .005, .035, 8), cuHi, v2.length, (k) => m4.makeTranslation(v2[k][0], Y0 + .0875, v2[k][1]));
+    const m3 = []; for (let i = 0; i < 12; i++) m3.push(...alongZ(-HW + (i + .5) * SP * 4, Y0 + .105, .03, .012));
+    bars(cuHi, m3);
+    // carriers flowing along the fins; they only run while the transistor is switched on
+    const NE = 220, eg = new T.BufferGeometry(), ep = new Float32Array(NE * 3); eg.setAttribute('position', new T.BufferAttribute(ep, 3));
+    const el = Array.from({ length: NE }, () => ({ f: Math.floor(rng() * NG), s: rng(), sp: .1 + rng() * .25 }));
+    const eMat = new T.PointsMaterial({ color: 0xffd27a, size: .0085, transparent: true, blending: T.AdditiveBlending, depthWrite: false });
+    inner.add(new T.Points(eg, eMat)); let onL = 0;
         const pm = new T.PMREMGenerator(r), es = new T.Scene(); es.add(new T.Mesh(new T.BoxGeometry(30, 30, 30), new T.MeshBasicMaterial({ color: 0x0b0a09, side: T.BackSide })));
     [[0, 12, 0, 16, 1, 16, 0xf2f0ea, 2.2], [-12, 4, 0, 1, 8, 20, 0xe99704, 1.6], [12, 6, 4, 1, 6, 10, 0x9fb4ff, 1.1], [0, 4, -12, 18, 5, 1, 0xf2f0ea, .9]].forEach(([x, y, z, w, hh, d, col, k]) => { const m = new T.Mesh(new T.BoxGeometry(w, hh, d), new T.MeshBasicMaterial({ color: new T.Color(col).multiplyScalar(k) })); m.position.set(x, y, z); es.add(m); });
-    const env = pm.fromScene(es, .04).texture; [finM, gateM, cu, lead, tin, mlcc, endc, top, side].forEach((m) => { m.envMap = env; m.envMapIntensity = .9; m.needsUpdate = true; }); top.envMapIntensity = .3; side.envMapIntensity = .4;
+    const env = pm.fromScene(es, .04).texture; [finM, gateM, cu, cuHi, stiM, spacerM, epiN, epiP, wM, lead, tin, mlcc, endc, top, side].forEach((m) => { m.envMap = env; m.envMapIntensity = .9; m.needsUpdate = true; }); top.envMapIntensity = .3; side.envMapIntensity = .4;
     const dimg = new Image(); dimg.onload = () => { const N = 4096, cc = document.createElement('canvas'); cc.width = cc.height = N; const x = cc.getContext('2d');
       x.imageSmoothingQuality = 'high'; x.filter = 'contrast(1.25) saturate(.8) brightness(.9)'; x.drawImage(dimg, 0, 0, N, N); x.filter = 'none';
       x.globalCompositeOperation = 'overlay'; x.globalAlpha = .55; x.drawImage(dc, 0, 0, N, N); x.globalAlpha = .25; x.drawImage(dc, 0, 0, N / 2, N / 2); x.drawImage(dc, N / 2, 0, N / 2, N / 2); x.drawImage(dc, 0, N / 2, N / 2, N / 2); x.drawImage(dc, N / 2, N / 2, N / 2, N / 2);
@@ -164,7 +203,7 @@ export function initBoard(box, fonts) {
       Object.assign(die.material, { map: im, emissiveMap: im, emissiveIntensity: .12, bumpMap: mk(bc), bumpScale: .012, roughnessMap: mk(rc), roughness: .55, metalness: .75, envMap: env, envMapIntensity: 1.3 }); die.material.needsUpdate = true; };
     dimg.src = '/site/die.png';
     const glow = new T.PointLight(0xe99704, 0, 3); glow.position.set(0, .7, 0); inner.add(glow);
-    const K = [{ pos: [0, 34, 8], tg: [0, 0, 0] }, { pos: [13, 10, 14], tg: [0, 0, 0] }, { pos: [0, 5, 3.2], tg: [0, .4, 0] }, { pos: [.05, 2.9, .9], tg: [0, .25, 0] }, { pos: [.12, .3, .55], tg: [0, .27, -.1] }], KB = [0, .28, .52, .74, 1];
+    const K = [{ pos: [0, 34, 8], tg: [0, 0, 0] }, { pos: [13, 10, 14], tg: [0, 0, 0] }, { pos: [0, 5, 3.2], tg: [0, .4, 0] }, { pos: [.05, 2.9, .9], tg: [0, .25, 0] }, { pos: [.1, .345, .52], tg: [0, .283, -.06] }], KB = [0, .28, .52, .74, 1];
     const ss = (x) => x * x * (3 - 2 * x), lr = (a, b, k) => a + (b - a) * k; let lastT = 0;
     const onResize = () => { r.setSize(W(), H()); cam.aspect = W() / H(); cam.updateProjectionMatrix(); }; window.addEventListener('resize', onResize);
     return { dispose: () => { window.removeEventListener('resize', onResize); r.dispose(); r.domElement.remove(); }, update: (p, mx, my, now) => {
@@ -178,7 +217,8 @@ export function initBoard(box, fonts) {
       const op = 1 - ss(Math.max(0, Math.min(1, (4.4 - cy) / 1.4))); skin.forEach((m) => { m.opacity = op; m.depthWrite = m === shadow ? false : op > .98; });
       inner.visible = op < .999; rim.intensity = (1 - op) * 2.2; { const sw = Math.max(0, Math.min(1, (p - .5) / .3)); rim.position.set(lr(-3.2, 3.2, sw), 1.2, lr(2.6, -1, sw)); }
       const gr = ss(Math.max(0, Math.min(1, (1.6 - cy) / 1.1))); tgp.scale.set(1, Math.max(.001, gr), 1); tgp.position.y = Y0 * (1 - gr); tgp.visible = gr > .01; glow.intensity = (1 - op) * 1.6; key.intensity = 1.2 + ss(p) * 1.6;
-      el.forEach((u, i) => { u.s += u.sp * dt * .3; if (u.s > 1) u.s = 0; ep[i * 3] = -HW + u.s * HW * 2; ep[i * 3 + 1] = Y0 + .02; ep[i * 3 + 2] = -HW + (u.f + .5) * SP; });
+      onL += ((Math.sin(now * 1.2) > 0 ? 1 : 0) - onL) * Math.min(1, dt * 4); gateM.emissiveIntensity = .1 + onL * .75; eMat.opacity = .12 + .88 * onL;   // ON / OFF
+      el.forEach((u, i) => { u.s += u.sp * dt * (.15 + onL * .9); if (u.s > 1) u.s = 0; ep[i * 3] = -HW + u.s * HW * 2; ep[i * 3 + 1] = Y0 + .0285; ep[i * 3 + 2] = -HW + (u.f + .5) * SP; });
       eg.attributes.position.needsUpdate = true;
       pul.forEach((u, i) => { u.s += u.sp * dt; if (u.s > 1) u.s = 0;
         const P = paths[u.pi], L = lens[u.pi], d = u.s * L.tot; let j = 1; while (j < L.cl.length - 1 && L.cl[j] < d) j++;
