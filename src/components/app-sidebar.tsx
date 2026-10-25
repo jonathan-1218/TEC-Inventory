@@ -36,7 +36,7 @@ import mark from "@/assets/tec-mark.png"
 import { cn } from "@/lib/utils"
 
 export const NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
   { href: "/inventory", label: "Inventory", icon: Boxes, group: "Stock" },
   { href: "/issuances", label: "Issuances", icon: ArrowLeftRight, group: "Stock" },
   { href: "/projects", label: "Projects", icon: FolderKanban, group: "Work" },
@@ -49,7 +49,7 @@ const ADMIN_NAV = { href: "/accounts", label: "Sign-ups & goals", icon: UserChec
 const TEAM_NAV = { href: "/team", label: "Team portal", icon: Rocket, group: "Your team" }
 
 export const isNavActive = (pathname: string, href: string) =>
-  href === "/" ? pathname === "/" : pathname.startsWith(href)
+  pathname.startsWith(href)
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -67,7 +67,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="h-auto py-2 hover:bg-transparent active:bg-transparent">
-              <Link href="/" onClick={close} aria-label="TEC home">
+              <Link href="/dashboard" onClick={close} aria-label="TEC home">
                 {/* Collapsed to icons: just the pulse mark. */}
                 <Image src={mark} alt="" className="hidden size-8 rounded-md group-data-[collapsible=icon]:block" />
                 <span className="flex min-w-0 flex-col gap-1.5 group-data-[collapsible=icon]:hidden">
