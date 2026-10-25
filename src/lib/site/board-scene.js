@@ -74,19 +74,50 @@ export function initBoard(box, fonts) {
     const NP = 90, pul = Array.from({ length: NP }, (_, i) => ({ pi: (i * 7) % paths.length, s: (i * .137) % 1, sp: .06 + (i % 5) * .02 }));
     const pg = new T.BufferGeometry(), pp = new Float32Array(NP * 3); pg.setAttribute('position', new T.BufferAttribute(pp, 3));
     sc.add(new T.Points(pg, new T.PointsMaterial({ color: 0xffd27a, size: .42, transparent: true, blending: T.AdditiveBlending, depthWrite: false })));
+    // ---- chip package: molded QFP with draft angle, laser-marked top, gull-wing tin leads, contact shadow ----
     const chip = new T.Group(); sc.add(chip);
-    const tc = document.createElement('canvas'); tc.width = tc.height = 512; const t = tc.getContext('2d');
-    t.fillStyle = '#1c1b17'; t.fillRect(0, 0, 512, 512); t.strokeStyle = '#4b473e'; t.lineWidth = 4; t.strokeRect(24, 24, 464, 464);
-    t.fillStyle = '#e99704'; t.font = '900 150px ' + DISPLAY; t.textAlign = 'center'; t.fillText('TEC', 256, 290);
-    t.font = '500 26px ' + MONO; t.fillStyle = '#a09b91'; t.fillText('INSPIRING THE NEXT', 256, 350); t.fillText('LICET', 256, 400);
-    t.beginPath(); t.arc(64, 64, 14, 0, 7); t.fillStyle = '#0e0d0b'; t.fill();
-    const top = new T.MeshStandardMaterial({ map: new T.CanvasTexture(tc), roughness: .5, transparent: true }), side = new T.MeshStandardMaterial({ color: 0x1c1b17, roughness: .6, transparent: true });
-    chip.add(new T.Mesh(new T.BoxGeometry(6, .7, 6), [side, side, top, side, side, side]));
-    const pins = new T.InstancedMesh(new T.BoxGeometry(.9, .12, .3), new T.MeshStandardMaterial({ color: 0xcdb67a, metalness: .8, roughness: .35 }), 60); let n = 0;
-    for (let i = -7; i <= 7; i++) { const z = i * .4;
-      [[3.35, z], [-3.35, z]].forEach(([x, zz]) => { m4.makeTranslation(x, -.1, zz); pins.setMatrixAt(n++, m4); });
-      [[z, 3.35], [z, -3.35]].forEach(([x, zz]) => { m4.makeRotationY(Math.PI / 2).setPosition(x, -.1, zz); pins.setMatrixAt(n++, m4); }); }
-    chip.add(pins); chip.position.y = .4;
+    const PKG = 1024, tc = document.createElement('canvas'); tc.width = tc.height = PKG; const t = tc.getContext('2d');
+    t.fillStyle = '#17171a'; t.fillRect(0, 0, PKG, PKG);
+    for (let i = 0; i < 26000; i++) { t.fillStyle = 'rgba(255,255,255,' + (rng() * .05) + ')'; t.fillRect(rng() * PKG, rng() * PKG, 2, 2); }   // mould-compound grain
+    t.strokeStyle = 'rgba(233,230,220,.16)'; t.lineWidth = 3; t.beginPath(); t.moveTo(150, 56); t.lineTo(968, 56); t.lineTo(968, 968); t.lineTo(56, 968); t.lineTo(56, 150); t.closePath(); t.stroke();   // keep-out outline, chamfered at pin 1
+    t.strokeStyle = 'rgba(233,230,220,.5)'; t.lineWidth = 4; t.beginPath(); t.arc(118, 118, 26, 0, 7); t.stroke(); t.fillStyle = 'rgba(233,230,220,.5)'; t.beginPath(); t.arc(118, 118, 8, 0, 7); t.fill();   // pin-1 mark
+    const ink = '#e9e6dc';
+    t.fillStyle = ink; t.font = '900 250px ' + DISPLAY; t.textAlign = 'center'; t.fillText('TEC', 512, 520);
+    // the logo's pulse line, laser-etched in signal orange across the wordmark
+    const px = (x) => 150 + (x - 24) / 983 * 724, pz = (y) => 330 + (y - 154) / 432 * 260;
+    t.strokeStyle = '#e99704'; t.lineWidth = 12; t.lineJoin = t.lineCap = 'round'; t.beginPath();
+    [[36, 365.5], [176, 365], [240.5, 541], [262.5, 225.5], [323.5, 451.5], [362, 313.5], [421, 480], [460.5, 361.5], [652, 361]].forEach(([x, y], k) => k ? t.lineTo(px(x), pz(y) + 120) : t.moveTo(px(x), pz(y) + 120)); t.stroke();
+    t.fillStyle = ink; t.textAlign = 'left'; t.font = '500 34px ' + MONO;
+    t.fillText('TEC-01', 110, 220); t.fillText('REV A', 110, 262);
+    t.textAlign = 'center'; t.font = '500 30px ' + MONO; t.fillText('I N S P I R I N G   T H E   N E X T', 512, 700);
+    t.fillStyle = 'rgba(233,230,220,.62)'; t.font = '500 26px ' + MONO; t.fillText('LICET  ·  CHENNAI  ·  DESIGNED IN-HOUSE', 512, 750);
+    t.textAlign = 'left'; t.fillText('LOT 26W43', 110, 912); t.fillText('XX-0192-A', 110, 950);
+    t.save(); t.translate(780, 740); const DM = 14, cell = 14; t.fillStyle = ink;    // data-matrix style block
+    for (let i = 0; i < DM; i++) for (let j = 0; j < DM; j++) { const edge = i === 0 || j === DM - 1 ? true : (i === DM - 1 || j === 0) ? (i + j) % 2 === 0 : rng() < .5; if (edge) t.fillRect(i * cell, j * cell, cell - 2, cell - 2); }
+    t.restore();
+    const topTex = new T.CanvasTexture(tc); topTex.anisotropy = tex.anisotropy; topTex.encoding = T.sRGBEncoding;
+    const top = new T.MeshStandardMaterial({ map: topTex, roughness: .55, metalness: .05, transparent: true });
+    const side = new T.MeshStandardMaterial({ color: 0x151517, roughness: .65, metalness: .08, transparent: true });
+    const shc = document.createElement('canvas'); shc.width = shc.height = 256; const sx = shc.getContext('2d'), sg = sx.createRadialGradient(128, 128, 60, 128, 128, 128);
+    sg.addColorStop(0, 'rgba(0,0,0,.75)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); sx.fillStyle = sg; sx.fillRect(0, 0, 256, 256);
+    const shadow = new T.MeshBasicMaterial({ map: new T.CanvasTexture(shc), transparent: true, depthWrite: false });
+    const skin = [top, side, shadow];
+    const sh = new T.Mesh(new T.PlaneGeometry(8.4, 8.4).rotateX(-Math.PI / 2), shadow); sh.position.y = .012; chip.add(sh);
+    const R = (h) => h * Math.SQRT2;   // half-side -> radius of a 4-sided cylinder
+    const body = new T.Mesh(new T.CylinderGeometry(R(2.62), R(2.86), .62, 4, 1, true).rotateY(Math.PI / 4), side); body.position.y = .39; chip.add(body);
+    const skirt = new T.Mesh(new T.BoxGeometry(5.74, .06, 5.74), side); skirt.position.y = .1; chip.add(skirt);
+    const lid = new T.Mesh(new T.PlaneGeometry(5.24, 5.24).rotateX(-Math.PI / 2), top); lid.position.y = .701; chip.add(lid);
+    // gull-wing leads: shoulder out of the body, riser, foot soldered to the pad
+    const tin = new T.MeshStandardMaterial({ color: 0xd6d8db, metalness: .95, roughness: .26 });
+    const leadPart = (geo, cx, y) => { const im = new T.InstancedMesh(geo, tin, 60); let n = 0;
+      for (let a = 0; a < 4; a++) for (let i = -7; i <= 7; i++) { m4.makeTranslation(cx, y, i * .4).premultiply(new T.Matrix4().makeRotationY(a * Math.PI / 2)); im.setMatrixAt(n++, m4); }
+      chip.add(im); };
+    leadPart(new T.BoxGeometry(.46, .04, .12), 3.03, .27); leadPart(new T.BoxGeometry(.04, .27, .12), 3.24, .15); leadPart(new T.BoxGeometry(.52, .035, .13), 3.48, .02);
+    // 0402-style decoupling caps around the package
+    const mlcc = new T.MeshStandardMaterial({ color: 0x6b5a3c, roughness: .7 }), endc = new T.MeshStandardMaterial({ color: 0xcfd2d6, metalness: .9, roughness: .3 });
+    [[-4.3, -3.9, 0], [-4.3, -3.4, 0], [4.3, 3.9, 0], [4.3, 3.4, 0], [3.9, -4.4, 1], [3.4, -4.4, 1], [-3.9, 4.4, 1], [-3.4, 4.4, 1]].forEach(([x, z, r]) => { const c = new T.Group();
+      c.add(new T.Mesh(new T.BoxGeometry(.3, .14, .18), mlcc)); [-.14, .14].forEach((o) => { const e = new T.Mesh(new T.BoxGeometry(.07, .15, .19), endc); e.position.x = o; c.add(e); });
+      c.position.set(x, .08, z); c.rotation.y = r * Math.PI / 2; sc.add(c); });
     // chip interior: die, bond wires, metal stack, FinFET array
     const inner = new T.Group(); inner.visible = false; sc.add(inner);
     const dc = document.createElement('canvas'); dc.width = dc.height = 2048; const g = dc.getContext('2d');
@@ -121,7 +152,7 @@ export function initBoard(box, fonts) {
     inner.add(new T.Points(eg, new T.PointsMaterial({ color: 0xffd27a, size: .014, transparent: true, blending: T.AdditiveBlending, depthWrite: false })));
         const pm = new T.PMREMGenerator(r), es = new T.Scene(); es.add(new T.Mesh(new T.BoxGeometry(30, 30, 30), new T.MeshBasicMaterial({ color: 0x0b0a09, side: T.BackSide })));
     [[0, 12, 0, 16, 1, 16, 0xf2f0ea, 2.2], [-12, 4, 0, 1, 8, 20, 0xe99704, 1.6], [12, 6, 4, 1, 6, 10, 0x9fb4ff, 1.1], [0, 4, -12, 18, 5, 1, 0xf2f0ea, .9]].forEach(([x, y, z, w, hh, d, col, k]) => { const m = new T.Mesh(new T.BoxGeometry(w, hh, d), new T.MeshBasicMaterial({ color: new T.Color(col).multiplyScalar(k) })); m.position.set(x, y, z); es.add(m); });
-    const env = pm.fromScene(es, .04).texture; [finM, gateM, cu, lead].forEach((m) => { m.envMap = env; m.envMapIntensity = .9; m.needsUpdate = true; });
+    const env = pm.fromScene(es, .04).texture; [finM, gateM, cu, lead, tin, mlcc, endc, top, side].forEach((m) => { m.envMap = env; m.envMapIntensity = .9; m.needsUpdate = true; }); top.envMapIntensity = .3; side.envMapIntensity = .4;
     const dimg = new Image(); dimg.onload = () => { const N = 4096, cc = document.createElement('canvas'); cc.width = cc.height = N; const x = cc.getContext('2d');
       x.imageSmoothingQuality = 'high'; x.filter = 'contrast(1.25) saturate(.8) brightness(.9)'; x.drawImage(dimg, 0, 0, N, N); x.filter = 'none';
       x.globalCompositeOperation = 'overlay'; x.globalAlpha = .55; x.drawImage(dc, 0, 0, N, N); x.globalAlpha = .25; x.drawImage(dc, 0, 0, N / 2, N / 2); x.drawImage(dc, N / 2, 0, N / 2, N / 2); x.drawImage(dc, 0, N / 2, N / 2, N / 2); x.drawImage(dc, N / 2, N / 2, N / 2, N / 2);
@@ -144,7 +175,7 @@ export function initBoard(box, fonts) {
       cam.position.set(lr(A.pos[0], B.pos[0], k) + mx * 2.5 * pf, cy - my * 1.2 * pf, lr(A.pos[2], B.pos[2], k));
       cam.lookAt(lr(A.tg[0], B.tg[0], k), lr(A.tg[1], B.tg[1], k), lr(A.tg[2], B.tg[2], k));
       const nr = cy < 2 ? .004 : .1; if (cam.near !== nr) { cam.near = nr; cam.updateProjectionMatrix(); }
-      const op = 1 - ss(Math.max(0, Math.min(1, (4.4 - cy) / 1.4))); top.opacity = side.opacity = op; top.depthWrite = side.depthWrite = op > .98;
+      const op = 1 - ss(Math.max(0, Math.min(1, (4.4 - cy) / 1.4))); skin.forEach((m) => { m.opacity = op; m.depthWrite = m === shadow ? false : op > .98; });
       inner.visible = op < .999; rim.intensity = (1 - op) * 2.2; { const sw = Math.max(0, Math.min(1, (p - .5) / .3)); rim.position.set(lr(-3.2, 3.2, sw), 1.2, lr(2.6, -1, sw)); }
       const gr = ss(Math.max(0, Math.min(1, (1.6 - cy) / 1.1))); tgp.scale.set(1, Math.max(.001, gr), 1); tgp.position.y = Y0 * (1 - gr); tgp.visible = gr > .01; glow.intensity = (1 - op) * 1.6; key.intensity = 1.2 + ss(p) * 1.6;
       el.forEach((u, i) => { u.s += u.sp * dt * .3; if (u.s > 1) u.s = 0; ep[i * 3] = -HW + u.s * HW * 2; ep[i * 3 + 1] = Y0 + .02; ep[i * 3 + 2] = -HW + (u.f + .5) * SP; });
