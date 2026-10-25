@@ -353,6 +353,16 @@ export const goalSchema = z
     }
   })
 
+/** Public "request a component" form (a student, not a logged-in member). */
+export const componentRequestSchema = z.object({
+  name: reqStr(80),
+  department: reqStr(80),
+  rollNumber: reqStr(40).transform((s) => s.toUpperCase()),
+  yearOfStudy: int(1).max(6, "Must be 6 or less"),
+  componentId: id,
+  quantity: int(1).max(20, "Ask for 20 or fewer"),
+})
+
 export type IssueInput = z.output<typeof issueSchema>
 export type ReturnInput = z.output<typeof returnSchema>
 export type ExtendDueInput = z.output<typeof extendDueSchema>

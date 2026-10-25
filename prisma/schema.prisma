@@ -72,6 +72,7 @@ model Component {
   updatedAt           DateTime @updatedAt
 
   issuances         Issuance[]
+  requests          ComponentRequest[]
   projectComponents ProjectComponent[]
 
   @@index([category])
@@ -207,6 +208,24 @@ model Issuance {
 
   @@index([componentId, returnedDate])
   @@index([issuedToMemberId])
+}
+
+/**
+ * A student's public request for a component. Pending until an admin approves it (which creates the
+ * Issuance, and the Member if the roll number is new) or rejects it; either way the row is then deleted.
+ */
+model ComponentRequest {
+  id          String    @id @default(cuid())
+  name        String
+  department  String
+  rollNumber  String
+  yearOfStudy Int
+  componentId String
+  quantity    Int       @default(1)
+  createdAt   DateTime  @default(now())
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
 }
 
 model Task {
