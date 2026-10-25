@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // verbatim port of the homepage 3D scene
+    "src/lib/site/board-scene.js",
   ]),
 ]);
 

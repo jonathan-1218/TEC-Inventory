@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Dashboard" }
 
 // Every panel is its own async server component inside <Suspense>: they all start fetching at once and stream in as
 // they finish, instead of the page waiting for the slowest query (~130 ms per round trip on the hosted database).
-export default async function DashboardPage({ searchParams }: PageProps<"/">) {
+export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const [{ range }, admin] = await Promise.all([searchParams, isAdmin()])
 
   return (

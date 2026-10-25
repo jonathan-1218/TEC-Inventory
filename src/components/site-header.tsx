@@ -26,7 +26,7 @@ export function SiteHeader() {
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-1 data-vertical:self-center data-[orientation=vertical]:h-4" />
       {/* Phones/tablets: the sidebar is a sheet, so the header carries the logo (and is the intro's landing spot). */}
-      <Link href="/" aria-label="TEC home" className="mr-1 shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden">
+      <Link href="/dashboard" aria-label="TEC home" className="mr-1 shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden">
         <span data-intro-target="logo" className="block">
           <TecLogo height={22} />
         </span>

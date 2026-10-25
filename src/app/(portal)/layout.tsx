@@ -19,7 +19,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <main className="mx-auto w-full max-w-5xl px-4 py-8 md:px-6 md:py-10">{children}</main>
       <footer className="text-muted-foreground mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 pt-2 pb-10 text-xs md:px-6">
         <span>TEC Club · project teams</span>
-        <Link href="/" className="hover:text-foreground underline-offset-4 hover:underline">
+        <Link href="/dashboard" className="hover:text-foreground underline-offset-4 hover:underline">
           Browse the club dashboard →
         </Link>
       </footer>

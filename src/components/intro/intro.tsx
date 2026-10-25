@@ -20,9 +20,9 @@ import s from "./intro.module.css"
 const T = { te: 60, c: 180, pulse: 520, pulseDur: 950, pcb: 1300, eyebrow: 1500, greet: 1660, fly: 2900, flyDur: 580 }
 const MS_PER_UNIT = 1.5 // PCB "current" spreads out from where the pulse meets the C
 
-// Decides before first paint whether this page load plays the intro (hard loads of "/" only, once per tab session,
+// Decides before first paint whether this page load plays the intro (hard loads of "/dashboard" only, once per tab session,
 // never under reduced motion). Pages read html[data-intro-done] or wait for the "tec:intro-done" event.
-const SCRIPT = `(function(){var d=document.documentElement,p=false;try{if(location.pathname==="/"&&!sessionStorage.getItem("tec-intro-seen")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){sessionStorage.setItem("tec-intro-seen","1");p=true}}catch(e){}if(p){var h=new Date().getHours();d.dataset.intro="play";d.dataset.introPart=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":"evening";d.dataset.introT0=String(performance.now())}else d.dataset.introDone="1"})()`
+const SCRIPT = `(function(){var d=document.documentElement,p=false;try{if(location.pathname==="/dashboard"&&!sessionStorage.getItem("tec-intro-seen")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){sessionStorage.setItem("tec-intro-seen","1");p=true}}catch(e){}if(p){var h=new Date().getHours();d.dataset.intro="play";d.dataset.introPart=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":"evening";d.dataset.introT0=String(performance.now())}else d.dataset.introDone="1"})()`
 
 const GREETING = { morning: "Good morning", afternoon: "Good afternoon", evening: "Good evening" }
 
@@ -55,8 +55,8 @@ const isPlaying = () => {
 
 /** First-visit intro: the logo builds, says hello, then flies into the sidebar logo. Mount once in the root layout. */
 export function Intro() {
-  const isHome = usePathname() === "/"
-  // The server can't know, so it renders the (CSS-hidden) stage on "/"; the client then drops it unless it plays.
+  const isHome = usePathname() === "/dashboard"
+  // The server can't know, so it renders the (CSS-hidden) stage on "/dashboard"; the client then drops it unless it plays.
   const playing = useSyncExternalStore(subscribe, isPlaying, () => isHome)
   const [announce, setAnnounce] = useState("")
   const stage = useRef<HTMLDivElement>(null)
