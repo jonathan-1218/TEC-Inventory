@@ -156,7 +156,7 @@ export default function Home() {
         <a href="#top" style={{ display: "flex", alignItems: "center", gap: 12, color: "#f2f0ea" }}>
           <span style={{ background: "#f1eee6", borderRadius: 8, padding: "5px 8px", display: "flex" }}>
             {/* eslint-disable-next-line @next/next/no-img-element -- tiny inline SVG logo */}
-            <img src="/site/tec-logo.svg" alt="TEC" style={{ height: 26, display: "block" }} />
+            <img src="/site/tec-logo.svg" alt="TEC" data-intro-target="logo" style={{ height: 26, display: "block" }} />
           </span>
           <span className="nav-brand-text">THE ELECTRONICS CLUB</span>
         </a>

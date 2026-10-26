@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Home from "@/components/site/Home"
+import { Intro } from "@/components/intro/intro"
 import "./site.css"
 
 export const metadata: Metadata = {
@@ -8,5 +9,10 @@ export const metadata: Metadata = {
 }
 
 export default function Page() {
-  return <Home />
+  return (
+    <>
+      <Intro />
+      <Home />
+    </>
+  )
 }
