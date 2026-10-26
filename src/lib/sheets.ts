@@ -289,7 +289,7 @@ type Loan = {
 const day = (d: Date) => d.toISOString().slice(0, 10)
 
 /**
- * One CHECK-LIST row per issuance record, oldest first: REG. NO. and NAME are the member's roll number and name,
+ * One CHECK-LIST row per issuance record, oldest first: REG. NO. and NAME are the member's register number and name,
  * PURPOSE the checkout's note (else its project), RETURN STATUS ticked once returned. A partial return leaves two
  * records (the part still out, the part back), so quantities always add up to what was issued.
  */

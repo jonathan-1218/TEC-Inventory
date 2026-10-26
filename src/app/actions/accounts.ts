@@ -125,7 +125,7 @@ export async function changeOwnPassword(raw: { current: string; password: string
   return { ok: true, data: undefined }
 }
 
-/** Turns a pending sign-up into a Project with its Members (existing roll numbers are reused, not edited). */
+/** Turns a pending sign-up into a Project with its Members (existing register numbers are reused, not edited). */
 export const approveAccount = adminAction(idSchema, async ({ id }) => {
   return db.$transaction(async (tx) => {
     const account = await tx.account.findUnique({ where: { id } })

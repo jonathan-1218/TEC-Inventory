@@ -83,7 +83,7 @@ export default async function TeamPage(props: PageProps<"/teams/[id]">) {
     }),
     isAdmin(),
     db.member.findMany({
-      where: { isActive: true, teams: { none: { teamId: id } } },
+      where: { isActive: true, guest: false, teams: { none: { teamId: id } } },
       select: { id: true, name: true, rollNumber: true },
       orderBy: { name: "asc" },
     }),

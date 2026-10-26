@@ -42,7 +42,7 @@ export async function requestComponent(raw: Record<string, string>): Promise<Act
   return { ok: true, data: undefined }
 }
 
-/** Admin: issue the requested units for 14 days (adding the student as a member if the roll number is new). */
+/** Admin: issue the requested units for 14 days (a new register number is kept as a guest borrower, not a club member). */
 export const approveRequest = adminAction(idSchema, async ({ id }) => {
   return db.$transaction(
     async (tx) => {
@@ -51,7 +51,7 @@ export const approveRequest = adminAction(idSchema, async ({ id }) => {
       const member =
         (await tx.member.findUnique({ where: { rollNumber: r.rollNumber } })) ??
         (await tx.member.create({
-          data: { name: r.name, rollNumber: r.rollNumber, department: r.department, yearOfStudy: r.yearOfStudy },
+          data: { name: r.name, rollNumber: r.rollNumber, department: r.department, yearOfStudy: r.yearOfStudy, guest: true },
         }))
       const issued = todayNoonUTC()
       const input: IssueInput = {

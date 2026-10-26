@@ -23,7 +23,7 @@ export function passwordProblems(pw: string, personal: string[] = []): string[] 
   }
   for (const word of personal.map((w) => w.toLowerCase().trim()).filter((w) => w.length >= 4)) {
     if (lower.includes(word)) {
-      out.push("Don't use your email, name or roll number in it")
+      out.push("Don't use your email, name or register number in it")
       break
     }
   }

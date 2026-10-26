@@ -121,7 +121,7 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name, roll no, email, phone…"
+            placeholder="Name, register no, email, phone…"
             aria-label="Search members"
           />
         </InputGroup>
@@ -201,7 +201,7 @@ export function MembersTable({ members, departments }: { members: MemberRow[]; d
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <SortHead k="name" sort={sort} onSort={setSort}>Name</SortHead>
-              <SortHead k="rollNumber" sort={sort} onSort={setSort} className="hidden sm:table-cell">Roll no</SortHead>
+              <SortHead k="rollNumber" sort={sort} onSort={setSort} className="hidden sm:table-cell">Register no</SortHead>
               <SortHead k="department" sort={sort} onSort={setSort} className="hidden md:table-cell">Department</SortHead>
               <SortHead k="yearOfStudy" sort={sort} onSort={setSort} className="hidden sm:table-cell">Year</SortHead>
               <SortHead k="designation" sort={sort} onSort={setSort}>Designation</SortHead>
