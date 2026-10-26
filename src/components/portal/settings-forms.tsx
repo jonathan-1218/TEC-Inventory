@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react"
 import type { ProjectStatus } from "@prisma/client"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import ParticleButton, { type ParticleButtonStatus, useActionStatus } from "@/components/ui/particle-button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,7 +16,8 @@ import { formValues, runAction } from "@/lib/client"
 import { formatDate } from "@/lib/dates"
 import { STATUSES, STATUS_LABELS, TECH_STACK_KEYS, TECH_STACK_LABELS, type TechStack } from "@/lib/labels"
 
-/** A settings card: reads like a profile by default, and its Edit button turns the content into fields. */
+/** A settings page's content (inside the Settings stack panel, whose header already shows the title): reads like a
+ * profile by default, and its Edit button turns the content into fields. */
 function SectionShell({
   title,
   description,
@@ -30,12 +32,9 @@ function SectionShell({
   children: React.ReactNode
 }) {
   return (
-    <section className="bg-card rounded-2xl border p-6 sm:p-7">
+    <section aria-label={title} className="px-3 pt-1 pb-2">
       <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display text-lg font-extrabold">{title}</h2>
-          {description && <p className="text-muted-foreground mt-1 text-sm text-pretty">{description}</p>}
-        </div>
+        <p className="text-muted-foreground text-sm text-pretty">{description}</p>
         {!editing && (
           <Button variant="outline" size="sm" onClick={onEdit} aria-label={`Edit ${title.toLowerCase()}`}>
             <Pencil /> Edit
@@ -58,12 +57,12 @@ function Field({ label, children, className }: { label: string; children: React.
 
 const Empty = ({ children = "Not set" }: { children?: string }) => <span className="text-muted-foreground">{children}</span>
 
-function FormButtons({ pending, onCancel }: { pending: boolean; onCancel: () => void }) {
+function FormButtons({ pending, status, onCancel }: { pending: boolean; status: ParticleButtonStatus; onCancel: () => void }) {
   return (
     <div className="flex items-center gap-3 border-t pt-4">
-      <Button type="submit" variant="brand" disabled={pending}>
-        {pending ? "Saving…" : "Save changes"}
-      </Button>
+      <ParticleButton type="submit" variant="brand" status={status}>
+        Save changes
+      </ParticleButton>
       <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
         Cancel
       </Button>
@@ -78,6 +77,7 @@ type ProjectData = { title: string; description: string; status: ProjectStatus; 
 export function ProjectSection({ projectId, project }: { projectId: string; project: ProjectData }) {
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [status, setStatus] = useState<ProjectStatus>(project.status)
   const stack = TECH_STACK_KEYS.filter((k) => project.techStack[k].length > 0)
@@ -134,7 +134,7 @@ export function ProjectSection({ projectId, project }: { projectId: string; proj
             e.preventDefault()
             const v = formValues(e.currentTarget)
             start(async () => {
-              const res = await runAction(
+              const res = await track(runAction(
                 updateOwnProject({
                   projectId,
                   title: v.title,
@@ -145,7 +145,7 @@ export function ProjectSection({ projectId, project }: { projectId: string; proj
                   techStack: { languages: v.languages, frameworks: v.frameworks, hardware: v.hardware, tools: v.tools, cloud: v.cloud },
                 } as Parameters<typeof updateOwnProject>[0]),
                 "Project settings saved"
-              )
+              ))
               if (res.ok) setEditing(false)
               else setErrors(res.fieldErrors ?? {})
             })
@@ -189,7 +189,7 @@ export function ProjectSection({ projectId, project }: { projectId: string; proj
               ))}
             </div>
           </fieldset>
-          <FormButtons pending={pending} onCancel={() => setEditing(false)} />
+          <FormButtons pending={pending} status={saveStatus} onCancel={() => setEditing(false)} />
         </form>
       )}
     </SectionShell>
@@ -201,6 +201,7 @@ export function ProjectSection({ projectId, project }: { projectId: string; proj
 export function TeamSection({ projectId, team }: { projectId: string; team: { name: string; description: string } }) {
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   return (
     <SectionShell
@@ -228,7 +229,7 @@ export function TeamSection({ projectId, team }: { projectId: string; team: { na
             e.preventDefault()
             const v = formValues(e.currentTarget)
             start(async () => {
-              const res = await runAction(updateOwnTeam({ projectId, name: v.name, description: v.description }), "Team details saved")
+              const res = await track(runAction(updateOwnTeam({ projectId, name: v.name, description: v.description }), "Team details saved"))
               if (res.ok) setEditing(false)
               else setErrors(res.fieldErrors ?? {})
             })
@@ -240,7 +241,7 @@ export function TeamSection({ projectId, team }: { projectId: string; team: { na
           <FormField label="About the team" htmlFor="s-team-desc" error={errors.description} hint="Shown on the club's Teams page.">
             <Textarea id="s-team-desc" name="description" rows={3} maxLength={1000} defaultValue={team.description} />
           </FormField>
-          <FormButtons pending={pending} onCancel={() => setEditing(false)} />
+          <FormButtons pending={pending} status={saveStatus} onCancel={() => setEditing(false)} />
         </form>
       )}
     </SectionShell>
@@ -254,6 +255,7 @@ type MemberRow = { id: string; name: string; role: string; isLead: boolean }
 export function MembersSection({ projectId, members }: { projectId: string; members: MemberRow[] }) {
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const [roles, setRoles] = useState<Record<string, string>>({})
   const [error, setError] = useState<string>()
   const roleOf = (m: MemberRow) => roles[m.id] ?? m.role
@@ -294,10 +296,16 @@ export function MembersSection({ projectId, members }: { projectId: string; memb
             const changed = members.filter((m) => roleOf(m).trim() && roleOf(m).trim() !== m.role)
             if (changed.length === 0) return setEditing(false)
             start(async () => {
-              for (const m of changed) {
-                const res = await runAction(updateOwnMemberRole({ projectId, memberId: m.id, roleInProject: roleOf(m) }))
-                if (!res.ok) return setError(`${m.name}: ${res.error}`)
-              }
+              const res = await track(
+                (async () => {
+                  for (const m of changed) {
+                    const r = await runAction(updateOwnMemberRole({ projectId, memberId: m.id, roleInProject: roleOf(m) }))
+                    if (!r.ok) return { ok: false, error: `${m.name}: ${r.error}` }
+                  }
+                  return { ok: true, error: "" }
+                })()
+              )
+              if (!res.ok) return setError(res.error)
               setEditing(false)
               toast.success(changed.length === 1 ? "Role saved" : "Roles saved")
             })
@@ -317,7 +325,7 @@ export function MembersSection({ projectId, members }: { projectId: string; memb
             ))}
           </ul>
           {error && <p className="text-danger text-sm font-medium">{error}</p>}
-          <FormButtons pending={pending} onCancel={() => setEditing(false)} />
+          <FormButtons pending={pending} status={saveStatus} onCancel={() => setEditing(false)} />
         </form>
       )}
     </SectionShell>

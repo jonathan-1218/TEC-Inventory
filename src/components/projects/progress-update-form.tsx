@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Button } from "@/components/ui/button"
+import ParticleButton, { useActionStatus } from "@/components/ui/particle-button"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -46,14 +46,15 @@ function UpdateForm({
   otherMembers,
   onSaved,
 }: Props & { onSaved: () => void }) {
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const values = formValues(e.currentTarget)
     startTransition(async () => {
-      const res = await runAction(addProgressUpdate({ ...values, projectId }), "Progress update added")
+      const res = await track(runAction(addProgressUpdate({ ...values, projectId }), "Progress update added"))
       if (res.ok) onSaved()
       else setErrors(res.fieldErrors ?? {})
     })
@@ -131,9 +132,9 @@ function UpdateForm({
         />
       </FormField>
       <div className="flex justify-end">
-        <Button type="submit" variant="outline" disabled={pending}>
-          {pending ? "Saving…" : "Add update"}
-        </Button>
+        <ParticleButton type="submit" variant="outline" status={saveStatus} successLabel="Added">
+          Add update
+        </ParticleButton>
       </div>
     </form>
   )

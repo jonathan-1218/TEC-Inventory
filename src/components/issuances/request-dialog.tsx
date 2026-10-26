@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ParticleButton, { useActionStatus } from "@/components/ui/particle-button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -35,6 +36,7 @@ export function RequestDialog({ components, trigger }: { components: RequestOpti
 
 function RequestForm({ components, onDone }: { components: RequestOption[]; onDone: () => void }) {
   const [pending, startTransition] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [componentId, setComponentId] = useState("")
   const [pick, setPick] = useState(false)
@@ -44,7 +46,7 @@ function RequestForm({ components, onDone }: { components: RequestOption[]; onDo
     e.preventDefault()
     const values = { ...formValues(e.currentTarget), componentId }
     startTransition(async () => {
-      const res = await runAction(requestComponent(values), "Request sent — an officer will get back to you")
+      const res = await track(runAction(requestComponent(values), "Request sent — an officer will get back to you"))
       if (res.ok) onDone()
       else setErrors(res.fieldErrors ?? {})
     })
@@ -124,9 +126,9 @@ function RequestForm({ components, onDone }: { components: RequestOption[]; onDo
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="request-form" variant="brand" disabled={pending || !componentId}>
-          {pending ? "Sending…" : "Send request"}
-        </Button>
+        <ParticleButton type="submit" form="request-form" variant="brand" disabled={!componentId} status={saveStatus} pendingLabel="Sending" successLabel="Sent">
+          Send request
+        </ParticleButton>
       </DialogFooter>
     </>
   )

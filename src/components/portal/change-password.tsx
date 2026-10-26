@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { KeyRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ParticleButton, { useActionStatus } from "@/components/ui/particle-button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/form-field"
@@ -15,7 +16,8 @@ export function ChangePassword({ label = "Change password" }: { label?: string }
   const [open, setOpen] = useState(false)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [next, setNext] = useState("")
-  const [pending, start] = useTransition()
+  const [, start] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const hint = next ? (passwordProblems(next)[0] ?? "Looks strong") : `At least ${PASSWORD_MIN} characters; a long passphrase works best.`
 
   return (
@@ -46,9 +48,11 @@ export function ChangePassword({ label = "Change password" }: { label?: string }
             const form = new FormData(e.currentTarget)
             if (form.get("password") !== form.get("confirm")) return setErrors({ confirm: ["The two passwords don't match."] })
             start(async () => {
-              const res = await runAction(
-                changeOwnPassword({ current: String(form.get("current") ?? ""), password: String(form.get("password") ?? "") }),
-                "Password changed"
+              const res = await track(
+                runAction(
+                  changeOwnPassword({ current: String(form.get("current") ?? ""), password: String(form.get("password") ?? "") }),
+                  "Password changed"
+                )
               )
               if (res.ok) setOpen(false)
               else setErrors(res.fieldErrors ?? { current: [res.error] })
@@ -74,9 +78,9 @@ export function ChangePassword({ label = "Change password" }: { label?: string }
             <Input id="pw-confirm" name="confirm" type="password" autoComplete="new-password" required maxLength={200} />
           </FormField>
           <DialogFooter>
-            <Button type="submit" variant="brand" disabled={pending}>
-              {pending ? "Saving…" : "Change password"}
-            </Button>
+            <ParticleButton type="submit" variant="brand" status={saveStatus} successLabel="Changed">
+              Change password
+            </ParticleButton>
           </DialogFooter>
         </form>
       </DialogContent>

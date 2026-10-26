@@ -4,6 +4,7 @@ import { Children, useState, useTransition } from "react"
 import type { Component } from "@prisma/client"
 import { CircleAlert, CircleCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ParticleButton, { useActionStatus } from "@/components/ui/particle-button"
 import {
   Dialog,
   DialogContent,
@@ -91,6 +92,7 @@ function ComponentForm({
   onDone: () => void
 }) {
   const [pending, startTransition] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [qty, setQty] = useState<Record<QtyName, string>>({
     quantityWorking: String(c?.quantityWorking ?? 0),
@@ -107,9 +109,8 @@ function ComponentForm({
     e.preventDefault()
     const values = formValues(e.currentTarget)
     startTransition(async () => {
-      const res = await runAction(
-        c ? updateComponent({ ...values, id: c.id }) : createComponent(values),
-        c ? "Component updated" : "Component added"
+      const res = await track(
+        runAction(c ? updateComponent({ ...values, id: c.id }) : createComponent(values), c ? "Component updated" : "Component added")
       )
       if (res.ok) onDone()
       else setErrors(res.fieldErrors ?? {})
@@ -268,9 +269,9 @@ function ComponentForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="component-form" variant="brand" disabled={pending}>
-          {pending ? "Saving…" : c ? "Save changes" : "Add component"}
-        </Button>
+        <ParticleButton type="submit" form="component-form" variant="brand" status={saveStatus} successLabel={c ? "Saved" : "Added"}>
+          {c ? "Save changes" : "Add component"}
+        </ParticleButton>
       </DialogFooter>
     </>
   )
