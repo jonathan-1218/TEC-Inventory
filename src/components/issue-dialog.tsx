@@ -2,6 +2,7 @@
 
 import { Children, useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
+import ParticleButton, { useActionStatus } from "@/components/ui/particle-button"
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,7 @@ function IssueForm({
   onDone: () => void
 }) {
   const [pending, startTransition] = useTransition()
+  const [saveStatus, track] = useActionStatus()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [componentId, setComponentId] = useState(defaults.componentId ?? "")
   const selected = options.components.find((c) => c.id === componentId)
@@ -91,7 +93,7 @@ function IssueForm({
     e.preventDefault()
     const values = formValues(e.currentTarget)
     startTransition(async () => {
-      const res = await runAction(issueComponent(values), "Issued")
+      const res = await track(runAction(issueComponent(values), "Issued"))
       if (res.ok) onDone()
       else setErrors(res.fieldErrors ?? {})
     })
@@ -214,9 +216,9 @@ function IssueForm({
         <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" form="issue-form" variant="brand" disabled={pending}>
-          {pending ? "Issuing…" : "Issue"}
-        </Button>
+        <ParticleButton type="submit" form="issue-form" variant="brand" status={saveStatus} pendingLabel="Issuing" successLabel="Issued">
+          Issue
+        </ParticleButton>
       </DialogFooter>
     </>
   )
