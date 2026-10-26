@@ -119,7 +119,7 @@ section[id] { scroll-margin-top: 84px; }
 
 @media (max-width: 900px) {
   &{ --gx: 24px; --h2: 64px; --ev-w: 400px; --ev-h: 360px; --gal-w: 36vw; }
-  .nav-links .navlink { display: none; }
+  .nav-links .navlink, .nav-links .nav-split { display: none; }
   .team-grid { grid-template-columns: 1fr; }
   .team-grid > :first-child { min-height: 280px !important; }
   .vm-text { font-size: 18px; }

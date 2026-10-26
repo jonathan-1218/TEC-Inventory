@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import Link from "next/link";
+import Link from "next/link"
+import { MorphicNavbar } from "@/components/ui/split-nav";
 import { initBoard } from "@/lib/site/board-scene";
 import { core, events, galleryCards, manifesto, pad, phrases, visionMission } from "@/lib/site/content";
 import GalleryOverlay from "./GalleryOverlay";
@@ -31,6 +32,8 @@ function Words({ text }: { text: string }) {
     </span>
   ));
 }
+
+const SITE_NAV = Object.fromEntries(["top", "about", "events", "teams", "gallery", "core"].map((id) => ["#" + id, { name: id === "top" ? "HOME" : id.toUpperCase() }]));
 
 export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -154,9 +157,7 @@ export default function Home() {
           <span className="nav-brand-text">THE ELECTRONICS CLUB</span>
         </a>
         <div className="nav-links" style={{ display: "flex", gap: 28, alignItems: "center" }}>
-          {["about", "events", "teams", "gallery", "core"].map((s) => (
-            <a key={s} href={"#" + s} className="navlink">{s.toUpperCase()}</a>
-          ))}
+          <MorphicNavbar dark className="nav-split p-0" items={SITE_NAV} defaultPath="#top" />
           <Link href={DASHBOARD} className="cta">DASHBOARD ↗</Link>
         </div>
       </nav>
