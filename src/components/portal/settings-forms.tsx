@@ -15,7 +15,8 @@ import { formValues, runAction } from "@/lib/client"
 import { formatDate } from "@/lib/dates"
 import { STATUSES, STATUS_LABELS, TECH_STACK_KEYS, TECH_STACK_LABELS, type TechStack } from "@/lib/labels"
 
-/** A settings card: reads like a profile by default, and its Edit button turns the content into fields. */
+/** A settings page's content (inside the Settings stack panel, whose header already shows the title): reads like a
+ * profile by default, and its Edit button turns the content into fields. */
 function SectionShell({
   title,
   description,
@@ -30,12 +31,9 @@ function SectionShell({
   children: React.ReactNode
 }) {
   return (
-    <section className="bg-card rounded-2xl border p-6 sm:p-7">
+    <section aria-label={title} className="px-3 pt-1 pb-2">
       <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display text-lg font-extrabold">{title}</h2>
-          {description && <p className="text-muted-foreground mt-1 text-sm text-pretty">{description}</p>}
-        </div>
+        <p className="text-muted-foreground text-sm text-pretty">{description}</p>
         {!editing && (
           <Button variant="outline" size="sm" onClick={onEdit} aria-label={`Edit ${title.toLowerCase()}`}>
             <Pencil /> Edit

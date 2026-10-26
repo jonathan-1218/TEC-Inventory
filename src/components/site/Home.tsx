@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link"
 import { MorphicNavbar } from "@/components/ui/split-nav";
+import ScrollIndex from "@/components/ui/scroll-index";
 import { initBoard } from "@/lib/site/board-scene";
 import { core, events, galleryCards, manifesto, pad, phrases, visionMission } from "@/lib/site/content";
 import GalleryOverlay from "./GalleryOverlay";
@@ -145,6 +146,9 @@ export default function Home() {
   }, []);
 
   return (
+    <>
+    {/* Outside .tec-site: that stylesheet unsets every <button>, which would flatten the rail's ticks. */}
+    <ScrollIndex className="max-[900px]:hidden" />
     <div ref={rootRef} className="tec-site" style={{ overflowX: "clip", position: "relative" }}>
       <div data-bar style={{ position: "fixed", top: 0, left: 0, height: 3, width: 0, background: "#e99704", zIndex: 80 }} />
 
@@ -163,7 +167,7 @@ export default function Home() {
       </nav>
 
       {/* 01 — hero */}
-      <section id="top" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "650vh" }}>
+      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "650vh" }}>
         <div style={sticky}>
           <div data-gl style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0 }} />
           <div data-scrim style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", opacity: 0, background: "linear-gradient(90deg,rgba(14,13,11,.92) 0%,rgba(14,13,11,.75) 38%,rgba(14,13,11,0) 72%)" }} />
@@ -206,7 +210,7 @@ export default function Home() {
       </section>
 
       {/* 02 — vision & mission */}
-      <section id="about" data-pin="vm" style={{ position: "relative", zIndex: 1, height: "700vh" }}>
+      <section id="about" data-index="About" data-pin="vm" style={{ position: "relative", zIndex: 1, height: "700vh" }}>
         <div className="vm-grid" style={{ position: "sticky", top: 0, height: "var(--vh)", display: "grid", gap: 40, padding: "100px var(--gx) 56px", boxSizing: "border-box" }}>
           <div style={{ position: "relative" }}>
             <div className="kicker">02 — VISION &amp; MISSION</div>
@@ -229,7 +233,7 @@ export default function Home() {
       </section>
 
       {/* 03 — events */}
-      <section id="events" data-pin="ev" style={{ position: "relative", zIndex: 1, height: "340vh" }}>
+      <section id="events" data-index="Events" data-pin="ev" style={{ position: "relative", zIndex: 1, height: "340vh" }}>
         <div style={{ ...sticky, display: "flex", flexDirection: "column", justifyContent: "center", gap: 44 }}>
           <div style={{ padding: "0 var(--gx)", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div><div className="kicker">03 — EVENTS ORGANISED</div><h2 className="display h2">THE LOG</h2></div>
@@ -252,7 +256,7 @@ export default function Home() {
       </section>
 
       {/* 04 — teams */}
-      <section id="teams" style={{ position: "relative", zIndex: 1, padding: "clamp(96px,14vw,160px) var(--gx)" }}>
+      <section id="teams" data-index="Teams" style={{ position: "relative", zIndex: 1, padding: "clamp(96px,14vw,160px) var(--gx)" }}>
         <div className="kicker">04 — SPIN-OFF TEAMS</div>
         <h2 className="display h2" style={{ marginBottom: 56 }}>BORN IN TEC.</h2>
         <div data-rv style={{ perspective: 1400 }}>
@@ -271,7 +275,7 @@ export default function Home() {
       </section>
 
       {/* 05 — gallery teaser */}
-      <section id="gallery" style={{ position: "relative", zIndex: 1, height: "260vh" }}>
+      <section id="gallery" data-index="Gallery" style={{ position: "relative", zIndex: 1, height: "260vh" }}>
         <div style={sticky}>
           <div style={{ position: "absolute", left: "var(--gx)", right: "var(--gx)", top: 84, display: "flex", justifyContent: "space-between", alignItems: "flex-end", zIndex: 5, pointerEvents: "none" }}>
             <div><div className="kicker">05 — GALLERY</div><h2 className="display h2">ON THE BENCH</h2></div>
@@ -302,7 +306,7 @@ export default function Home() {
       {galOpen && <GalleryOverlay onClosed={() => setGalOpen(false)} />}
 
       {/* 06 — core team */}
-      <section id="core" style={{ position: "relative", zIndex: 1, padding: "80px var(--gx) clamp(96px,14vw,160px)" }}>
+      <section id="core" data-index="Core team" style={{ position: "relative", zIndex: 1, padding: "80px var(--gx) clamp(96px,14vw,160px)" }}>
         <div className="kicker">06 — CORE TEAM</div>
         <h2 className="display h2" style={{ marginBottom: 56 }}>THE PEOPLE</h2>
         <div style={{ borderTop: "1px solid #2a2824" }}>
@@ -360,5 +364,6 @@ export default function Home() {
         <div className="mono foot-bar"><span>TEC · THE ELECTRONICS CLUB · LICET</span><span>INSPIRING THE NEXT</span></div>
       </footer>
     </div>
+    </>
   );
 }

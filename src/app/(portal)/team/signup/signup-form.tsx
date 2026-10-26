@@ -12,6 +12,7 @@ import { signUp } from "@/app/actions/accounts"
 import { runAction } from "@/lib/client"
 import { cn } from "@/lib/utils"
 import { MAX_GROUP, personalWords } from "@/lib/validators"
+import TeamSelector from "@/components/ui/team-selector"
 import { PASSWORD_MIN, passwordProblems, passwordScore } from "@/lib/password-strength"
 
 type Mentor = { id: string; name: string; designation: string; department: string | null }
@@ -20,7 +21,6 @@ type Person = { name: string; rollNumber: string; department: string; yearOfStud
 
 const STEPS = ["Type", "Members", "Project", "Login", "Review"] as const
 const YEARS = ["1", "2", "3", "4", "5", "6"]
-const SIZES = Array.from({ length: MAX_GROUP - 1 }, (_, i) => i + 2)
 const blank = (): Person => ({ name: "", rollNumber: "", department: "", yearOfStudy: "1" })
 
 export function SignupForm({ mentors }: { mentors: Mentor[] }) {
@@ -145,26 +145,15 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
               <Choice selected={kind === "GROUP"} onClick={() => setKind("GROUP")} icon={Users} title="Group" text={`A team of 2 to ${MAX_GROUP} members.`} />
             </div>
             {kind === "GROUP" && (
-              <div className="grid gap-2">
-                <p className="text-sm font-medium">How many members, including you?</p>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Team size">
-                  {SIZES.map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      role="radio"
-                      aria-checked={size === n}
-                      onClick={() => setSize(n)}
-                      className={cn(
-                        "size-10 rounded-md border font-mono text-sm tabular-nums transition-colors",
-                        size === n ? "border-brand bg-brand/12 text-brand-strong font-semibold" : "hover:bg-muted"
-                      )}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <TeamSelector
+                className="mx-auto"
+                label="How many members, including you?"
+                min={2}
+                max={MAX_GROUP}
+                value={size}
+                onChange={setSize}
+                members={members.map((m, i) => ({ id: String(i), name: m.name }))}
+              />
             )}
           </Step>
         )}
