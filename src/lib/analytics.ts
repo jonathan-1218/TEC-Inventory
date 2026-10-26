@@ -106,7 +106,7 @@ export async function getKpis(periodDays = 30): Promise<Kpis> {
     }),
     db.progressUpdate.findMany({ where: { date: { gte: prevStart } }, select: { date: true, updatedByMemberId: true } }),
     db.project.count({ where: { status: { in: ACTIVE_STATUSES } } }),
-    db.member.count({ where: { isActive: true } }),
+    db.member.count({ where: { isActive: true, guest: false } }),
   ])
 
   const returnedKey = (i: (typeof issuances)[number]) => (i.returnedDate ? dateKey(i.returnedDate) : null)

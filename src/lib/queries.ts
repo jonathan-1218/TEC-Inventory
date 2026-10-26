@@ -95,6 +95,7 @@ export async function searchAll(query: string, limit = 8): Promise<SearchResult[
     }),
     db.project.findMany({ take: SCAN_CAP, select: { id: true, title: true, description: true, status: true, techStack: true } }),
     db.member.findMany({
+      where: { guest: false },
       take: SCAN_CAP,
       select: { id: true, name: true, rollNumber: true, email: true, department: true },
     }),

@@ -261,7 +261,7 @@ export const signupMemberSchema = z.object({
 
 export const MAX_GROUP = 10
 
-/** Words a team's password must not contain: the email's name part, member names and roll numbers. */
+/** Words a team's password must not contain: the email's name part, member names and register numbers. */
 export const personalWords = (email: string, members: { name: string; rollNumber: string }[]) => [
   email.split("@")[0],
   ...members.flatMap((m) => [...m.name.split(/\s+/), m.rollNumber]),
@@ -293,7 +293,7 @@ export const signupSchema = storedSignupSchema
     }
     const rolls = v.members.map((m) => m.rollNumber)
     if (new Set(rolls).size !== rolls.length) {
-      ctx.addIssue({ code: "custom", path: ["members"], message: "Each member needs a different roll number" })
+      ctx.addIssue({ code: "custom", path: ["members"], message: "Each member needs a different register number" })
     }
   })
 export type SignupInput = z.input<typeof signupSchema>

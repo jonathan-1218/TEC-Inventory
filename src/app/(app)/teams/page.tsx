@@ -44,7 +44,7 @@ export default async function TeamsPage() {
       },
     }),
     db.member.findMany({
-      where: { isActive: true },
+      where: { isActive: true, guest: false },
       orderBy: { name: "asc" },
       select: { id: true, name: true, rollNumber: true },
     }),

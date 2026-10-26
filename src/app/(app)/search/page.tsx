@@ -39,7 +39,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader eyebrow="Find" title="Search" description="Components, projects and members — by name, model, roll number or tech tag." />
+      <PageHeader eyebrow="Find" title="Search" description="Components, projects and members — by name, model, register number or tech tag." />
       <form className="flex max-w-2xl gap-2" action="/search" role="search">
         <InputGroup className="h-10 flex-1">
           <InputGroupAddon>
@@ -67,7 +67,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
       )}
 
       {query && results.length === 0 && (
-        <EmptyState icon={Search} title={`Nothing matches “${query}”`} description="Try a model number, a roll number or a tech tag like MQTT." />
+        <EmptyState icon={Search} title={`Nothing matches “${query}”`} description="Try a model number, a register number or a tech tag like MQTT." />
       )}
       {!query && (
         <p className="text-muted-foreground text-sm">

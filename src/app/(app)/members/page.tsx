@@ -13,6 +13,7 @@ export const metadata: Metadata = { title: "Members" }
 
 export default async function MembersPage() {
   const members = await db.member.findMany({
+    where: { guest: false },
     include: {
       _count: { select: { teams: true, projects: true, issuances: { where: { returnedDate: null } } } },
     },

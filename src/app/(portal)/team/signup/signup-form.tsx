@@ -54,7 +54,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
       const missing = members.findIndex((m) => !m.name.trim() || !m.rollNumber.trim() || !m.department.trim())
       if (missing >= 0) return `Fill in every field for ${count > 1 ? `member ${missing + 1}` : "yourself"}.`
       const rolls = members.map((m) => m.rollNumber.trim().toUpperCase())
-      if (new Set(rolls).size !== rolls.length) return "Each member needs a different roll number."
+      if (new Set(rolls).size !== rolls.length) return "Each member needs a different register number."
     }
     if (s === 2) {
       if (!title.trim()) return "Give your project a title."
@@ -180,7 +180,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
                   <FormField label="Name" htmlFor={`m${i}-name`}>
                     <Input id={`m${i}-name`} value={m.name} maxLength={100} onChange={(e) => setPerson(i, { name: e.target.value })} />
                   </FormField>
-                  <FormField label="Roll no." htmlFor={`m${i}-roll`}>
+                  <FormField label="Register no." htmlFor={`m${i}-roll`}>
                     <Input id={`m${i}-roll`} value={m.rollNumber} maxLength={40} className="font-mono uppercase" onChange={(e) => setPerson(i, { rollNumber: e.target.value })} />
                   </FormField>
                   <FormField label="Department" htmlFor={`m${i}-dept`}>

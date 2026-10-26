@@ -106,7 +106,7 @@ function MemberForm({
       const res = member
         ? await runAction(updateMember({ ...values, id: member.id }), "Member updated")
         : await runAction(createMember(values), "Member added")
-      // Unique email/roll number clashes come back as a toast with no field errors; keep the dialog open.
+      // Unique email/register number clashes come back as a toast with no field errors; keep the dialog open.
       if (res.ok) onDone()
       else setErrors(res.fieldErrors ?? {})
     })
@@ -119,7 +119,7 @@ function MemberForm({
           <Input id="member-name" name="name" defaultValue={member?.name} required autoComplete="off" />
         </FormField>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Roll number" htmlFor="member-roll" error={errors.rollNumber}>
+          <FormField label="Register no." htmlFor="member-roll" error={errors.rollNumber}>
             <Input
               id="member-roll"
               name="rollNumber"

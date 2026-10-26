@@ -74,7 +74,7 @@ export default async function AccountsPage() {
         <CardHeader className="border-b">
           <p className="eyebrow">Waiting for approval</p>
           <CardTitle>New project sign-ups</CardTitle>
-          <CardDescription>Approving creates the project and adds its members (existing roll numbers are reused).</CardDescription>
+          <CardDescription>Approving creates the project and adds its members (existing register numbers are reused).</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           {pending.length === 0 ? (

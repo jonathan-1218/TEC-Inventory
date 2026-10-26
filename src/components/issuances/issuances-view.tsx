@@ -31,7 +31,7 @@ export type IssuanceRow = {
   /** > 0 when open and past the expected return date. */
   overdueDays: number
   component: { id: string; name: string; modelNumber: string | null }
-  issuedTo: { id: string; name: string; rollNumber: string }
+  issuedTo: { id: string; name: string; rollNumber: string; guest: boolean }
   project: { id: string; title: string } | null
 }
 
@@ -58,6 +58,7 @@ export function IssuancesView({
   const tab: Tab = TABS.includes(param) ? param : "open"
   const [query, setQuery] = useState(initialQuery)
   const [member, setMember] = useState("all")
+  const [kind, setKind] = useState("all") // all | members | students
 
   // The URL is the source of truth for the tab, so /issuances?tab=overdue links work.
   // Native replaceState syncs useSearchParams without a server round trip.
@@ -81,6 +82,7 @@ export function IssuancesView({
     const matches = rows.filter(
       (r) =>
         (member === "all" || r.issuedTo.id === member) &&
+        (kind === "all" || (kind === "students") === r.issuedTo.guest) &&
         (!q || hit(r.component.name, r.component.modelNumber, r.issuedTo.name, r.issuedTo.rollNumber, r.project?.title))
     )
     // Most overdue first, then soonest due (no due date last), then oldest checkout.
@@ -98,12 +100,13 @@ export function IssuancesView({
       due: open.filter((r) => r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= dueSoonDays),
       history: matches.filter((r) => r.returnedDate).sort((a, b) => time(b.returnedDate) - time(a.returnedDate)),
     }
-  }, [rows, query, member, dueSoonDays])
+  }, [rows, query, member, kind, dueSoonDays])
 
-  const filtering = query.trim() !== "" || member !== "all"
+  const filtering = query.trim() !== "" || member !== "all" || kind !== "all"
   const clear = () => {
     setQuery("")
     setMember("all")
+    setKind("all")
   }
   const noMatches = (
     <EmptyState icon={SearchX} title="No matching issuances" description="Try a different search or member.">
@@ -145,6 +148,16 @@ export function IssuancesView({
               aria-label="Search issuances"
             />
           </InputGroup>
+          <Select value={kind} onValueChange={setKind}>
+            <SelectTrigger className="w-full sm:w-40" aria-label="Filter by borrower type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Everyone</SelectItem>
+              <SelectItem value="members">Club members</SelectItem>
+              <SelectItem value="students">Students</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={member} onValueChange={setMember}>
             <SelectTrigger className="w-full sm:w-52" aria-label="Filter by member">
               <SelectValue />

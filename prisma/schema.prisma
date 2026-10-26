@@ -94,6 +94,9 @@ model Member {
   photo       String?
   bio         String?
   isActive    Boolean           @default(true)
+  // A borrower who isn't a club member: a student who asked for a component on the website, or someone from the
+  // old borrowing sheet. Kept out of the Members, Teams and search lists; shown on Issuances as "Students".
+  guest       Boolean           @default(false)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 

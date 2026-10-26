@@ -61,7 +61,7 @@ export const EXPORTS: Record<string, () => Promise<Table>> = {
       },
     })
     return {
-      headers: ["Issued", "Component", "Quantity", "Member", "Roll number", "Project", "Expected return", "Returned", "Condition", "Status", "Notes"],
+      headers: ["Issued", "Component", "Quantity", "Member", "Register no.", "Project", "Expected return", "Returned", "Condition", "Status", "Notes"],
       rows: issuances.map((i) => [
         i.issuedDate, i.component.name, i.quantity, i.issuedTo.name, i.issuedTo.rollNumber, i.project?.title,
         i.expectedReturnDate, i.returnedDate, i.conditionOnReturn && CONDITION_LABELS[i.conditionOnReturn],
@@ -73,6 +73,7 @@ export const EXPORTS: Record<string, () => Promise<Table>> = {
   async members() {
     const roles = designationMap(await getDesignations())
     const members = await db.member.findMany({
+      where: { guest: false },
       orderBy: { name: "asc" },
       include: {
         teams: { select: { roleInTeam: true, team: { select: { name: true } } } },
@@ -80,7 +81,7 @@ export const EXPORTS: Record<string, () => Promise<Table>> = {
       },
     })
     return {
-      headers: ["Name", "Roll number", "Department", "Year", "Designation", "Email", "Phone", "Active", "Teams", "Projects"],
+      headers: ["Name", "Register no.", "Department", "Year", "Designation", "Email", "Phone", "Active", "Teams", "Projects"],
       rows: members.map((m) => [
         m.name, m.rollNumber, m.department, m.yearOfStudy, labelOf(roles, m.designation), m.email, m.phone,
         m.isActive ? "Yes" : "No",

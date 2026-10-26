@@ -26,7 +26,7 @@ export default async function IssuancesPage(props: PageProps<"/issuances">) {
     db.issuance.findMany({
       include: {
         component: { select: { id: true, name: true, modelNumber: true } },
-        issuedTo: { select: { id: true, name: true, rollNumber: true } },
+        issuedTo: { select: { id: true, name: true, rollNumber: true, guest: true } },
         project: { select: { id: true, title: true } },
       },
     }),
