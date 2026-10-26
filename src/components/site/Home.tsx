@@ -34,6 +34,8 @@ function Words({ text }: { text: string }) {
   ));
 }
 
+/** Seconds after the intro when the hero letters have landed: the scroll hint appears and scrolling unlocks. */
+const HINT_AT = 2.1;
 const SITE_NAV = Object.fromEntries(["top", "about", "events", "teams", "gallery", "core"].map((id) => ["#" + id, { name: id === "top" ? "HOME" : id.toUpperCase() }]));
 
 export default function Home() {
@@ -56,6 +58,20 @@ export default function Home() {
       const [a, b] = el.dataset.ph!.split(",").map(Number);
       return { el, a, b, ws: Array.from(el.querySelectorAll<HTMLElement>("[data-w]")), k: el.querySelector<HTMLElement>("[data-k]")! };
     });
+
+    // Hold the page at the top until the TEC intro is over and the hero letters have risen, then let scrolling
+    // (and the board fly-through it drives) begin.
+    const html = document.documentElement;
+    const hold = html.dataset.intro === "play" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let releaseTimer = 0;
+    const release = () => { releaseTimer = window.setTimeout(() => { html.style.overflow = ""; }, HINT_AT * 1000); };
+    if (hold) {
+      history.scrollRestoration = "manual";
+      scrollTo(0, 0);
+      html.style.overflow = "hidden";
+      if (html.dataset.introDone) release();
+      else addEventListener("tec:intro-done", release, { once: true });
+    }
 
     const board = initBoard(gbox, { mono: cssVar("--font-geist-mono"), display: cssVar("--font-archivo") });
     let mx = 0, my = 0, raf = 0;
@@ -142,7 +158,10 @@ export default function Home() {
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); board.dispose(); };
+    return () => {
+      cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); board.dispose();
+      clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
+    };
   }, []);
 
   return (
@@ -186,12 +205,19 @@ export default function Home() {
             {["INSPIRING", "THE NEXT"].map((line, li) => (
               <div key={line} style={{ overflow: "hidden", padding: "0 .04em .06em", ...(li ? { color: "transparent", WebkitTextStroke: "2px #e99704" } : {}) }}>
                 {line.split("").map((c, i) => (
-                  <span key={i} style={{ display: "inline-block", animation: "tec-rise 1s cubic-bezier(.2,.8,.2,1) both", animationDelay: 0.25 + (li * 9 + i) * 0.06 + "s" }}>
+                  <span key={i} data-rise style={{ display: "inline-block", animation: "tec-rise 1s cubic-bezier(.2,.8,.2,1) both", animationDelay: 0.25 + (li * 9 + i) * 0.06 + "s" }}>
                     {c === " " ? " " : c}
                   </span>
                 ))}
               </div>
             ))}
+            {/* Scroll hint: fades up once the letters have landed; the dot keeps rolling down the mouse. */}
+            <div aria-hidden="true" data-rise className="scroll-hint" style={{ marginTop: "clamp(28px,5vh,56px)", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, animation: `tec-hint-in .6s ease-out ${HINT_AT}s both` }}>
+              <span style={{ width: 22, height: 34, border: "1.5px solid rgba(242,240,234,.55)", borderRadius: 12, display: "flex", justifyContent: "center", paddingTop: 6, boxSizing: "border-box" }}>
+                <span style={{ width: 3, height: 7, borderRadius: 2, background: "#e99704", animation: "tec-hint-dot 1.6s ease-in-out infinite" }} />
+              </span>
+              <span className="mono" style={{ fontSize: 11, letterSpacing: ".2em", color: "#a09b91", WebkitTextStroke: 0 }}>SCROLL</span>
+            </div>
           </div>
           <div data-manwrap style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 var(--gx)", opacity: 0 }}>
             <div className="kicker">01 — WHAT IS TEC</div>
