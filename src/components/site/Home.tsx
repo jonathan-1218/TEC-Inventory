@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link"
+import { TecLogo } from "@/components/tec-logo";
 import { MorphicNavbar } from "@/components/ui/split-nav";
 import ScrollIndex from "@/components/ui/scroll-index";
 import type { initBoard as InitBoard } from "@/lib/site/board-scene";
@@ -48,7 +49,7 @@ export default function Home() {
     const $ = <E extends HTMLElement = HTMLElement>(s: string) => root.querySelector<E>(s)!;
     const $$ = (s: string) => Array.from(root.querySelectorAll<HTMLElement>(s));
 
-    const herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
+    const nav = $("[data-nav]"), herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
     const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
     const vmSec = $("[data-pin=vm]"), vmCol = $("[data-vmcol]"), vmFill = $("[data-vmfill]");
@@ -112,6 +113,7 @@ export default function Home() {
       gbox.style.opacity = String(ss(clamp((hp - 0.08) / 0.14)) * (1 - ss(clamp((hp - 0.8) / 0.07))));
       herotext.style.opacity = String(1 - ss(clamp((hp - 0.03) / 0.1)));
       herotext.style.transform = `scale(${1 + Math.min(hp, 0.15) * 1.5})`;
+      nav.dataset.on = hp > 0.84 ? "1" : "0";
       manwrap.style.opacity = String(ss(clamp((hp - 0.86) / 0.05)));
       const mp = clamp((hp - 0.88) / 0.1);
       manWords.forEach((w, i) => { w.style.color = i / manWords.length < mp * 1.1 ? "#f2f0ea" : "#3a3832"; });
@@ -175,13 +177,11 @@ export default function Home() {
     <ScrollIndex className="max-[900px]:hidden" />
     <div ref={rootRef} className="tec-site" style={{ overflowX: "clip", position: "relative" }}>
 
-      <nav className="mono" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px var(--gx)", background: "linear-gradient(rgba(14,13,11,.94) 45%,rgba(14,13,11,0))", backdropFilter: "blur(10px)" }}>
-        <a href="#top" style={{ display: "flex", alignItems: "center", gap: 12, color: "#f2f0ea" }}>
-          <span style={{ background: "#f1eee6", borderRadius: 8, padding: "5px 8px", display: "flex" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- tiny inline SVG logo */}
-            <img src="/site/tec-logo.svg" alt="TEC" data-intro-target="logo" style={{ height: 26, display: "block" }} />
-          </span>
-          <span className="nav-brand-text">THE ELECTRONICS CLUB</span>
+      <nav data-nav className="mono site-nav" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px var(--gx)", background: "linear-gradient(rgba(14,13,11,.94) 45%,rgba(14,13,11,0))", backdropFilter: "blur(10px)" }}>
+        <a href="#top" className="brand">
+          <TecLogo height={34} className="brand-logo" />
+          <i className="brand-bar" />
+          <span className="brand-text display">THE ELECTRONICS<br /><em>CLUB</em></span>
         </a>
         <div className="nav-links" style={{ display: "flex", gap: 28, alignItems: "center" }}>
           <MorphicNavbar dark className="nav-split p-0" items={SITE_NAV} defaultPath="#top" />
