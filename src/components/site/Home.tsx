@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link"
 import { MorphicNavbar } from "@/components/ui/split-nav";
 import ScrollIndex from "@/components/ui/scroll-index";
-import { initBoard } from "@/lib/site/board-scene";
+import type { initBoard as InitBoard } from "@/lib/site/board-scene";
+import FootRotor from "./FootRotor";
 import { core, events, galleryCards, manifesto, pad, phrases, visionMission } from "@/lib/site/content";
 import GalleryOverlay from "./GalleryOverlay";
 
@@ -47,10 +48,10 @@ export default function Home() {
     const $ = <E extends HTMLElement = HTMLElement>(s: string) => root.querySelector<E>(s)!;
     const $$ = (s: string) => Array.from(root.querySelectorAll<HTMLElement>(s));
 
-    const bar = $("[data-bar]"), herotext = $("[data-herotext]"), cap = $("[data-cap]"), manwrap = $("[data-manwrap]");
+    const herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
     const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
-    const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]"), evCount = $("[data-evcount]");
-    const vmSec = $("[data-pin=vm]"), vmCol = $("[data-vmcol]"), vmFill = $("[data-vmfill]"), vmCount = $("[data-vmcount]");
+    const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
+    const vmSec = $("[data-pin=vm]"), vmCol = $("[data-vmcol]"), vmFill = $("[data-vmfill]");
     const w0 = $("[data-vmword='0']"), w1 = $("[data-vmword='1']"), vmItems = $$("[data-vmitem]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
     const tilt = $("[data-tilt]"), reveals = $$("[data-rv]"), manWords = $$("[data-mw]");
@@ -73,20 +74,27 @@ export default function Home() {
       else addEventListener("tec:intro-done", release, { once: true });
     }
 
-    const board = initBoard(gbox, { mono: cssVar("--font-geist-mono"), display: cssVar("--font-archivo") });
+    // three.js is the bulk of the JS: load it after first paint instead of blocking it.
+    let board: ReturnType<typeof InitBoard> | null = null, dead = false;
+    import("@/lib/site/board-scene").then((m) => {
+      if (!dead) board = m.initBoard(gbox, { mono: cssVar("--font-geist-mono"), display: cssVar("--font-archivo") });
+    });
     let mx = 0, my = 0, raf = 0;
     const t0 = performance.now();
     const onMove = (e: MouseEvent) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; };
     addEventListener("mousemove", onMove);
 
+    let ly = -1, lx = 0, lyy = 0, lw = 0;
     const tick = (now: number) => {
       const vh = innerHeight, sy = scrollY;
-      bar.style.width = (sy / (document.documentElement.scrollHeight - vh)) * 100 + "%";
+      // Nothing moved and the hero's board is off-screen: skip the whole frame.
+      if (sy === ly && mx === lx && my === lyy && innerWidth + vh === lw && sy > heroSec.offsetHeight) { raf = requestAnimationFrame(tick); return; }
+      ly = sy; lx = mx; lyy = my; lw = innerWidth + vh;
 
       // hero: board fly-through + phrases
       const hr = heroSec.getBoundingClientRect();
       const hp = clamp(-hr.top / (hr.height - vh)), gp = clamp((hp - 0.1) / 0.7);
-      board.update(gp, mx, my, (now - t0) / 1000);
+      if (hp > 0.04 && hp < 0.9) board?.update(gp, mx, my, (now - t0) / 1000);
       const fade = 1 - ss(clamp((hp - 0.8) / 0.07));
       let scrimOp = 0;
       for (const P of phs) {
@@ -105,7 +113,6 @@ export default function Home() {
       herotext.style.opacity = String(1 - ss(clamp((hp - 0.03) / 0.1)));
       herotext.style.transform = `scale(${1 + Math.min(hp, 0.15) * 1.5})`;
       manwrap.style.opacity = String(ss(clamp((hp - 0.86) / 0.05)));
-      cap.textContent = hp < 0.08 ? "SCROLL TO POWER ON" : hp > 0.82 ? "TEC / ABOUT" : gp < 0.28 ? "BOARD / TRACES" : gp < 0.52 ? "BOARD / THE CHIP" : gp < 0.74 ? "CHIP / DIE" : "DIE / TRANSISTORS";
       const mp = clamp((hp - 0.88) / 0.1);
       manWords.forEach((w, i) => { w.style.color = i / manWords.length < mp * 1.1 ? "#f2f0ea" : "#3a3832"; });
 
@@ -118,7 +125,6 @@ export default function Home() {
       // events: horizontal track
       const er = evSec.getBoundingClientRect(), ep = clamp(-er.top / (er.height - vh));
       evTrack.style.transform = `translateX(${-ep * Math.max(0, evTrack.scrollWidth - innerWidth)}px)`;
-      evCount.textContent = pad(Math.min(5, 1 + Math.floor(ep * 5))) + " / 05";
 
       // gallery: fan out the stack
       {
@@ -152,14 +158,13 @@ export default function Home() {
       const mis = lit >= 4;
       w0.style.opacity = mis ? "0" : "1"; w0.style.transform = mis ? "translateY(-40px)" : "none";
       w1.style.opacity = mis ? "1" : "0"; w1.style.transform = mis ? "none" : "translateY(40px)";
-      vmCount.textContent = pad(lit) + " / 07 NODES ONLINE";
 
       tilt.style.transform = `rotateY(${mx * 8}deg) rotateX(${-my * 6}deg)`;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => {
-      cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); board.dispose();
+      dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); board?.dispose();
       clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
     };
   }, []);
@@ -169,7 +174,6 @@ export default function Home() {
     {/* Outside .tec-site: that stylesheet unsets every <button>, which would flatten the rail's ticks. */}
     <ScrollIndex className="max-[900px]:hidden" />
     <div ref={rootRef} className="tec-site" style={{ overflowX: "clip", position: "relative" }}>
-      <div data-bar style={{ position: "fixed", top: 0, left: 0, height: 3, width: 0, background: "#e99704", zIndex: 80 }} />
 
       <nav className="mono" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px var(--gx)", background: "linear-gradient(rgba(14,13,11,.94) 45%,rgba(14,13,11,0))", backdropFilter: "blur(10px)" }}>
         <a href="#top" style={{ display: "flex", alignItems: "center", gap: 12, color: "#f2f0ea" }}>
@@ -227,11 +231,6 @@ export default function Home() {
               ))}
             </p>
           </div>
-          <div className="mono" style={{ position: "absolute", left: "var(--gx)", bottom: 30, zIndex: 4, fontWeight: 400, color: "#a09b91", display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e99704", animation: "tec-blink 1.4s infinite" }} />
-            <span data-cap>SCROLL TO POWER ON</span>
-          </div>
-          <div className="mono hide-phone" style={{ position: "absolute", right: "var(--gx)", bottom: 30, zIndex: 4, fontWeight: 400, color: "#a09b91" }}>LICET · THE ELECTRONICS CLUB</div>
         </div>
       </section>
 
@@ -242,7 +241,6 @@ export default function Home() {
             <div className="kicker">02 — VISION &amp; MISSION</div>
             <div data-vmword="0" className="display vm-word" style={vmWord}>OUR<br />VISION</div>
             <div data-vmword="1" className="display vm-word" style={{ ...vmWord, color: "#e99704", opacity: 0, transform: "translateY(40px)" }}>OUR<br />MISSION</div>
-            <div data-vmcount className="mono" style={{ position: "absolute", left: 0, bottom: 0, fontSize: 13, color: "#a09b91" }}>00 / 07 NODES ONLINE</div>
           </div>
           <div data-vmcol className="vm-rail" style={{ position: "relative", display: "flex", flexDirection: "column", justifyContent: "space-between", paddingLeft: 64 }}>
             <i style={{ position: "absolute", left: 11, top: 12, bottom: 12, width: 2, background: "#2a2824" }} />
@@ -263,7 +261,6 @@ export default function Home() {
         <div style={{ ...sticky, display: "flex", flexDirection: "column", justifyContent: "center", gap: 44 }}>
           <div style={{ padding: "0 var(--gx)", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div><div className="kicker">03 — EVENTS ORGANISED</div><h2 className="display h2">THE LOG</h2></div>
-            <div data-evcount className="mono" style={{ fontSize: 13, color: "#a09b91" }}>01 / 05</div>
           </div>
           <div data-track="ev" style={{ display: "flex", gap: "min(24px, 4vw)", padding: "0 var(--gx)", width: "max-content", willChange: "transform" }}>
             {events.map((e) => (
@@ -357,14 +354,14 @@ export default function Home() {
 
       {/* footer */}
       <footer className="site-foot">
-        <div className="foot-mark display" aria-hidden>THE ELECTRONICS CLUB</div>
+        <FootRotor text="THE ELECTRONICS CLUB" className="foot-mark display" />
         <div className="foot-grid">
           <div>
             <span style={{ background: "#f1eee6", borderRadius: 8, padding: "5px 8px", display: "inline-flex" }}>
               {/* eslint-disable-next-line @next/next/no-img-element -- tiny inline SVG logo */}
               <img src="/site/tec-logo.svg" alt="TEC" style={{ height: 26, display: "block" }} />
             </span>
-            <p style={{ color: "#a09b91", lineHeight: 1.55, margin: "16px 0 0", maxWidth: 320 }}>The Electronics Club of LICET. A community that builds. Inspiring the next.</p>
+            <p style={{ color: "#a09b91", lineHeight: 1.55, margin: "16px 0 0", }}>The Electronics Club of LICET.<br />A community that builds. Inspiring the next.</p>
           </div>
           <div>
             <div className="mono foot-h">EXPLORE</div>

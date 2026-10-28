@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type Ref } from "react"
+import { useEffect, useRef, useSyncExternalStore, type CSSProperties, type Ref } from "react"
 import { usePathname } from "next/navigation"
 import {
   BLOCK_C,
@@ -17,14 +17,13 @@ import {
 import s from "./intro.module.css"
 
 // Timeline (ms from first paint). The build runs on CSS alone, so it starts before hydration; JS only does the flight.
-const T = { te: 60, c: 180, pulse: 520, pulseDur: 950, pcb: 1300, eyebrow: 1500, greet: 1660, fly: 2900, flyDur: 580 }
+const T = { te: 60, c: 180, pulse: 520, pulseDur: 950, pcb: 1300, eyebrow: 1500, greet: 1660, fly: 1900, flyDur: 580 }
 const MS_PER_UNIT = 1.5 // PCB "current" spreads out from where the pulse meets the C
 
 // Decides before first paint whether this page load plays the intro (every hard load or refresh of the homepage or "/dashboard",
 // never under reduced motion). Pages read html[data-intro-done] or wait for the "tec:intro-done" event.
-const SCRIPT = `(function(){var d=document.documentElement,p=false;try{if((location.pathname==="/"||location.pathname==="/dashboard")&&!matchMedia("(prefers-reduced-motion: reduce)").matches)p=true}catch(e){}if(p){var h=new Date().getHours();d.dataset.intro="play";d.dataset.introPart=h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":"evening";d.dataset.introT0=String(performance.now())}else d.dataset.introDone="1"})()`
+const SCRIPT = `(function(){var d=document.documentElement,p=false;try{if((location.pathname==="/"||location.pathname==="/dashboard")&&!matchMedia("(prefers-reduced-motion: reduce)").matches)p=true}catch(e){}if(p){d.dataset.intro="play";d.dataset.introT0=String(performance.now())}else d.dataset.introDone="1"})()`
 
-const GREETING = { morning: "Good morning", afternoon: "Good afternoon", evening: "Good evening" }
 
 const [EX, EY] = PCB_ENTRY
 // Each trace draws away from the entry point, starting when the "current" reaches its near end.
@@ -59,11 +58,9 @@ export function Intro() {
   const isHome = pathname === "/" || pathname === "/dashboard"
   // The server can't know, so it renders the (CSS-hidden) stage on those pages; the client then drops it unless it plays.
   const playing = useSyncExternalStore(subscribe, isPlaying, () => isHome)
-  const [announce, setAnnounce] = useState("")
   const stage = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
   const logo = useRef<SVGSVGElement>(null)
-  const fade = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!playing) return
@@ -91,7 +88,7 @@ export function Intro() {
     }
 
     const fly = () => {
-      if (flying || done || !stage.current || !logo.current || !backdrop.current || !fade.current) return finish()
+      if (flying || done || !stage.current || !logo.current || !backdrop.current) return finish()
       flying = true
       stage.current.style.pointerEvents = "none"
       const from = logo.current.getBoundingClientRect()
@@ -112,23 +109,19 @@ export function Intro() {
       const end = `translate(${dest.left - from.left}px, ${dest.top - from.top}px) scale(${scale})`
       const opts = { duration: T.flyDur, easing: "cubic-bezier(0.7, 0, 0.2, 1)", fill: "forwards" } as const
       backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { ...opts, easing: "ease-in-out" })
-      fade.current.animate([{ opacity: 1 }, { opacity: 0, transform: "translateY(-8px)" }], { ...opts, duration: 240 })
       logo.current
         .animate([{ transform: "none" }, onScreen ? { transform: end } : { transform: end, opacity: 0 }], opts)
         .finished.then(finish, finish)
     }
 
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && skip()
-    const part = html.dataset.introPart as keyof typeof GREETING
     const flyTimer = setTimeout(fly, Math.max(0, T.fly - elapsed))
-    const sayTimer = setTimeout(() => setAnnounce(`${GREETING[part] ?? "Hello"} — welcome to TEC`), Math.max(0, T.greet - elapsed))
     // Any click on the stage (the Skip button included) skips.
     const node = stage.current
     node?.addEventListener("click", skip)
     window.addEventListener("keydown", onKey)
     return () => {
       clearTimeout(flyTimer)
-      clearTimeout(sayTimer)
       node?.removeEventListener("click", skip)
       window.removeEventListener("keydown", onKey)
     }
@@ -143,32 +136,11 @@ export function Intro() {
             <div ref={backdrop} className={s.backdrop} />
             <div className={s.center}>
               <IntroLogo ref={logo} />
-              <div ref={fade} className="flex flex-col items-center gap-3 text-center">
-                <p className={`eyebrow flex items-center gap-2 ${s.text}`} style={vars(T.eyebrow)}>
-                  <span className={`bg-brand size-1.5 rounded-full ${s.led}`} style={vars(T.eyebrow)} />
-                  Inventory · Projects · Teams
-                </p>
-                <p
-                  className={`font-display text-2xl font-semibold tracking-tight text-balance sm:text-4xl ${s.text}`}
-                  style={vars(T.greet)}
-                >
-                  <span className={s.morning}>{GREETING.morning}</span>
-                  <span className={s.afternoon}>{GREETING.afternoon}</span>
-                  <span className={s.evening}>{GREETING.evening}</span> — welcome to TEC
-                </p>
-              </div>
             </div>
           </div>
           <p role="status" className="sr-only">
-            {announce}
+            Welcome to TEC
           </p>
-          <button
-            type="button"
-            className={`eyebrow border-border bg-background/80 text-foreground hover:border-foreground/40 focus-visible:ring-ring absolute right-4 bottom-4 flex h-11 items-center gap-2 rounded-md border px-3 outline-none focus-visible:ring-2 sm:right-6 sm:bottom-6 sm:h-9 ${s.skip}`}
-          >
-            Skip intro
-            <kbd className="text-muted-foreground font-mono">Esc</kbd>
-          </button>
         </div>
       )}
     </>
