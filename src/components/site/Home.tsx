@@ -6,8 +6,9 @@ import { TecLogo } from "@/components/tec-logo";
 import { MorphicNavbar } from "@/components/ui/split-nav";
 import ScrollIndex from "@/components/ui/scroll-index";
 import type { initBoard as InitBoard } from "@/lib/site/board-scene";
+import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
-import { core, events, galleryCards, manifesto, pad, phrases, visionMission } from "@/lib/site/content";
+import { core, events, galleryCards, manifesto, pad, phrases } from "@/lib/site/content";
 import GalleryOverlay from "./GalleryOverlay";
 
 const DASHBOARD = "/dashboard"; // the inventory app lives in the same site
@@ -15,10 +16,6 @@ const GITHUB = "https://github.com/jonathan-1218/TEC-Inventory";
 
 const sticky: CSSProperties = { position: "sticky", top: 0, height: "var(--vh)", overflow: "hidden" };
 const phraseLine: CSSProperties = { fontSize: "clamp(30px,7.4vw,132px)" };
-const vmWord: CSSProperties = {
-  position: "absolute", left: 0, top: 60, lineHeight: 0.88, letterSpacing: "-.02em",
-  transition: "opacity .5s, transform .6s cubic-bezier(.2,.8,.2,1)",
-};
 
 // next/font exposes each loaded family as a CSS variable on <html>
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "sans-serif";
@@ -52,8 +49,6 @@ export default function Home() {
     const nav = $("[data-nav]"), herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
     const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
-    const vmSec = $("[data-pin=vm]"), vmCol = $("[data-vmcol]"), vmFill = $("[data-vmfill]");
-    const w0 = $("[data-vmword='0']"), w1 = $("[data-vmword='1']"), vmItems = $$("[data-vmitem]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
     const tilt = $("[data-tilt]"), reveals = $$("[data-rv]"), manWords = $$("[data-mw]");
     const phs = $$("[data-ph]").map((el) => {
@@ -143,24 +138,6 @@ export default function Home() {
         galBtn.style.transform = `translate(-50%,${(1 - b) * 40}px)`;
       }
 
-      // vision & mission: light up nodes along the rail
-      const vp = clamp(-vmSec.getBoundingClientRect().top / (vmSec.offsetHeight - vh)), cr = vmCol.getBoundingClientRect();
-      const fillPx = clamp(vp * 1.08) * (cr.height - 24);
-      vmFill.style.height = fillPx + "px";
-      let lit = 0;
-      vmItems.forEach((it, i) => {
-        const nd = it.querySelector<HTMLElement>("[data-vmnode]")!, on = fillPx + 12 >= nd.getBoundingClientRect().top - cr.top + 10;
-        if (on) lit = i + 1;
-        it.style.opacity = on ? "1" : ".25";
-        it.style.transform = on ? "none" : "translateX(20px)";
-        nd.style.background = on ? "#e99704" : "#0e0d0b";
-        nd.style.borderColor = on ? "#e99704" : "#3a3832";
-        nd.style.boxShadow = on ? "0 0 22px 4px rgba(233,151,4,.7)" : "none";
-      });
-      const mis = lit >= 4;
-      w0.style.opacity = mis ? "0" : "1"; w0.style.transform = mis ? "translateY(-40px)" : "none";
-      w1.style.opacity = mis ? "1" : "0"; w1.style.transform = mis ? "none" : "translateY(40px)";
-
       tilt.style.transform = `rotateY(${mx * 8}deg) rotateX(${-my * 6}deg)`;
       raf = requestAnimationFrame(tick);
     };
@@ -190,7 +167,7 @@ export default function Home() {
       </nav>
 
       {/* 01 — hero */}
-      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "650vh" }}>
+      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "950vh" }}>
         <div style={sticky}>
           <div data-gl style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0 }} />
           <div data-scrim style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", opacity: 0, background: "linear-gradient(90deg,rgba(14,13,11,.92) 0%,rgba(14,13,11,.75) 38%,rgba(14,13,11,0) 72%)" }} />
@@ -235,29 +212,10 @@ export default function Home() {
       </section>
 
       {/* 02 — vision & mission */}
-      <section id="about" data-index="About" data-pin="vm" style={{ position: "relative", zIndex: 1, height: "700vh" }}>
-        <div className="vm-grid" style={{ position: "sticky", top: 0, height: "var(--vh)", display: "grid", gap: 40, padding: "100px var(--gx) 56px", boxSizing: "border-box" }}>
-          <div style={{ position: "relative" }}>
-            <div className="kicker">02 — VISION &amp; MISSION</div>
-            <div data-vmword="0" className="display vm-word" style={vmWord}>OUR<br />VISION</div>
-            <div data-vmword="1" className="display vm-word" style={{ ...vmWord, color: "#e99704", opacity: 0, transform: "translateY(40px)" }}>OUR<br />MISSION</div>
-          </div>
-          <div data-vmcol className="vm-rail" style={{ position: "relative", display: "flex", flexDirection: "column", justifyContent: "space-between", paddingLeft: 64 }}>
-            <i style={{ position: "absolute", left: 11, top: 12, bottom: 12, width: 2, background: "#2a2824" }} />
-            <i data-vmfill style={{ position: "absolute", left: 11, top: 12, width: 2, height: 0, background: "#e99704", boxShadow: "0 0 14px 2px #e99704" }} />
-            {visionMission.map(([k, t]) => (
-              <div key={k} data-vmitem style={{ position: "relative", opacity: 0.25, transform: "translateX(20px)", transition: "opacity .4s, transform .5s cubic-bezier(.2,.8,.2,1)" }}>
-                <span data-vmnode style={{ position: "absolute", left: -64, top: 0, width: 24, height: 24, boxSizing: "border-box", borderRadius: "50%", border: "2px solid #3a3832", background: "#0e0d0b", transition: "all .3s" }} />
-                <div className="mono" style={{ color: "#e99704", marginBottom: 6 }}>{k}</div>
-                <div className="vm-text" style={{ lineHeight: 1.35, maxWidth: 620 }}>{t}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <VisionMission />
 
       {/* 03 — events */}
-      <section id="events" data-index="Events" data-pin="ev" style={{ position: "relative", zIndex: 1, height: "340vh" }}>
+      <section id="events" data-index="Events" data-pin="ev" style={{ position: "relative", zIndex: 1, height: "520vh" }}>
         <div style={{ ...sticky, display: "flex", flexDirection: "column", justifyContent: "center", gap: 44 }}>
           <div style={{ padding: "0 var(--gx)", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div><div className="kicker">03 — EVENTS ORGANISED</div><h2 className="display h2">THE LOG</h2></div>
@@ -298,7 +256,7 @@ export default function Home() {
       </section>
 
       {/* 05 — gallery teaser */}
-      <section id="gallery" data-index="Gallery" style={{ position: "relative", zIndex: 1, height: "260vh" }}>
+      <section id="gallery" data-index="Gallery" style={{ position: "relative", zIndex: 1, height: "380vh" }}>
         <div style={sticky}>
           <div style={{ position: "absolute", left: "var(--gx)", right: "var(--gx)", top: 84, display: "flex", justifyContent: "space-between", alignItems: "flex-end", zIndex: 5, pointerEvents: "none" }}>
             <div><div className="kicker">05 — GALLERY</div><h2 className="display h2">ON THE BENCH</h2></div>
@@ -354,7 +312,7 @@ export default function Home() {
 
       {/* footer */}
       <footer className="site-foot">
-        <FootRotor text="THE ELECTRONICS CLUB" className="foot-mark display" />
+        <FootRotor lines={["THE ELECTRONICS CLUB", "TEC"]} className="foot-mark display" />
         <div className="foot-grid">
           <div>
             <span style={{ background: "#f1eee6", borderRadius: 8, padding: "5px 8px", display: "inline-flex" }}>
@@ -376,15 +334,8 @@ export default function Home() {
               <a href={GITHUB} className="foot-link">GITHUB / TEC-INVENTORY ↗</a>
             </div>
           </div>
-          <div>
-            <div className="mono foot-h">STATUS</div>
-            <div className="mono foot-list">
-              <span><i className="live" />ALL SYSTEMS ONLINE</span>
-              <a href="#top" className="foot-link">BACK TO TOP ↑</a>
-            </div>
-          </div>
         </div>
-        <div className="mono foot-bar"><span>TEC · THE ELECTRONICS CLUB · LICET</span><span>INSPIRING THE NEXT</span></div>
+        <div className="mono foot-bar"><span>DEVELOPED BY <b className="foot-dev">JONATHAN JESHUA S</b> · <b className="foot-dev">OPHRIEL SYSTEMS</b></span></div>
       </footer>
     </div>
     </>
