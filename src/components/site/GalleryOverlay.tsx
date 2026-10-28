@@ -126,7 +126,7 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
     <div className="arch" data-theme={theme} style={{ display: "contents" }}>
       <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "var(--a-bg)", color: "var(--a-ink)", overflow: "hidden", clipPath: clip, transition: "clip-path 1s cubic-bezier(.76,0,.24,1)" }}>
         {view === "grid" ? (
-          <div ref={wallRef} style={{ position: "absolute", inset: 0, cursor: "grab", touchAction: "none", userSelect: "none" }}>
+          <div ref={wallRef} style={{ position: "absolute", inset: 0, zIndex: 1, isolation: "isolate", cursor: "grab", touchAction: "none", userSelect: "none" }}>
             <div ref={glowRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
             {ghosts.map((s) => (
               <div key={"g" + s.k} data-ghost style={{ position: "absolute", left: 0, top: 0, width: s.w, pointerEvents: "none", willChange: "transform" }}>
@@ -159,6 +159,9 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
           </div>
         )}
 
+        {/* the wall keeps its own stacking context (tiles swell above each other, never above the UI); scrims keep header/footer text legible */}
+        <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 150, zIndex: 4, pointerEvents: "none", background: "linear-gradient(var(--a-bg) 40%, transparent)" }} />
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "clamp(120px, 30vh, 300px)", zIndex: 4, pointerEvents: "none", background: "linear-gradient(transparent, var(--a-bg) 60%)" }} />
         <div className="arch-head" style={{ ...label, fontSize: 12, position: "absolute", left: 0, right: 0, top: 0, zIndex: 5, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "start", padding: "22px var(--gx)", pointerEvents: "none" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span className="display" style={{ fontSize: 22, textTransform: "none" }}>TEC Archive®</span>
@@ -177,8 +180,8 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
           </div>
         </div>
         <div style={{ position: "absolute", left: "var(--gx)", right: "var(--gx)", bottom: 18, zIndex: 5, display: "flex", justifyContent: "space-between", alignItems: "flex-end", pointerEvents: "none" }}>
-          <div className="display" style={{ fontSize: "clamp(30px,5.4vw,88px)", lineHeight: 0.9, textTransform: "uppercase" }}>The Electronics Club®<br />Est.2019<br />LICET, Chennai</div>
-          <div className="hide-phone" style={{ ...label, fontSize: 12, color: "#9a968c", textAlign: "right", lineHeight: 1.7 }}>
+          <div className="display" style={{ fontSize: "clamp(16px,4.2vw,72px)", lineHeight: 0.92, textTransform: "uppercase", whiteSpace: "nowrap" }}>The Electronics Club®<br />Est.2019<br />LICET, Chennai</div>
+          <div className="hide-phone" style={{ ...label, fontSize: 12, color: "#9a968c", textAlign: "right", lineHeight: 1.7, flexShrink: 0, paddingLeft: 24 }}>
             {view === "grid" ? "Drag or scroll to explore — " : ""}{pad(list.length)} items
           </div>
         </div>
