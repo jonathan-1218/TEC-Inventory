@@ -122,6 +122,11 @@ section[id] { scroll-margin-top: 84px; }
 .idx-row:hover { color: var(--fg); padding-left: 16px; }
 .dim-hover:hover { opacity: 1 !important; }
 
+/* manifesto: each word fades in on its own delay once the section is in view; going back dims them at once */
+[data-mw] { color: #3a3832; transition: color .9s ease; transition-delay: 0s; }
+[data-manwrap][data-lit="1"] [data-mw] { color: #f2f0ea; transition-delay: var(--d); }
+@media (prefers-reduced-motion: reduce) { [data-mw] { transition: none; } }
+
 /* ---------- responsive ----------
    Layout sizes live in vars so inline styles in components can use them. */
 &{
