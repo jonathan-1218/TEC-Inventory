@@ -39,6 +39,9 @@ export type GalleryItem = {
 
 // Photos from the InterConnect magazines (2024–2026), students at work first. [file, title, tag, year, width, height]
 const photos: [string, string, string, number, number, number][] = [
+  ["u-lab-team", "Team at the lab table", "Lab", 2026, 892, 1024],
+  ["u-scope", "Oscilloscope session", "Workshop", 2026, 1259, 1400],
+  ["u-workshop", "Board demo", "Workshop", 2026, 1110, 1400],
   ["u-lab", "Lab session", "Lab", 2026, 1400, 1054],
   ["f-drone-build", "Drone build", "Lab", 2025, 816, 612],
   ["g-slice-work", "Heads down at SLICE", "Symposium", 2025, 857, 528],
@@ -100,6 +103,6 @@ export const archive: GalleryItem[] = photos.map(([key, title, tag, year, w, h],
 /** The three photos fanned out in the homepage gallery teaser. */
 export const galleryCards = [
   { label: "LAB", rot: -7, src: archive[0].src },
-  { label: "SYMPOSIUM", rot: 3, src: archive[1].src },
-  { label: "BENCH", rot: 9, src: archive[2].src },
+  { label: "SCOPE", rot: 3, src: archive[1].src },
+  { label: "WORKSHOP", rot: 9, src: archive[2].src },
 ];
