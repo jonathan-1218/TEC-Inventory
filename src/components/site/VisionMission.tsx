@@ -58,7 +58,7 @@ export default function VisionMission() {
 
     const update = () => {
       raf = 0;
-      const r = root.getBoundingClientRect(), vh = innerHeight;
+      const r = root.getBoundingClientRect(), vh = root.querySelector<HTMLElement>(".vm")?.offsetHeight || innerHeight; // pinned height (svh): steady as the phone address bar collapses
       const p = r.height > vh ? clamp(-r.top / (r.height - vh)) : 0;
 
       const rise = (els: HTMLElement[], start: number, out = 0) =>

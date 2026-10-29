@@ -4,8 +4,9 @@ import * as T from "three";
 
 export function initBoard(box, fonts) {
   const MONO = fonts.mono, DISPLAY = fonts.display;
+    const phone = matchMedia("(max-width: 600px)").matches; // fewer pixels and cheaper filtering on phones
     const W = () => box.clientWidth, H = () => box.clientHeight;
-    const r = new T.WebGLRenderer({ antialias: true, alpha: true }); r.setPixelRatio(Math.min(2, devicePixelRatio)); r.setSize(W(), H()); r.setClearColor(0x000000, 0);
+    const r = new T.WebGLRenderer({ antialias: !phone, alpha: true, powerPreference: "high-performance" }); r.setPixelRatio(Math.min(phone ? 1.5 : 2, devicePixelRatio)); r.setSize(W(), H()); r.setClearColor(0x000000, 0);
     r.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; box.appendChild(r.domElement);
     const sc = new T.Scene(); sc.fog = new T.Fog(0x0e0d0b, 26, 75);
     const cam = new T.PerspectiveCamera(45, W() / H(), .1, 200);
@@ -66,7 +67,7 @@ export function initBoard(box, fonts) {
     [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([ox, oz]) => { for (let i = -7; i <= 7; i++) { const ax = ox * 3.5 - oz * i * .4, az = oz * 3.5 + ox * i * .4, w = ox ? .8 : .22, h = ox ? .22 : .8;
       c.fillStyle = 'rgba(' + OR + ',.95)'; c.fillRect(X(ax - w / 2), Z(az - h / 2), w * SC, h * SC); c.fillStyle = 'rgba(' + PA + ',.35)'; c.fillRect(X(ax - w / 2 + (ox ? .08 : 0)), Z(az - h / 2 + (oz ? .08 : 0)), (ox ? w - .16 : w) * SC, (oz ? h - .16 : h) * SC); } });
     c.strokeStyle = 'rgba(' + PA + ',.4)'; c.lineWidth = 3; c.strokeRect(X(-4.3), Z(-4.3), 8.6 * SC, 8.6 * SC); txt('TEC-01  REV A  LICET', 0, 5.2, 30, .45); txt('INSPIRING THE NEXT', 0, -4.8, 24, .35);
-    const tex = new T.CanvasTexture(cv); tex.anisotropy = r.capabilities.getMaxAnisotropy(); tex.encoding = T.sRGBEncoding;
+    const tex = new T.CanvasTexture(cv); tex.anisotropy = Math.min(phone ? 4 : 16, r.capabilities.getMaxAnisotropy()); tex.encoding = T.sRGBEncoding;
     sc.add(new T.Mesh(new T.PlaneGeometry(60, 34).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: .55, roughness: .9, metalness: .1 })));
     const ledM = new T.MeshStandardMaterial({ color: 0xe99704, emissive: 0xe99704, emissiveIntensity: 1.4 }), bandM = new T.MeshStandardMaterial({ color: 0x7a4200 }), dark = new T.MeshStandardMaterial({ color: 0x14130f, roughness: .5 });
     const lead = new T.MeshStandardMaterial({ color: 0xa39e94, metalness: .8, roughness: .4 });

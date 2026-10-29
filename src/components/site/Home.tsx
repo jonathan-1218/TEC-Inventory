@@ -8,7 +8,8 @@ import ScrollIndex from "@/components/ui/scroll-index";
 import type { initBoard as InitBoard } from "@/lib/site/board-scene";
 import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
-import { core, events, galleryCards, manifesto, pad, phrases } from "@/lib/site/content";
+import { archive, core, galleryCards, manifesto, pad, phrases } from "@/lib/site/content";
+import { featuredEvents } from "@/lib/site/events";
 import GalleryOverlay from "./GalleryOverlay";
 
 const DASHBOARD = "/dashboard"; // the inventory app lives in the same site
@@ -78,11 +79,18 @@ export default function Home() {
     let mx = 0, my = 0, raf = 0;
     const t0 = performance.now();
     const onMove = (e: MouseEvent) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; };
-    addEventListener("mousemove", onMove);
+    // Parallax is for pointers only; on touch it would just keep the frame loop busy.
+    if (matchMedia("(hover: hover)").matches) addEventListener("mousemove", onMove);
+    // 100svh probe: unlike innerHeight it doesn't change as the phone's address bar collapses mid-scroll, so the pinned
+    // sections don't jitter.
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;left:0;top:0;height:100svh;width:0;visibility:hidden;pointer-events:none";
+    root.appendChild(probe);
+    const small = matchMedia("(max-width: 600px)");
 
     let ly = -1, lx = 0, lyy = 0, lw = 0;
     const tick = (now: number) => {
-      const vh = innerHeight, sy = scrollY;
+      const vh = probe.offsetHeight || innerHeight, sy = scrollY;
       // Nothing moved and the hero's board is off-screen: skip the whole frame.
       if (sy === ly && mx === lx && my === lyy && innerWidth + vh === lw && sy > heroSec.offsetHeight) { raf = requestAnimationFrame(tick); return; }
       ly = sy; lx = mx; lyy = my; lw = innerWidth + vh;
@@ -113,11 +121,9 @@ export default function Home() {
       const mp = clamp((hp - 0.88) / 0.1);
       manWords.forEach((w, i) => { w.style.color = i / manWords.length < mp * 1.1 ? "#f2f0ea" : "#3a3832"; });
 
-      for (const el of reveals) {
-        const p = clamp((vh * 0.94 - el.getBoundingClientRect().top) / (vh * 0.28));
-        el.style.opacity = String(p);
-        el.style.translate = `0 ${(1 - p) * 50}px`;
-      }
+      // Read every rect first, then write: interleaving forces a layout per element on each frame.
+      const rv = reveals.map((el) => clamp((vh * 0.94 - el.getBoundingClientRect().top) / (vh * 0.28)));
+      reveals.forEach((el, i) => { el.style.opacity = String(rv[i]); el.style.translate = `0 ${(1 - rv[i]) * 50}px`; });
 
       // events: horizontal track
       const er = evSec.getBoundingClientRect(), ep = clamp(-er.top / (er.height - vh));
@@ -126,12 +132,13 @@ export default function Home() {
       // gallery: fan out the stack
       {
         const p = clamp(-galSec.getBoundingClientRect().top / (galSec.offsetHeight - vh));
-        const spread = ss(clamp((p - 0.08) / 0.5)), gap = galCards[0].offsetWidth * 1.12;
+        const spread = ss(clamp((p - 0.08) / 0.5)), gap = galCards[0].offsetWidth * (small.matches ? 0.98 : 1.12);
         galCards.forEach((c, i) => {
           const d = i - 1, k = ss(clamp(spread * 1.25 - Math.abs(d) * 0.12 - (i === 1 ? 0.1 : 0)));
           const x = d * gap * k + (1 - k) * d * 18, y = (1 - k) * (i * 14) + Math.sin(k * Math.PI) * -40 + (d === 0 ? 0 : 28 * k);
           const r = galleryCards[i].rot * (1 - k) + d * 3 * k;
           c.style.transform = `translate(${x + mx * 14 * (i + 1)}px,${y + my * 10 * (i + 1)}px) rotate(${r}deg) scale(${0.86 + 0.14 * k})`;
+          (c.lastElementChild as HTMLElement).style.opacity = String(k); // captions only once the stack has fanned out
         });
         const b = ss(clamp((p - 0.62) / 0.2));
         galBtn.style.opacity = String(b);
@@ -143,7 +150,7 @@ export default function Home() {
     };
     raf = requestAnimationFrame(tick);
     return () => {
-      dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); board?.dispose();
+      dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove(); board?.dispose();
       clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
     };
   }, []);
@@ -221,16 +228,14 @@ export default function Home() {
             <div><div className="kicker">03 — EVENTS ORGANISED</div><h2 className="display h2">THE LOG</h2></div>
           </div>
           <div data-track="ev" style={{ display: "flex", gap: "min(24px, 4vw)", padding: "0 var(--gx)", width: "max-content", willChange: "transform" }}>
-            {events.map((e) => (
-              <div key={e.code} style={{ width: "var(--ev-w)", height: "var(--ev-h)", borderRadius: 16, background: e.bg, color: e.fg, padding: 28, boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", right: -30, top: -30, width: 200, height: 200, borderRadius: "50%", border: `1px dashed ${e.fg}`, opacity: 0.25 }} />
-                <div className="mono" style={{ display: "flex", justifyContent: "space-between", position: "relative" }}><span>{e.code}</span><span>{e.kind}</span></div>
-                <div style={{ position: "relative" }}>
-                  <div className="mono" style={{ height: 120, marginBottom: 18, borderRadius: 8, border: `1px dashed ${e.fg}`, opacity: 0.6, display: "grid", placeItems: "center", fontWeight: 400, fontSize: 11 }}>[ EVENT PHOTO ]</div>
-                  <div className="display" style={{ fontSize: 30, letterSpacing: "-.01em" }}>{e.name}</div>
-                  <div style={{ marginTop: 8, opacity: 0.75 }}>{e.desc}</div>
-                </div>
-              </div>
+            {featuredEvents.map((e, i) => (
+              <article key={e.id} className="ev-card" style={{ background: i % 2 ? "#e99704" : "#f1eee6" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- static webp, already sized for the card */}
+                <img src={e.img} alt={e.title} loading="lazy" decoding="async" className="ev-img" />
+                <div className="mono ev-meta"><span>{pad(i + 1)} · {e.kind}</span><span>{e.when.toUpperCase()}</span></div>
+                <div className="display ev-title">{e.title}</div>
+                <p className="ev-desc">{e.desc}</p>
+              </article>
             ))}
           </div>
         </div>
@@ -260,15 +265,13 @@ export default function Home() {
         <div style={sticky}>
           <div style={{ position: "absolute", left: "var(--gx)", right: "var(--gx)", top: 84, display: "flex", justifyContent: "space-between", alignItems: "flex-end", zIndex: 5, pointerEvents: "none" }}>
             <div><div className="kicker">05 — GALLERY</div><h2 className="display h2">ON THE BENCH</h2></div>
-            <div className="mono" style={{ color: "#a09b91", textAlign: "right", lineHeight: 1.6 }}>03 FRAMES<br />OF 120+</div>
+            <div className="mono" style={{ color: "#a09b91", textAlign: "right", lineHeight: 1.6 }}>03 FRAMES<br />OF {archive.length}</div>
           </div>
           <div style={{ position: "absolute", inset: 0, top: 40 }}>
             {galleryCards.map((g, i) => (
               <div key={g.label} data-gc style={{ position: "absolute", left: "50%", top: "50%", width: "var(--gal-w)", aspectRatio: "4/5", margin: "calc(var(--gal-w) * -0.625) 0 0 calc(var(--gal-w) * -0.5)", willChange: "transform", zIndex: 3 - i }}>
-                {/* ponytail: placeholder until gallery photos exist — swap for next/image */}
-                <div className="mono" style={{ position: "absolute", inset: 0, borderRadius: 14, overflow: "hidden", background: "repeating-linear-gradient(-45deg,rgba(242,240,234,.05) 0 1px,transparent 1px 7px),#1a1915", boxShadow: "0 30px 80px rgba(0,0,0,.55)", border: "1px solid #2a2824", display: "grid", placeItems: "center", color: "#6f6a60", fontWeight: 400 }}>
-                  [ {g.label} PHOTO ]
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element -- static webp */}
+                <img src={g.src} alt="" loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 14, boxShadow: "0 30px 80px rgba(0,0,0,.55)", border: "1px solid #2a2824", background: "#1a1915" }} />
                 <div className="mono" style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 14px)", display: "flex", justifyContent: "space-between", color: "#a09b91" }}>
                   <span>F/{pad(i + 1)}</span><span>{g.label}</span>
                 </div>

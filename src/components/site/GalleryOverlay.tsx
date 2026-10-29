@@ -136,8 +136,10 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
             {tiles.map(({ g, k, w, h }) => (
               <div key={k} data-tile={k} style={{ position: "absolute", left: 0, top: 0, width: w, height: h, willChange: "transform" }}>
                 <div className="tile-in" style={{ width: "100%", height: "100%", overflow: "hidden", background: hatch(g.c), outline: "1px solid rgb(var(--a-rgb) / .08)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- static webp */}
+                  <img src={g.src} alt={g.title} loading="lazy" decoding="async" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   {g.vid && <div style={{ ...label, position: "absolute", top: 10, left: 10, fontSize: 10, color: "#e99704" }}>● {g.dur}</div>}
-                  <div style={{ ...label, position: "absolute", left: 10, bottom: 10, fontSize: 10, color: "#6f6a60" }}>{g.id}</div>
+                  <div style={{ ...label, position: "absolute", left: 10, bottom: 10, fontSize: 10, color: "#f2f0ea", textShadow: "0 1px 6px rgba(0,0,0,.8)" }}>{g.id}</div>
                 </div>
               </div>
             ))}
@@ -197,8 +199,9 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}><span>{lb.tag}, {lb.year}</span><span>Click anywhere to close</span></div>
           </div>
-          <div style={{ ...label, fontSize: 12, position: "relative", maxHeight: "var(--lb-h)", width: `min(100%, calc(var(--lb-h) * (${lb.ar})))`, aspectRatio: lb.ar, justifySelf: "end", background: hatch(lb.c), outline: "1px solid rgb(var(--a-rgb) / .08)", display: "grid", placeItems: "center", color: "#6f6a60" }}>
-            [ {lb.type} ]
+          <div style={{ ...label, fontSize: 12, position: "relative", maxHeight: "var(--lb-h)", width: `min(100%, calc(var(--lb-h) * (${lb.ar})))`, aspectRatio: lb.ar, justifySelf: "end", background: hatch(lb.c), outline: "1px solid rgb(var(--a-rgb) / .08)", display: "grid", placeItems: "center", color: "#6f6a60", overflow: "hidden" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- static webp */}
+            <img src={lb.src} alt={lb.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           </div>
         </div>
       )}
