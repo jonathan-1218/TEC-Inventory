@@ -132,8 +132,13 @@ export function initBoard(box, fonts) {
     for (let i = 0; i < 30; i++) { const o = 70 + i * 63; [[o, 34], [o, 2014], [34, o], [2014, o]].forEach(([x, y]) => { g.fillStyle = 'rgba(233,151,4,.9)'; g.fillRect(x - 12, y - 12, 24, 24); }); }
     g.fillStyle = 'rgba(242,240,234,.5)'; g.font = '500 36px ' + MONO; g.fillText('TEC-01 DIE  28NM', 80, 1990);
     const dtex = new T.CanvasTexture(dc); dtex.anisotropy = tex.anisotropy;
-    const die = new T.Mesh(new T.PlaneGeometry(4.6, 4.6).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ map: dtex, emissiveMap: dtex, emissive: 0xffffff, emissiveIntensity: .6, roughness: .4, metalness: .3 })); die.position.y = .25; inner.add(die);
-    const dieEdge = new T.Mesh(new T.BoxGeometry(4.66, .08, 4.66), new T.MeshStandardMaterial({ color: 0x2a2a2e, metalness: .7, roughness: .25 })); dieEdge.position.y = .205; inner.add(dieEdge);
+    const die = new T.Mesh(new T.PlaneGeometry(4.6, 4.6).rotateX(-Math.PI / 2), new T.MeshPhysicalMaterial({ map: dtex, emissiveMap: dtex, emissive: 0xffffff, emissiveIntensity: .6, roughness: .4, metalness: .3, clearcoat: 1, clearcoatRoughness: .06 })); die.position.y = .25; inner.add(die);
+    const dieEdge = new T.Mesh(new T.BoxGeometry(4.66, .14, 4.66), new T.MeshStandardMaterial({ color: 0x1d1d22, metalness: .85, roughness: .18 })); dieEdge.position.y = .175; inner.add(dieEdge);
+    // seal ring + bond pads: what makes a real die read as a die at a glance
+    const padM = new T.MeshStandardMaterial({ color: 0xc9ccd2, metalness: 1, roughness: .32 }), ringM = new T.MeshStandardMaterial({ color: 0x8d8f96, metalness: 1, roughness: .25 });
+    [[0, 2.27, 4.56, .03], [0, -2.27, 4.56, .03], [2.27, 0, .03, 4.56], [-2.27, 0, .03, 4.56]].forEach(([x, z, w, d]) => { const m = new T.Mesh(new T.BoxGeometry(w, .012, d), ringM); m.position.set(x, .256, z); inner.add(m); });
+    { const pads = []; for (let i = 0; i < 30; i++) { const o = -2.3 + (70 + i * 63) / 2048 * 4.6; pads.push([o, 2.2], [o, -2.2], [2.2, o], [-2.2, o]); }
+      const pim = new T.InstancedMesh(new T.BoxGeometry(.075, .014, .075), padM, pads.length); pads.forEach(([x, z], k) => pim.setMatrixAt(k, new T.Matrix4().makeTranslation(x, .257, z))); inner.add(pim); }
     const sub = new T.Mesh(new T.BoxGeometry(5.9, .06, 5.9), new T.MeshStandardMaterial({ color: 0x3b2a12, roughness: .7 })); sub.position.y = .14; inner.add(sub);
     const rim = new T.PointLight(0xfff4e0, 0, 7); rim.position.set(-2.5, 1.6, 2.5); inner.add(rim);
     const wp = []; for (let i = 0; i < 30; i++) { const o = -2.3 + (70 + i * 63) / 2048 * 4.6; if (i % 2) continue;
@@ -228,31 +233,88 @@ export function initBoard(box, fonts) {
         const pm = new T.PMREMGenerator(r), es = new T.Scene(); es.add(new T.Mesh(new T.BoxGeometry(30, 30, 30), new T.MeshBasicMaterial({ color: 0x0b0a09, side: T.BackSide })));
     [[0, 12, 0, 16, 1, 16, 0xf2f0ea, 2.2], [-12, 4, 0, 1, 8, 20, 0xe99704, 1.6], [12, 6, 4, 1, 6, 10, 0x9fb4ff, 1.1], [0, 4, -12, 18, 5, 1, 0xf2f0ea, .9]].forEach(([x, y, z, w, hh, d, col, k]) => { const m = new T.Mesh(new T.BoxGeometry(w, hh, d), new T.MeshBasicMaterial({ color: new T.Color(col).multiplyScalar(k) })); m.position.set(x, y, z); es.add(m); });
     const env = pm.fromScene(es, .04).texture; [finM, gateM, heroGateM, cu, cuHi, stiM, spacerM, epiN, epiP, heroEpi, wM, lead, tin, mlcc, endc, top, side].forEach((m) => { m.envMap = env; m.envMapIntensity = .9; m.needsUpdate = true; }); top.envMapIntensity = .3; side.envMapIntensity = .4; gateM.envMapIntensity = .25;
+    // Interconnect stack over the whole die, like the real BEOL: the top layer is the die shot itself lifted off the
+    // silicon, then copper lines get finer and denser layer by layer, alternating direction, each following the die's
+    // own layout (lines only where the die shot has circuitry). The camera falls through it; each layer dissolves as it passes.
+    const stack = [], DH = 2.25, STACK = [[1.6, 0], [1.3, .12], [1.04, .085], [.82, .06], [.62, .042]];
+    const layerMat = () => new T.MeshStandardMaterial({ color: 0xffffff, metalness: .55, roughness: .3, transparent: true, opacity: 0, envMap: env, envMapIntensity: .7 });
+    const buildStack = (lum, col, im, alpha) => {
+      const m = new T.Matrix4(), q = new T.Quaternion();
+      STACK.forEach(([y, pitch], li) => {
+        const g = new T.Group(); g.visible = false; inner.add(g);
+        if (!pitch) {   // top metal: the die shot's own structures, as a raised copper-tinted sheet with a darker underside
+          const mat = new T.MeshStandardMaterial({ map: im, color: 0xffffff, alphaMap: alpha, alphaTest: .5, metalness: .7, roughness: .3, emissive: 0xffffff, emissiveMap: im, emissiveIntensity: .25, transparent: true, opacity: 0, side: T.DoubleSide, envMap: env, envMapIntensity: .8 });
+          const geo = new T.PlaneGeometry(4.6, 4.6).rotateX(-Math.PI / 2), top = new T.Mesh(geo, mat), under = new T.Mesh(geo, mat.clone()); under.material.color.set(0x55506a); under.material.emissiveIntensity = .05; under.position.y = -.025;
+          g.add(top, under); stack.push({ g, mats: [mat, under.material], y }); return;
+        }
+        const mat = layerMat(), alongX = li % 2 === 0, n = Math.floor(DH * 2 / pitch), seg = pitch * 4, lines = [];
+        for (let i = 0; i < n; i++) { const o = -DH + (i + .5) * pitch; let run = null;
+          for (let a = -DH; a < DH; a += seg) { const on = lum(alongX ? a + seg / 2 : o, alongX ? o : a + seg / 2) > .55 && rng() > .08;
+            if (on) run = run ? [run[0], a + seg] : [a, a + seg];
+            if ((!on || a + seg >= DH) && run) { const c = (run[0] + run[1]) / 2, len = run[1] - run[0] - pitch * .3; lines.push(alongX ? [c, o, len, pitch * .42] : [o, c, pitch * .42, len]); run = null; } } }
+        const im2 = new T.InstancedMesh(unit, mat, lines.length);
+        lines.forEach(([x, z, sx, sz], k) => { im2.setMatrixAt(k, m.compose(new T.Vector3(x, 0, z), q, new T.Vector3(sx, pitch * .32, sz))); im2.setColorAt(k, col(x, z)); });
+        const vias = []; for (let k = 0; k < n * 6 && vias.length < n * 3; k++) { const x = (rng() * 2 - 1) * DH, z = (rng() * 2 - 1) * DH; if (lum(x, z) > .6) vias.push([x, z]); }
+        const vh = li === STACK.length - 1 ? y - Y0 : .16, vim = new T.InstancedMesh(new T.CylinderGeometry(pitch * .12, pitch * .12, 1, 6), mat, vias.length);
+        vias.forEach(([x, z], k) => { vim.setMatrixAt(k, m.compose(new T.Vector3(x, -vh / 2, z), q, new T.Vector3(1, vh, 1))); vim.setColorAt(k, col(x, z)); });
+        g.add(im2, vim); stack.push({ g, mats: [mat], y });
+      });
+    };
     const dimg = new Image(); dimg.onload = () => { const N = 4096, cc = document.createElement('canvas'); cc.width = cc.height = N; const x = cc.getContext('2d');
-      x.imageSmoothingQuality = 'high'; x.filter = 'contrast(1.25) saturate(.8) brightness(.9)'; x.drawImage(dimg, 0, 0, N, N); x.filter = 'none';
-      x.globalCompositeOperation = 'overlay'; x.globalAlpha = .55; x.drawImage(dc, 0, 0, N, N); x.globalAlpha = .25; x.drawImage(dc, 0, 0, N / 2, N / 2); x.drawImage(dc, N / 2, 0, N / 2, N / 2); x.drawImage(dc, 0, N / 2, N / 2, N / 2); x.drawImage(dc, N / 2, N / 2, N / 2, N / 2);
-      x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
-      const vg = x.createRadialGradient(N / 2, N / 2, N * .2, N / 2, N / 2, N * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.35)'); x.fillStyle = vg; x.fillRect(0, 0, N, N);
+      // keep the die shot crisp: no muddying overlays, just a touch of contrast and a light edge falloff
+      x.imageSmoothingQuality = 'high'; x.filter = 'none'; x.drawImage(dimg, 0, 0, N, N); x.filter = 'none';
+      const vg = x.createRadialGradient(N / 2, N / 2, N * .35, N / 2, N / 2, N * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.18)'); x.fillStyle = vg; x.fillRect(0, 0, N, N);
       const bc = document.createElement('canvas'); bc.width = bc.height = 2048; const bx = bc.getContext('2d'); bx.filter = 'grayscale(1) contrast(1.8)'; bx.drawImage(cc, 0, 0, 2048, 2048);
       const rc = document.createElement('canvas'); rc.width = rc.height = 1024; const rx = rc.getContext('2d'); rx.filter = 'grayscale(1) invert(1) contrast(1.4) brightness(.8)'; rx.drawImage(cc, 0, 0, 1024, 1024);
-      const mk = (cv, srgb) => { const t = new T.CanvasTexture(cv); t.anisotropy = tex.anisotropy; if (srgb) t.encoding = T.sRGBEncoding; return t; }, im = mk(cc, true);
-      Object.assign(die.material, { map: im, emissiveMap: im, emissiveIntensity: .12, bumpMap: mk(bc), bumpScale: .012, roughnessMap: mk(rc), roughness: .55, metalness: .75, envMap: env, envMapIntensity: 1.3 }); die.material.needsUpdate = true; };
-    dimg.src = '/site/die.png';
+      const mk = (cv, srgb) => { const t = new T.CanvasTexture(cv); t.anisotropy = r.capabilities.getMaxAnisotropy(); if (srgb) t.encoding = T.sRGBEncoding; return t; }, im = mk(cc, true);
+      Object.assign(die.material, { map: im, emissiveMap: im, emissiveIntensity: .38, bumpMap: mk(bc), bumpScale: .003, roughnessMap: mk(rc), roughness: .35, metalness: .45, clearcoat: .6, envMap: env, envMapIntensity: 1 }); die.material.needsUpdate = true;
+      // luminance grid of the die shot: drives where the copper lines run, and the top layer's cut-out
+      const LG = 256, lc = document.createElement('canvas'); lc.width = lc.height = LG; const lx = lc.getContext('2d'); lx.filter = 'grayscale(1) contrast(1.6)'; lx.drawImage(dimg, 0, 0, LG, LG);
+      const ld = lx.getImageData(0, 0, LG, LG).data, lum = (wx, wz) => { const px = Math.min(LG - 1, Math.max(0, Math.floor((wx + 2.3) / 4.6 * LG))), pz = Math.min(LG - 1, Math.max(0, Math.floor((wz + 2.3) / 4.6 * LG))); return ld[(pz * LG + px) * 4] / 255; };
+      const kc = document.createElement('canvas'); kc.width = kc.height = LG; const kx = kc.getContext('2d'); kx.filter = 'saturate(1.25)'; kx.drawImage(dimg, 0, 0, LG, LG);
+      const kd = kx.getImageData(0, 0, LG, LG).data, col = (wx, wz) => { const px = Math.min(LG - 1, Math.max(0, Math.floor((wx + 2.3) / 4.6 * LG))), pz = Math.min(LG - 1, Math.max(0, Math.floor((wz + 2.3) / 4.6 * LG))), o = (pz * LG + px) * 4;
+        return new T.Color().setRGB(kd[o] / 255, kd[o + 1] / 255, kd[o + 2] / 255).convertSRGBToLinear(); };
+      // cut-out for the top sheet: threshold at low res, then scale up without smoothing so edges stay square like real metal
+      const sc0 = document.createElement('canvas'); sc0.width = sc0.height = 1024; const s0 = sc0.getContext('2d'); s0.filter = 'grayscale(1) contrast(2.2)'; s0.drawImage(dimg, 0, 0, 1024, 1024);
+      const ac = document.createElement('canvas'); ac.width = ac.height = 2048; const ax = ac.getContext('2d'); ax.imageSmoothingEnabled = false; ax.drawImage(sc0, 0, 0, 2048, 2048);
+      const at = mk(ac); at.magFilter = T.NearestFilter; buildStack(lum, col, im, at); };
+    dimg.src = '/site/die-hd.webp';   // generated by scripts/die_gen.py
+    // the block of the die the camera dives into: an amber target frame
+    const RS = .95;
+    const secM = new T.LineBasicMaterial({ color: 0xe99704, transparent: true, opacity: 0, depthTest: false });
+    const secF = new T.LineLoop(new T.BufferGeometry().setFromPoints([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new T.Vector3(a, 0, b))), secM);
+    secF.renderOrder = 9; secF.scale.set(RS, 1, RS); secF.position.set(HX, .262, HZ); inner.add(secF);
     const glow = new T.PointLight(0xe99704, 0, 3); glow.position.set(0, .7, 0); inner.add(glow);
-    const K = [{ pos: [0, 34, 8], tg: [0, 0, 0] }, { pos: [13, 10, 14], tg: [0, 0, 0] }, { pos: [0, 5, 3.2], tg: [0, .4, 0] }, { pos: [.05, 2.9, .9], tg: [0, .25, 0] }, { pos: [HX - .02, .43, HZ + .25], tg: [HX - .045, .265, HZ - .02] }], KB = [0, .28, .52, .74, 1];
+    const K = [{ pos: [0, 34, 8], tg: [0, 0, 0] }, { pos: [13, 10, 14], tg: [0, 0, 0] }, { pos: [0, 5, 3.2], tg: [0, .4, 0] }, { pos: [.05, 2.9, .9], tg: [0, .25, 0] },
+      // dive: straight down through the interconnect stack above the target block, then level out on the hero gate
+      { pos: [HX + .08, 1.35, HZ + .3], tg: [HX - .02, .3, HZ - .05] }, { pos: [HX - .02, .43, HZ + .25], tg: [HX - .045, .265, HZ - .02] }], KB = [0, .28, .52, .72, .86, 1];
+    // One centripetal spline through the keyframes: the camera keeps moving through each one instead of stopping dead.
+    const camC = new T.CatmullRomCurve3(K.map((q) => new T.Vector3(...q.pos)), false, 'centripetal'), tgC = new T.CatmullRomCurve3(K.map((q) => new T.Vector3(...q.tg)), false, 'centripetal');
+    const cp = new T.Vector3(), ct = new T.Vector3();
     const ss = (x) => x * x * (3 - 2 * x), lr = (a, b, k) => a + (b - a) * k; let lastT = 0;
     const onResize = () => { r.setSize(W(), H()); cam.aspect = W() / H(); cam.updateProjectionMatrix(); }; window.addEventListener('resize', onResize);
     return { dispose: () => { window.removeEventListener('resize', onResize); r.dispose(); r.domElement.remove(); }, update: (p, mx, my, now) => {
       const dt = Math.min(.05, now - lastT); lastT = now;
       let s = 0; while (s < K.length - 2 && p > KB[s + 1]) s++;
-      const k = ss(Math.max(0, Math.min(1, (p - KB[s]) / (KB[s + 1] - KB[s])))), A = K[s], B = K[s + 1];
-      const cy = lr(A.pos[1], B.pos[1], k), pf = Math.min(1, cy / 10);
-      cam.position.set(lr(A.pos[0], B.pos[0], k) + mx * 2.5 * pf, cy - my * 1.2 * pf, lr(A.pos[2], B.pos[2], k));
-      cam.lookAt(lr(A.tg[0], B.tg[0], k), lr(A.tg[1], B.tg[1], k), lr(A.tg[2], B.tg[2], k));
+      let t = Math.max(0, Math.min(1, (p - KB[s]) / (KB[s + 1] - KB[s])));
+      if (s === 0) t = t * t; else if (s === K.length - 2) t = 1 - (1 - t) * (1 - t);   // ease out of the board, settle on the gate
+      const u = (s + t) / (K.length - 1); camC.getPoint(u, cp); tgC.getPoint(u, ct);
+      const cy = cp.y, pf = Math.min(1, cy / 10);
+      cam.position.set(cp.x + mx * 2.5 * pf, cy - my * 1.2 * pf, cp.z);
+      cam.lookAt(ct);
       const nr = cy < 2 ? .004 : .1; if (cam.near !== nr) { cam.near = nr; cam.updateProjectionMatrix(); }
       const op = 1 - ss(Math.max(0, Math.min(1, (4.4 - cy) / 1.4))); skin.forEach((m) => { m.opacity = op; m.depthWrite = m === shadow ? false : op > .98; });
       inner.visible = op < .999; rim.intensity = (1 - op) * 2.2; { const sw = Math.max(0, Math.min(1, (p - .5) / .3)); rim.position.set(lr(-3.2, 3.2, sw), 1.2, lr(2.6, -1, sw)); }
-      const gr = ss(Math.max(0, Math.min(1, (1.6 - cy) / 1.1))); tgp.scale.set(1, Math.max(.001, gr), 1); tgp.position.y = Y0 * (1 - gr); tgp.visible = gr > .01; glow.intensity = (1 - op) * 1.6; key.intensity = 1.2 + ss(p) * 1.6;
+      const gr = ss(Math.max(0, Math.min(1, (2.1 - cy) / 1.5)));   // the fins rise out of the die as the camera dives
+      tgp.scale.set(1, Math.max(.001, gr), 1); tgp.position.y = Y0 * (1 - gr); tgp.visible = gr > .01;
+      // target frame shows while the die fills the view, then the metal layers build up out of the block (bottom first),
+      // and each one dissolves just before the camera reaches it
+      const build = ss(Math.max(0, Math.min(1, (3.3 - cy) / 1.1)));
+      secM.opacity = ss(Math.max(0, Math.min(1, (4.8 - cy) / 1.2))) * (1 - build) * (1 - op * .6); secF.visible = secM.opacity > .01;
+      stack.forEach((L, i) => { const b = ss(Math.max(0, Math.min(1, build * 1.6 - (4 - i) * .15)));
+        const pass = i ? ss(Math.max(0, Math.min(1, (cy - L.y - .04) / .3))) : ss(Math.max(0, Math.min(1, (cy - L.y - .4) / .45)));   // the die-shot sheet goes before it gets close enough to look soft
+        const o = b * pass; L.mats.forEach((mt) => { mt.opacity = o; mt.depthWrite = o > .95; }); L.g.visible = o > .01; L.g.position.y = lr(Y0, L.y, b); });
+      glow.intensity = (1 - op) * 1.6 * (1 - build);   // the stack sits right under this light: dim it while the copper is up key.intensity = 1.2 + ss(p) * 1.6;
       onL += ((Math.sin(now * 1.2) > 0 ? 1 : 0) - onL) * Math.min(1, dt * 5);
       const wave = (col) => .5 + .5 * Math.sin(now * 3 - col * .45);   // a soft clock edge sweeping across the other gates
       for (let k = 0; k < NG * NPAIR; k++) { const i = Math.floor(k / NPAIR);

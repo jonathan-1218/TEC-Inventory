@@ -41,6 +41,8 @@ const SITE_NAV = Object.fromEntries(["top", "about", "events", "teams", "gallery
 export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [galOpen, setGalOpen] = useState(false);
+  const galOpenRef = useRef(false);
+  useEffect(() => { galOpenRef.current = galOpen; }, [galOpen]);
 
   useEffect(() => {
     const root = rootRef.current!;
@@ -51,7 +53,7 @@ export default function Home() {
     const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
-    const tilt = $("[data-tilt]"), reveals = $$("[data-rv]"), manWords = $$("[data-mw]");
+    const tilt = $("[data-tilt]"), reveals = $$("[data-rv]");
     const phs = $$("[data-ph]").map((el) => {
       const [a, b] = el.dataset.ph!.split(",").map(Number);
       return { el, a, b, ws: Array.from(el.querySelectorAll<HTMLElement>("[data-w]")), k: el.querySelector<HTMLElement>("[data-k]")! };
@@ -89,6 +91,73 @@ export default function Home() {
     const small = matchMedia("(max-width: 600px)");
 
     let ly = -1, lx = 0, lyy = 0, lw = 0;
+    // Hero steps: one scroll/swipe glides the board to the next quote instead of making people scroll through
+    // ~9 screens. Stops (hero progress): the hero title, each quote held mid-way, then the end of the hero, after
+    // which the page scrolls natively again.
+    // Slow on purpose so people can follow the fly-through; longer hops (board -> first quote) take longer.
+    const stepMs = (dhp: number) => Math.min(4600, Math.max(3200, 2400 + dhp * 9000));
+    const stops = [0, ...phrases.map((p, i) => {
+      const [a, b] = p.range.split(",").map(Number);
+      return 0.1 + 0.7 * (a + (b - a) * (i === phrases.length - 1 ? 0.45 : 0.5));
+    }), 1];
+    let gliding = false, lastWheel = 0, touchY = 0, stepRaf = 0;
+    const heroSpan = () => {
+      const top = heroSec.getBoundingClientRect().top + scrollY;
+      return { top, H: heroSec.offsetHeight - (probe.offsetHeight || innerHeight) };
+    };
+    // Is this gesture (down = 1, up = -1) ours to handle, or should the page scroll natively?
+    const ours = (dir: number) => {
+      if (html.style.overflow === "hidden" || galOpenRef.current) return false;
+      const { top, H } = heroSpan(), pos = scrollY - top;
+      return dir > 0 ? pos >= -2 && pos < H - 2 : pos > 2 && pos <= H + 2;
+    };
+    const glide = (dir: number) => {
+      const { top, H } = heroSpan(), cur = scrollY, ys = stops.map((s) => top + s * H);
+      const to = dir > 0 ? ys.find((y) => y > cur + 4) : [...ys].reverse().find((y) => y < cur - 4);
+      if (to === undefined) return;
+      gliding = true;
+      const from = cur, t0 = performance.now(), dur = stepMs(Math.abs(to - from) / H);
+      const step = (now: number) => {
+        const t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+        scrollTo({ top: from + (to - from) * e, behavior: "instant" });
+        if (t < 1) stepRaf = requestAnimationFrame(step);
+        else gliding = false;
+      };
+      stepRaf = requestAnimationFrame(step);
+    };
+    const onWheel = (e: WheelEvent) => {
+      const dir = Math.sign(e.deltaY);
+      if (!dir || !ours(dir)) return;
+      e.preventDefault();
+      // A trackpad keeps firing inertia events for a second after a flick: only a fresh gesture starts a step.
+      const now = performance.now(), fresh = now - lastWheel > 220;
+      lastWheel = now;
+      if (!gliding && fresh) glide(dir);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? 1 : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
+      if (!dir || !ours(dir) || (e.target as HTMLElement).closest?.("input,textarea,button,a")) return;
+      e.preventDefault();
+      if (!gliding) glide(dir);
+    };
+    const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0].clientY; };
+    const onTouchMove = (e: TouchEvent) => {
+      const dy = touchY - e.touches[0].clientY;
+      if (Math.abs(dy) > 4 && ours(Math.sign(dy))) e.preventDefault();
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const dy = touchY - e.changedTouches[0].clientY;
+      if (Math.abs(dy) > 24 && !gliding && ours(Math.sign(dy))) glide(Math.sign(dy));
+    };
+    const stepped = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (stepped) {
+      addEventListener("wheel", onWheel, { passive: false });
+      addEventListener("keydown", onKey);
+      addEventListener("touchstart", onTouchStart, { passive: true });
+      addEventListener("touchmove", onTouchMove, { passive: false });
+      addEventListener("touchend", onTouchEnd);
+    }
+
     const tick = (now: number) => {
       const vh = probe.offsetHeight || innerHeight, sy = scrollY;
       // Nothing moved and the hero's board is off-screen: skip the whole frame.
@@ -118,8 +187,8 @@ export default function Home() {
       herotext.style.transform = `scale(${1 + Math.min(hp, 0.15) * 1.5})`;
       nav.dataset.on = hp > 0.84 ? "1" : "0";
       manwrap.style.opacity = String(ss(clamp((hp - 0.86) / 0.05)));
-      const mp = clamp((hp - 0.88) / 0.1);
-      manWords.forEach((w, i) => { w.style.color = i / manWords.length < mp * 1.1 ? "#f2f0ea" : "#3a3832"; });
+      // Words light up one after another on their own clock (CSS delays), not squeezed into the scroll.
+      manwrap.dataset.lit = hp > 0.9 ? "1" : "0";
 
       // Read every rect first, then write: interleaving forces a layout per element on each frame.
       const rv = reveals.map((el) => clamp((vh * 0.94 - el.getBoundingClientRect().top) / (vh * 0.28)));
@@ -151,6 +220,8 @@ export default function Home() {
     raf = requestAnimationFrame(tick);
     return () => {
       dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove(); board?.dispose();
+      cancelAnimationFrame(stepRaf); removeEventListener("wheel", onWheel); removeEventListener("keydown", onKey);
+      removeEventListener("touchstart", onTouchStart); removeEventListener("touchmove", onTouchMove); removeEventListener("touchend", onTouchEnd);
       clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
     };
   }, []);
@@ -205,13 +276,14 @@ export default function Home() {
                 <span style={{ width: 3, height: 7, borderRadius: 2, background: "#e99704", animation: "tec-hint-dot 1.6s ease-in-out infinite" }} />
               </span>
               <span className="mono" style={{ fontSize: 11, letterSpacing: ".2em", color: "#a09b91", WebkitTextStroke: 0 }}>SCROLL</span>
+              <span className="mono" style={{ fontSize: 10, letterSpacing: ".18em", color: "#6f6b63", WebkitTextStroke: 0 }}>ONE SCROLL AT A TIME</span>
             </div>
           </div>
           <div data-manwrap style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 var(--gx)", opacity: 0 }}>
             <div className="kicker">01 — WHAT IS TEC</div>
             <p className="display" style={{ fontSize: "clamp(26px,5vw,60px)", lineHeight: 1.08, letterSpacing: "-.02em", margin: "28px 0 0", maxWidth: 1200, textWrap: "pretty" }}>
               {manifesto.split(" ").map((w, i) => (
-                <span key={i}>{i > 0 && " "}<span data-mw style={{ color: "#3a3832", transition: "color .25s" }}>{w}</span></span>
+                <span key={i}>{i > 0 && " "}<span data-mw style={{ "--d": `${i * 0.09}s` } as CSSProperties}>{w}</span></span>
               ))}
             </p>
           </div>
