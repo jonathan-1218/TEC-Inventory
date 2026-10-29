@@ -20,16 +20,6 @@ export const visionMission = [
   ["M4", "To guide students in projects thereby making them participate in competitions"],
 ] as const;
 
-// ponytail: placeholder events until real ones exist
-export const events = ["WORKSHOP", "HACKATHON", "TALK", "COMPETITION", "EXPO"].map((kind, i) => ({
-  code: "EVT-" + pad(i + 1),
-  kind,
-  name: "Event name",
-  desc: "Short description of the event.",
-  bg: i % 2 ? "#e99704" : "#f1eee6",
-  fg: "#14130f",
-}));
-
 export const core = [
   ["President", "Patrick M"],
   ["Secretary", "Subramani Priyanka"],
@@ -42,27 +32,74 @@ export const core = [
   ["Outreach Manager", "Nakshathra M"],
 ].map(([role, name], i) => ({ n: pad(i + 1), role, name }));
 
-export const galleryCards = [
-  { label: "WORKSHOP", rot: -7 },
-  { label: "BUILD NIGHT", rot: 3 },
-  { label: "EXPO", rot: 9 },
-];
-
 export type GalleryItem = {
-  id: string; ar: string; tag: string; title: string; year: number;
+  id: string; src: string; ar: string; tag: string; title: string; year: number;
   vid: boolean; type: string; dur: string; c: string;
 };
 
-const ars = ["4/5", "1/1", "3/4", "16/10", "4/5", "2/3", "16/9", "1/1", "3/4", "4/5", "16/10", "2/3"];
-const tags = ["Workshop", "Build night", "Expo", "Hackathon", "Lab", "Team"];
-const titles = ["Soldering 101", "Line follower trials", "Tech expo stall", "24h build", "PCB etching", "Vaagi rollout", "Arduino bootcamp", "Drone test day", "IoT demo", "Orientation", "Robo race", "Sensor lab"];
+// Photos from the InterConnect magazines (2024–2026), students at work first. [file, title, tag, year, width, height]
+const photos: [string, string, string, number, number, number][] = [
+  ["u-lab", "Lab session", "Lab", 2026, 1400, 1054],
+  ["f-drone-build", "Drone build", "Lab", 2025, 816, 612],
+  ["g-slice-work", "Heads down at SLICE", "Symposium", 2025, 857, 528],
+  ["m-equipment", "Bench session", "Lab", 2023, 1400, 935],
+  ["m-hardware", "Hardware check", "Expo", 2024, 573, 427],
+  ["g-eyic-demo", "e-Yantra demo", "Competition", 2026, 1400, 838],
+  ["f-sih-demo", "SIH prototype", "Hackathon", 2024, 605, 807],
+  ["f-pd-workshop", "Product design workshop", "Workshop", 2024, 807, 605],
+  ["g-workshop-matlab", "Simulink & IoT", "Workshop", 2025, 756, 742],
+  ["g-vac-embedded", "Embedded IoT course", "Lab", 2026, 1400, 562],
+  ["g-vac-cpp", "C++ lab", "Lab", 2026, 1400, 523],
+  ["g-vac-vlsi", "VLSI course", "Lab", 2025, 1400, 536],
+  ["g-vac-iot", "IoT + GenAI", "Lab", 2025, 1400, 544],
+  ["f-vac-lab", "Course lab", "Lab", 2025, 1248, 936],
+  ["m-quiz", "Engineers' Day quiz", "Competition", 2023, 1114, 743],
+  ["m-lab", "Lab hours", "Lab", 2023, 1114, 743],
+  ["f-eyrc-arena", "e-Yantra arena", "Competition", 2025, 644, 1145],
+  ["f-braille-next", "Braille Next", "Project", 2025, 640, 427],
+  ["f-drone-team", "Drone team", "Workshop", 2025, 816, 612],
+  ["g-slice-room", "SLICE event hall", "Symposium", 2025, 857, 528],
+  ["g-slice-group", "SLICE 2K25", "Symposium", 2025, 1400, 745],
+  ["f-slice24", "SLICE 2K24", "Symposium", 2024, 768, 576],
+  ["g-eyic-team", "Team AgriNova", "Competition", 2026, 1400, 797],
+  ["g-eyrc-team", "e-Yantra finalists", "Competition", 2026, 1352, 774],
+  ["f-eyrc-champions", "e-Yantra champions", "Competition", 2025, 800, 600],
+  ["f-sih-team", "Team Carbonites", "Hackathon", 2024, 832, 555],
+  ["f-grand-finale", "Grand finale", "Hackathon", 2024, 980, 653],
+  ["f-pals-finals", "PALS InnoWAH finals", "Hackathon", 2025, 640, 427],
+  ["f-ethglobal", "ETHGlobal", "Hackathon", 2024, 640, 480],
+  ["f-design-spark", "Design Spark Challenge", "Hackathon", 2025, 640, 427],
+  ["g-sip-1", "Induction day", "Orientation", 2025, 1400, 568],
+  ["g-sip-2", "Induction session", "Orientation", 2025, 1400, 557],
+  ["f-sip-1", "Induction 2024", "Orientation", 2024, 807, 605],
+  ["f-sip-2", "Induction talks", "Orientation", 2024, 807, 605],
+  ["f-vac-group", "Course batch", "Lab", 2025, 800, 450],
+  ["g-conclave", "Industry conclave", "Talk", 2025, 1400, 526],
+  ["g-engineers-day", "Engineers' Day", "Talk", 2025, 831, 805],
+  ["g-iv-shar", "SDSC SHAR", "Visit", 2026, 939, 527],
+  ["g-iv-narl", "NARL", "Visit", 2026, 914, 519],
+  ["g-iv-daikin", "Daikin", "Visit", 2026, 939, 511],
+  ["g-iv-lotte", "Lotte India", "Visit", 2026, 914, 552],
+  ["g-iv-timf", "TIMF Auto", "Visit", 2026, 939, 494],
+  ["g-iv-tidc", "TIDC plant", "Visit", 2026, 914, 494],
+  ["g-iv-spacezone", "Space Zone", "Visit", 2026, 914, 511],
+  ["f-iv", "Industrial visit", "Visit", 2025, 512, 384],
+  ["f-paris", "ICAM Paris", "Exchange", 2025, 512, 384],
+  ["g-engenia-stage", "Engenia stage", "Culture", 2025, 1203, 656],
+  ["g-engenia-win", "Engenia 2025", "Culture", 2025, 1228, 618],
+  ["f-engenia", "Engenia champions", "Culture", 2024, 1210, 681],
+  ["g-sports", "Sports Day", "Culture", 2026, 1400, 907],
+  ["f-sports", "March past", "Culture", 2025, 832, 624],
+];
 
-// ponytail: generated archive placeholders; swap for real photos/videos (add a `src`) when the archive exists
-export const archive: GalleryItem[] = Array.from({ length: 24 }, (_, i) => {
-  const vid = i % 5 === 2;
-  return {
-    id: pad(i + 1, 3), ar: ars[i % 12], tag: tags[(i * 5) % 6], title: titles[i % 12], year: 2026 - (i % 6),
-    vid, type: vid ? "Video" : "Photo", dur: "0" + (1 + (i % 3)) + ":" + pad((i * 17) % 60),
-    c: i % 3 ? "rgba(242,240,234,.07)" : "rgba(233,151,4,.2)",
-  };
-});
+export const archive: GalleryItem[] = photos.map(([key, title, tag, year, w, h], i) => ({
+  id: pad(i + 1, 3), src: `/site/gallery/${key}.webp`, ar: `${w}/${h}`, tag, title, year,
+  vid: false, type: "Photo", dur: "", c: i % 3 ? "rgba(242,240,234,.07)" : "rgba(233,151,4,.2)",
+}));
+
+/** The three photos fanned out in the homepage gallery teaser. */
+export const galleryCards = [
+  { label: "LAB", rot: -7, src: archive[0].src },
+  { label: "SYMPOSIUM", rot: 3, src: archive[1].src },
+  { label: "BENCH", rot: 9, src: archive[2].src },
+];

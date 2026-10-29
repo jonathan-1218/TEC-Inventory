@@ -6,8 +6,10 @@ import { TecLogo } from "@/components/tec-logo";
 import { MorphicNavbar } from "@/components/ui/split-nav";
 import ScrollIndex from "@/components/ui/scroll-index";
 import type { initBoard as InitBoard } from "@/lib/site/board-scene";
+import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
-import { core, events, galleryCards, manifesto, pad, phrases, visionMission } from "@/lib/site/content";
+import { archive, core, galleryCards, manifesto, pad, phrases } from "@/lib/site/content";
+import { featuredEvents } from "@/lib/site/events";
 import GalleryOverlay from "./GalleryOverlay";
 
 const DASHBOARD = "/dashboard"; // the inventory app lives in the same site
@@ -15,10 +17,6 @@ const GITHUB = "https://github.com/jonathan-1218/TEC-Inventory";
 
 const sticky: CSSProperties = { position: "sticky", top: 0, height: "var(--vh)", overflow: "hidden" };
 const phraseLine: CSSProperties = { fontSize: "clamp(30px,7.4vw,132px)" };
-const vmWord: CSSProperties = {
-  position: "absolute", left: 0, top: 60, lineHeight: 0.88, letterSpacing: "-.02em",
-  transition: "opacity .5s, transform .6s cubic-bezier(.2,.8,.2,1)",
-};
 
 // next/font exposes each loaded family as a CSS variable on <html>
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "sans-serif";
@@ -52,8 +50,6 @@ export default function Home() {
     const nav = $("[data-nav]"), herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
     const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
-    const vmSec = $("[data-pin=vm]"), vmCol = $("[data-vmcol]"), vmFill = $("[data-vmfill]");
-    const w0 = $("[data-vmword='0']"), w1 = $("[data-vmword='1']"), vmItems = $$("[data-vmitem]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
     const tilt = $("[data-tilt]"), reveals = $$("[data-rv]"), manWords = $$("[data-mw]");
     const phs = $$("[data-ph]").map((el) => {
@@ -83,11 +79,18 @@ export default function Home() {
     let mx = 0, my = 0, raf = 0;
     const t0 = performance.now();
     const onMove = (e: MouseEvent) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; };
-    addEventListener("mousemove", onMove);
+    // Parallax is for pointers only; on touch it would just keep the frame loop busy.
+    if (matchMedia("(hover: hover)").matches) addEventListener("mousemove", onMove);
+    // 100svh probe: unlike innerHeight it doesn't change as the phone's address bar collapses mid-scroll, so the pinned
+    // sections don't jitter.
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;left:0;top:0;height:100svh;width:0;visibility:hidden;pointer-events:none";
+    root.appendChild(probe);
+    const small = matchMedia("(max-width: 600px)");
 
     let ly = -1, lx = 0, lyy = 0, lw = 0;
     const tick = (now: number) => {
-      const vh = innerHeight, sy = scrollY;
+      const vh = probe.offsetHeight || innerHeight, sy = scrollY;
       // Nothing moved and the hero's board is off-screen: skip the whole frame.
       if (sy === ly && mx === lx && my === lyy && innerWidth + vh === lw && sy > heroSec.offsetHeight) { raf = requestAnimationFrame(tick); return; }
       ly = sy; lx = mx; lyy = my; lw = innerWidth + vh;
@@ -118,11 +121,9 @@ export default function Home() {
       const mp = clamp((hp - 0.88) / 0.1);
       manWords.forEach((w, i) => { w.style.color = i / manWords.length < mp * 1.1 ? "#f2f0ea" : "#3a3832"; });
 
-      for (const el of reveals) {
-        const p = clamp((vh * 0.94 - el.getBoundingClientRect().top) / (vh * 0.28));
-        el.style.opacity = String(p);
-        el.style.translate = `0 ${(1 - p) * 50}px`;
-      }
+      // Read every rect first, then write: interleaving forces a layout per element on each frame.
+      const rv = reveals.map((el) => clamp((vh * 0.94 - el.getBoundingClientRect().top) / (vh * 0.28)));
+      reveals.forEach((el, i) => { el.style.opacity = String(rv[i]); el.style.translate = `0 ${(1 - rv[i]) * 50}px`; });
 
       // events: horizontal track
       const er = evSec.getBoundingClientRect(), ep = clamp(-er.top / (er.height - vh));
@@ -131,42 +132,25 @@ export default function Home() {
       // gallery: fan out the stack
       {
         const p = clamp(-galSec.getBoundingClientRect().top / (galSec.offsetHeight - vh));
-        const spread = ss(clamp((p - 0.08) / 0.5)), gap = galCards[0].offsetWidth * 1.12;
+        const spread = ss(clamp((p - 0.08) / 0.5)), gap = galCards[0].offsetWidth * (small.matches ? 0.98 : 1.12);
         galCards.forEach((c, i) => {
           const d = i - 1, k = ss(clamp(spread * 1.25 - Math.abs(d) * 0.12 - (i === 1 ? 0.1 : 0)));
           const x = d * gap * k + (1 - k) * d * 18, y = (1 - k) * (i * 14) + Math.sin(k * Math.PI) * -40 + (d === 0 ? 0 : 28 * k);
           const r = galleryCards[i].rot * (1 - k) + d * 3 * k;
           c.style.transform = `translate(${x + mx * 14 * (i + 1)}px,${y + my * 10 * (i + 1)}px) rotate(${r}deg) scale(${0.86 + 0.14 * k})`;
+          (c.lastElementChild as HTMLElement).style.opacity = String(k); // captions only once the stack has fanned out
         });
         const b = ss(clamp((p - 0.62) / 0.2));
         galBtn.style.opacity = String(b);
         galBtn.style.transform = `translate(-50%,${(1 - b) * 40}px)`;
       }
 
-      // vision & mission: light up nodes along the rail
-      const vp = clamp(-vmSec.getBoundingClientRect().top / (vmSec.offsetHeight - vh)), cr = vmCol.getBoundingClientRect();
-      const fillPx = clamp(vp * 1.08) * (cr.height - 24);
-      vmFill.style.height = fillPx + "px";
-      let lit = 0;
-      vmItems.forEach((it, i) => {
-        const nd = it.querySelector<HTMLElement>("[data-vmnode]")!, on = fillPx + 12 >= nd.getBoundingClientRect().top - cr.top + 10;
-        if (on) lit = i + 1;
-        it.style.opacity = on ? "1" : ".25";
-        it.style.transform = on ? "none" : "translateX(20px)";
-        nd.style.background = on ? "#e99704" : "#0e0d0b";
-        nd.style.borderColor = on ? "#e99704" : "#3a3832";
-        nd.style.boxShadow = on ? "0 0 22px 4px rgba(233,151,4,.7)" : "none";
-      });
-      const mis = lit >= 4;
-      w0.style.opacity = mis ? "0" : "1"; w0.style.transform = mis ? "translateY(-40px)" : "none";
-      w1.style.opacity = mis ? "1" : "0"; w1.style.transform = mis ? "none" : "translateY(40px)";
-
       tilt.style.transform = `rotateY(${mx * 8}deg) rotateX(${-my * 6}deg)`;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => {
-      dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); board?.dispose();
+      dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove(); board?.dispose();
       clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
     };
   }, []);
@@ -190,7 +174,7 @@ export default function Home() {
       </nav>
 
       {/* 01 — hero */}
-      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "650vh" }}>
+      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "950vh" }}>
         <div style={sticky}>
           <div data-gl style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0 }} />
           <div data-scrim style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", opacity: 0, background: "linear-gradient(90deg,rgba(14,13,11,.92) 0%,rgba(14,13,11,.75) 38%,rgba(14,13,11,0) 72%)" }} />
@@ -235,44 +219,23 @@ export default function Home() {
       </section>
 
       {/* 02 — vision & mission */}
-      <section id="about" data-index="About" data-pin="vm" style={{ position: "relative", zIndex: 1, height: "700vh" }}>
-        <div className="vm-grid" style={{ position: "sticky", top: 0, height: "var(--vh)", display: "grid", gap: 40, padding: "100px var(--gx) 56px", boxSizing: "border-box" }}>
-          <div style={{ position: "relative" }}>
-            <div className="kicker">02 — VISION &amp; MISSION</div>
-            <div data-vmword="0" className="display vm-word" style={vmWord}>OUR<br />VISION</div>
-            <div data-vmword="1" className="display vm-word" style={{ ...vmWord, color: "#e99704", opacity: 0, transform: "translateY(40px)" }}>OUR<br />MISSION</div>
-          </div>
-          <div data-vmcol className="vm-rail" style={{ position: "relative", display: "flex", flexDirection: "column", justifyContent: "space-between", paddingLeft: 64 }}>
-            <i style={{ position: "absolute", left: 11, top: 12, bottom: 12, width: 2, background: "#2a2824" }} />
-            <i data-vmfill style={{ position: "absolute", left: 11, top: 12, width: 2, height: 0, background: "#e99704", boxShadow: "0 0 14px 2px #e99704" }} />
-            {visionMission.map(([k, t]) => (
-              <div key={k} data-vmitem style={{ position: "relative", opacity: 0.25, transform: "translateX(20px)", transition: "opacity .4s, transform .5s cubic-bezier(.2,.8,.2,1)" }}>
-                <span data-vmnode style={{ position: "absolute", left: -64, top: 0, width: 24, height: 24, boxSizing: "border-box", borderRadius: "50%", border: "2px solid #3a3832", background: "#0e0d0b", transition: "all .3s" }} />
-                <div className="mono" style={{ color: "#e99704", marginBottom: 6 }}>{k}</div>
-                <div className="vm-text" style={{ lineHeight: 1.35, maxWidth: 620 }}>{t}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <VisionMission />
 
       {/* 03 — events */}
-      <section id="events" data-index="Events" data-pin="ev" style={{ position: "relative", zIndex: 1, height: "340vh" }}>
+      <section id="events" data-index="Events" data-pin="ev" style={{ position: "relative", zIndex: 1, height: "520vh" }}>
         <div style={{ ...sticky, display: "flex", flexDirection: "column", justifyContent: "center", gap: 44 }}>
           <div style={{ padding: "0 var(--gx)", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div><div className="kicker">03 — EVENTS ORGANISED</div><h2 className="display h2">THE LOG</h2></div>
           </div>
           <div data-track="ev" style={{ display: "flex", gap: "min(24px, 4vw)", padding: "0 var(--gx)", width: "max-content", willChange: "transform" }}>
-            {events.map((e) => (
-              <div key={e.code} style={{ width: "var(--ev-w)", height: "var(--ev-h)", borderRadius: 16, background: e.bg, color: e.fg, padding: 28, boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", right: -30, top: -30, width: 200, height: 200, borderRadius: "50%", border: `1px dashed ${e.fg}`, opacity: 0.25 }} />
-                <div className="mono" style={{ display: "flex", justifyContent: "space-between", position: "relative" }}><span>{e.code}</span><span>{e.kind}</span></div>
-                <div style={{ position: "relative" }}>
-                  <div className="mono" style={{ height: 120, marginBottom: 18, borderRadius: 8, border: `1px dashed ${e.fg}`, opacity: 0.6, display: "grid", placeItems: "center", fontWeight: 400, fontSize: 11 }}>[ EVENT PHOTO ]</div>
-                  <div className="display" style={{ fontSize: 30, letterSpacing: "-.01em" }}>{e.name}</div>
-                  <div style={{ marginTop: 8, opacity: 0.75 }}>{e.desc}</div>
-                </div>
-              </div>
+            {featuredEvents.map((e, i) => (
+              <article key={e.id} className="ev-card" style={{ background: i % 2 ? "#e99704" : "#f1eee6" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- static webp, already sized for the card */}
+                <img src={e.img} alt={e.title} loading="lazy" decoding="async" className="ev-img" />
+                <div className="mono ev-meta"><span>{pad(i + 1)} · {e.kind}</span><span>{e.when.toUpperCase()}</span></div>
+                <div className="display ev-title">{e.title}</div>
+                <p className="ev-desc">{e.desc}</p>
+              </article>
             ))}
           </div>
         </div>
@@ -298,19 +261,17 @@ export default function Home() {
       </section>
 
       {/* 05 — gallery teaser */}
-      <section id="gallery" data-index="Gallery" style={{ position: "relative", zIndex: 1, height: "260vh" }}>
+      <section id="gallery" data-index="Gallery" style={{ position: "relative", zIndex: 1, height: "380vh" }}>
         <div style={sticky}>
           <div style={{ position: "absolute", left: "var(--gx)", right: "var(--gx)", top: 84, display: "flex", justifyContent: "space-between", alignItems: "flex-end", zIndex: 5, pointerEvents: "none" }}>
             <div><div className="kicker">05 — GALLERY</div><h2 className="display h2">ON THE BENCH</h2></div>
-            <div className="mono" style={{ color: "#a09b91", textAlign: "right", lineHeight: 1.6 }}>03 FRAMES<br />OF 120+</div>
+            <div className="mono" style={{ color: "#a09b91", textAlign: "right", lineHeight: 1.6 }}>03 FRAMES<br />OF {archive.length}</div>
           </div>
           <div style={{ position: "absolute", inset: 0, top: 40 }}>
             {galleryCards.map((g, i) => (
               <div key={g.label} data-gc style={{ position: "absolute", left: "50%", top: "50%", width: "var(--gal-w)", aspectRatio: "4/5", margin: "calc(var(--gal-w) * -0.625) 0 0 calc(var(--gal-w) * -0.5)", willChange: "transform", zIndex: 3 - i }}>
-                {/* ponytail: placeholder until gallery photos exist — swap for next/image */}
-                <div className="mono" style={{ position: "absolute", inset: 0, borderRadius: 14, overflow: "hidden", background: "repeating-linear-gradient(-45deg,rgba(242,240,234,.05) 0 1px,transparent 1px 7px),#1a1915", boxShadow: "0 30px 80px rgba(0,0,0,.55)", border: "1px solid #2a2824", display: "grid", placeItems: "center", color: "#6f6a60", fontWeight: 400 }}>
-                  [ {g.label} PHOTO ]
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element -- static webp */}
+                <img src={g.src} alt="" loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 14, boxShadow: "0 30px 80px rgba(0,0,0,.55)", border: "1px solid #2a2824", background: "#1a1915" }} />
                 <div className="mono" style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 14px)", display: "flex", justifyContent: "space-between", color: "#a09b91" }}>
                   <span>F/{pad(i + 1)}</span><span>{g.label}</span>
                 </div>
@@ -354,7 +315,7 @@ export default function Home() {
 
       {/* footer */}
       <footer className="site-foot">
-        <FootRotor text="THE ELECTRONICS CLUB" className="foot-mark display" />
+        <FootRotor lines={["THE ELECTRONICS CLUB", "TEC"]} className="foot-mark display" />
         <div className="foot-grid">
           <div>
             <span style={{ background: "#f1eee6", borderRadius: 8, padding: "5px 8px", display: "inline-flex" }}>
@@ -376,15 +337,8 @@ export default function Home() {
               <a href={GITHUB} className="foot-link">GITHUB / TEC-INVENTORY ↗</a>
             </div>
           </div>
-          <div>
-            <div className="mono foot-h">STATUS</div>
-            <div className="mono foot-list">
-              <span><i className="live" />ALL SYSTEMS ONLINE</span>
-              <a href="#top" className="foot-link">BACK TO TOP ↑</a>
-            </div>
-          </div>
         </div>
-        <div className="mono foot-bar"><span>TEC · THE ELECTRONICS CLUB · LICET</span><span>INSPIRING THE NEXT</span></div>
+        <div className="mono foot-bar"><span>DEVELOPED BY <b className="foot-dev">JONATHAN JESHUA S</b> · <b className="foot-dev">OPHRIEL SYSTEMS</b></span></div>
       </footer>
     </div>
     </>

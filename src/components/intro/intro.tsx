@@ -99,14 +99,14 @@ export function Intro() {
       const to = el?.getBoundingClientRect()
       const onScreen =
         !!el && !!to && to.width > 0 && to.height > 0 && to.right > 0 && to.bottom > 0 && to.left < innerWidth && to.top < innerHeight
-      // Missing or hidden target (mobile sheet, collapsed rail): shrink toward the top-left corner and fade out.
-      const dest = onScreen ? to : { left: 16, top: 14, width: (from.width * 28) / from.height }
+      // No target to land on (the homepage keeps its nav hidden, or a mobile sheet / collapsed rail): dissolve in place into the page.
+      const dest = onScreen ? to : from
       if (onScreen) {
         target = el
         el.style.visibility = "hidden"
       }
       const scale = dest.width / from.width
-      const end = `translate(${dest.left - from.left}px, ${dest.top - from.top}px) scale(${scale})`
+      const end = onScreen ? `translate(${dest.left - from.left}px, ${dest.top - from.top}px) scale(${scale})` : "scale(1.12)"
       const opts = { duration: T.flyDur, easing: "cubic-bezier(0.7, 0, 0.2, 1)", fill: "forwards" } as const
       backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { ...opts, easing: "ease-in-out" })
       logo.current
