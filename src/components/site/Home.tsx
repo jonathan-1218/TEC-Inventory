@@ -36,7 +36,7 @@ function Words({ text }: { text: string }) {
 
 /** Seconds after the intro when the hero letters have landed: the scroll hint appears and scrolling unlocks. */
 const HINT_AT = 2.1;
-const SITE_NAV = Object.fromEntries(["top", "about", "events", "teams", "gallery", "core"].map((id) => ["#" + id, { name: id === "top" ? "HOME" : id.toUpperCase() }]));
+const SITE_NAV = Object.fromEntries(["top", "about", "events", "gallery", "core"].map((id) => ["#" + id, { name: id === "top" ? "HOME" : id.toUpperCase() }]));
 
 export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -53,7 +53,7 @@ export default function Home() {
     const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
-    const tilt = $("[data-tilt]"), reveals = $$("[data-rv]");
+    const reveals = $$("[data-rv]");
     const phs = $$("[data-ph]").map((el) => {
       const [a, b] = el.dataset.ph!.split(",").map(Number);
       return { el, a, b, ws: Array.from(el.querySelectorAll<HTMLElement>("[data-w]")), k: el.querySelector<HTMLElement>("[data-k]")! };
@@ -214,7 +214,6 @@ export default function Home() {
         galBtn.style.transform = `translate(-50%,${(1 - b) * 40}px)`;
       }
 
-      tilt.style.transform = `rotateY(${mx * 8}deg) rotateX(${-my * 6}deg)`;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -313,30 +312,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 04 — teams */}
-      <section id="teams" data-index="Teams" style={{ position: "relative", zIndex: 1, padding: "clamp(96px,14vw,160px) var(--gx)" }}>
-        <div className="kicker">04 — SPIN-OFF TEAMS</div>
-        <h2 className="display h2" style={{ marginBottom: 56 }}>BORN IN TEC.</h2>
-        <div data-rv style={{ perspective: 1400 }}>
-          <div data-tilt className="team-grid" style={{ display: "grid", border: "1px solid #2a2824", borderRadius: 20, overflow: "hidden", background: "#161512", transition: "transform .15s ease-out", transformStyle: "preserve-3d" }}>
-            <div className="mono" style={{ minHeight: 460, background: "repeating-linear-gradient(-45deg,rgba(233,151,4,.35) 0 1.5px,transparent 1.5px 6px),#1c1a16", display: "grid", placeItems: "center", fontWeight: 400, color: "#a09b91" }}>[ MARS ROVER PHOTO ]</div>
-            <div style={{ padding: "clamp(24px,5vw,44px)", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 40 }}>
-              <div className="mono" style={{ color: "#a09b91", display: "flex", justifyContent: "space-between" }}><span>TEAM 01</span><span style={{ color: "#e99704" }}>● ACTIVE</span></div>
-              <div>
-                <div className="display" style={{ fontSize: "clamp(56px,12vw,96px)", lineHeight: 0.9, color: "#e99704" }}>VAAGI</div>
-                <div className="mono" style={{ fontSize: 14, marginTop: 14 }}>MARS ROVER TEAM</div>
-                <p style={{ color: "#a09b91", lineHeight: 1.55, margin: "18px 0 0", maxWidth: 380 }}>Spun off from TEC. Add a short description of the rover and its competitions here.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 05 — gallery teaser */}
+      {/* 04 — gallery teaser */}
       <section id="gallery" data-index="Gallery" style={{ position: "relative", zIndex: 1, height: "380vh" }}>
         <div style={sticky}>
           <div style={{ position: "absolute", left: "var(--gx)", right: "var(--gx)", top: 84, display: "flex", justifyContent: "space-between", alignItems: "flex-end", zIndex: 5, pointerEvents: "none" }}>
-            <div><div className="kicker">05 — GALLERY</div><h2 className="display h2">ON THE BENCH</h2></div>
+            <div><div className="kicker">04 — GALLERY</div><h2 className="display h2">ON THE BENCH</h2></div>
             <div className="mono" style={{ color: "#a09b91", textAlign: "right", lineHeight: 1.6 }}>03 FRAMES<br />OF {archive.length}</div>
           </div>
           <div style={{ position: "absolute", inset: 0, top: 40 }}>
@@ -361,9 +341,9 @@ export default function Home() {
 
       {galOpen && <GalleryOverlay onClosed={() => setGalOpen(false)} />}
 
-      {/* 06 — core team */}
+      {/* 05 — core team */}
       <section id="core" data-index="Core team" style={{ position: "relative", zIndex: 1, padding: "80px var(--gx) clamp(96px,14vw,160px)" }}>
-        <div className="kicker">06 — CORE TEAM</div>
+        <div className="kicker">05 — CORE TEAM</div>
         <h2 className="display h2" style={{ marginBottom: 56 }}>THE PEOPLE</h2>
         <div style={{ borderTop: "1px solid #2a2824" }}>
           {core.map((m) => (
@@ -399,7 +379,7 @@ export default function Home() {
           <div>
             <div className="mono foot-h">EXPLORE</div>
             <div className="mono foot-list">
-              {["about", "events", "teams", "gallery", "core"].map((s) => <a key={s} href={"#" + s} className="foot-link">{s.toUpperCase()}</a>)}
+              {["about", "events", "gallery", "core"].map((s) => <a key={s} href={"#" + s} className="foot-link">{s.toUpperCase()}</a>)}
             </div>
           </div>
           <div>
