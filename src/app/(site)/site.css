@@ -172,13 +172,10 @@ section[id] { scroll-margin-top: 84px; }
 .vm-card { position: absolute; width: clamp(150px, 17vw, 260px); opacity: var(--on); translate: calc((1 - var(--on)) * var(--dx)) calc((1 - var(--on)) * var(--dy)); }
 .vm-card .vm-key { margin-bottom: 6px; }
 .vm-mtext { font-size: clamp(14px, 1.15vw, 18px); line-height: 1.35; }
-.team-grid { grid-template-columns: 1.2fr 1fr; }
 
 @media (max-width: 900px) {
   &{ --gx: 24px; --h2: 64px; --ev-w: 400px; --ev-h: 520px; --gal-w: 36vw; }
   .nav-links .navlink, .nav-links .nav-split { display: none; }
-  .team-grid { grid-template-columns: 1fr; }
-  .team-grid > :first-child { min-height: 280px !important; }
   .vm { grid-template-columns: 1fr; grid-template-rows: 28% 1fr; gap: 16px; }
   .vm-road { height: 100%; left: 50%; right: auto; width: auto; translate: -50% -50%; }
   .core-row { grid-template-columns: 44px 1fr; row-gap: 6px; }
