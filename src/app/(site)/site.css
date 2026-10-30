@@ -221,6 +221,9 @@ section[id] { scroll-margin-top: 84px; }
 .arch { --a-ink: #0a0a09; --a-rgb: 10 10 9; --a-bg: #fefefd; --a-tile: #ecebe5; --a-line: rgb(10 10 9 / .1); --a-glow: .07; }
 .arch[data-theme="dark"] { --a-ink: #f2f0ea; --a-rgb: 242 240 234; --a-bg: #0a0a09; --a-tile: #151412; --a-line: rgb(242 240 234 / .1); --a-glow: .16; }
 .arch .idx-row { border-bottom-color: var(--a-line); color: #9a968c; }
+/* photo frames: a hairline edge and a soft amber halo; a touch brighter on hover */
+.arch .tile-in { border-radius: 4px; box-shadow: 0 0 0 1px rgb(255 255 255 / .35), 0 0 0 1px rgb(233 151 4 / calc(var(--a-glow) * 2)), 0 0 26px 2px rgb(233 151 4 / var(--a-glow)); transition: transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .4s; }
+.arch .tile-in:hover { box-shadow: 0 0 0 1px rgb(255 255 255 / .5), 0 0 0 1px rgb(233 151 4 / calc(var(--a-glow) * 3.5)), 0 0 36px 4px rgb(233 151 4 / calc(var(--a-glow) * 1.8)); }
 .arch .idx-row:hover { color: var(--a-ink); }
 
 }

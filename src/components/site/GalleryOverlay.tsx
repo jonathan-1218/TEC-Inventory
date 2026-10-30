@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { archive, pad, type GalleryItem } from "@/lib/site/content";
 
 type Filter = "all" | "photo" | "video";
-const C = 8, R = 6, CW = 340, CH = 420; // wall: 8×6 cells that wrap infinitely
+const C = 8, R = 6; // wall: 8×6 cells that wrap infinitely; cell size depends on the screen (see `cell`)
 const label = { font: "500 11px var(--mono)", letterSpacing: ".08em", textTransform: "uppercase" } as const;
 const ink = (c: string) => (c.includes("233,151,4") ? "rgba(233,151,4,.5)" : "rgb(var(--a-rgb) / .13)");
 const hatch = (c: string) => `repeating-linear-gradient(-45deg,${ink(c)} 0 1px,transparent 1px 7px),var(--a-tile)`;
@@ -29,21 +29,23 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
   const wallRef = useRef<HTMLDivElement>(null);
   const curRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark"); // opens dark from the homepage button; the toggle still switches to light
 
+  // Big cells on desktop; smaller on phones so a tile never spills past a 375px screen.
+  const [CW, CH] = useMemo(() => (innerWidth < 600 ? [300, 380] : [460, 560]), []);
   const list = useMemo(() => archive.filter((g) => filter === "all" || (filter === "video") === g.vid), [filter]);
   const tiles = useMemo(() => {
     const out = [];
     for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
       const k = r * C + c, g = list[(k * 7 + r) % list.length], [a, b] = g.ar.split("/").map(Number);
-      const w = Math.round(CW * (0.5 + ((k * 37) % 30) / 100)), h = Math.min(CH * 0.85, Math.round((w * b) / a));
+      const w = Math.round(CW * (0.62 + ((k * 37) % 28) / 100)), h = Math.min(CH * 0.85, Math.round((w * b) / a));
       out.push({ g, k, w, h, bx: c * CW + ((k * 53) % (CW - w + 1)), by: r * CH + ((k * 29) % Math.max(1, CH - h)) });
     }
     return out;
-  }, [list]);
+  }, [list, CW, CH]);
   const ghosts = useMemo(
     () => Array.from({ length: C * R }, (_, k) => ({ k, ...ghostFor(k), bx: (k % C) * CW + ((k * 97) % 140), by: Math.floor(k / C) * CH + ((k * 61) % 330) })),
-    [],
+    [CW, CH],
   );
 
   // open: wipe in from the bottom, lock page scroll
@@ -61,6 +63,17 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
     const W = C * CW, H = R * CH, md = (a: number, n: number) => ((a % n) + n) % n;
     const els = Array.from(el.querySelectorAll<HTMLElement>("[data-tile]"));
     const gels = Array.from(el.querySelectorAll<HTMLElement>("[data-ghost]"));
+    // Opening: the wall zooms out into place. Every frame starts bigger and pushed out from the centre of the screen,
+    // then glides to its own spot and shrinks to its real size (the photo stays fitted to its frame). Frames near the
+    // centre settle first.
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) els.forEach((t, i) => {
+      const x = md(tiles[i].bx - CW, W) - CW + tiles[i].w / 2 - innerWidth / 2, y = md(tiles[i].by - CH, H) - CH + tiles[i].h / 2 - innerHeight / 2;
+      const delay = 350 + Math.min(500, Math.hypot(x, y) * 0.3);
+      t.firstElementChild?.animate(
+        [{ transform: `translate(${x * 0.6}px,${y * 0.6}px) scale(1.6)`, opacity: 0 }, { opacity: 1, offset: 0.25 }, { transform: "translate(0,0) scale(1)", opacity: 1 }],
+        { duration: 1400, delay, easing: "cubic-bezier(.16,1,.3,1)", fill: "backwards" },
+      );
+    });
     let tx = innerWidth / 2, ty = innerHeight / 2, cx = tx, cy = ty;
     let ox = -CW, oy = -CH, vx = 0, vy = 0, moved = 0, run = true, down: { x: number; y: number } | null = null;
     const pd = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY }; moved = 0; vx = vy = 0; el.style.cursor = "grabbing"; };
@@ -88,18 +101,21 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
     };
     el.addEventListener("pointerdown", pd); addEventListener("pointermove", pm); addEventListener("pointerup", pu);
     el.addEventListener("wheel", wh, { passive: false }); el.addEventListener("pointerover", ov);
+    const floaty = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     const loop = () => {
       if (!run) return;
       if (!down) { ox += vx; oy += vy; vx *= 0.93; vy *= 0.93; }
       const sk = Math.max(-6, Math.min(6, vx * 0.15)), sc = 1 - Math.min(0.08, Math.hypot(vx, vy) * 0.002);
       // cursor response: smoothed pointer drives parallax, a proximity swell on tiles, and a glow
       cx += (tx - cx) * 0.12; cy += (ty - cy) * 0.12;
-      const nx = cx / innerWidth - 0.5, ny = cy / innerHeight - 0.5;
+      const nx = cx / innerWidth - 0.5, ny = cy / innerHeight - 0.5, now = performance.now() / 1000;
       els.forEach((t, i) => {
         const { w, h } = tiles[i];
         let x = md(tiles[i].bx + ox, W) - CW - nx * 36, y = md(tiles[i].by + oy, H) - CH - ny * 36;
         const dx = cx - (x + w / 2), dy = cy - (y + h / 2), near = Math.max(0, 1 - Math.hypot(dx, dy) / 380);
         x += dx * near * 0.05; y += dy * near * 0.05;
+        // idle float: each frame bobs a few px on its own slow rhythm, like a light cloud, around its fixed spot
+        if (floaty) { x += Math.sin(now * 0.55 + i * 1.7) * 5; y += Math.sin(now * 0.42 + i * 2.3) * 8; }
         t.style.transform = `translate3d(${x}px,${y}px,0) skewX(${sk}deg) scale(${sc * (1 + near * 0.09)})`;
         t.style.zIndex = String(Math.round(near * 10));
       });
@@ -117,7 +133,7 @@ export default function GalleryOverlay({ onClosed }: { onClosed: () => void }) {
       el.removeEventListener("pointerdown", pd); removeEventListener("pointermove", pm); removeEventListener("pointerup", pu);
       el.removeEventListener("wheel", wh); el.removeEventListener("pointerover", ov);
     };
-  }, [tiles, ghosts, view]);
+  }, [tiles, ghosts, view, CW, CH]);
 
   const tabs: [Filter, string][] = [["all", "All"], ["photo", "Photos"], ["video", "Videos"]];
   const count = (f: Filter) => pad(archive.filter((g) => f === "all" || (f === "video") === g.vid).length);
