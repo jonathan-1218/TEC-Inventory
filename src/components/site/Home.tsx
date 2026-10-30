@@ -321,7 +321,7 @@ export default function Home() {
           </div>
           <div style={{ position: "absolute", inset: 0, top: 40 }}>
             {galleryCards.map((g, i) => (
-              <div key={g.label} data-gc style={{ position: "absolute", left: "50%", top: "50%", width: "var(--gal-w)", aspectRatio: "4/5", margin: "calc(var(--gal-w) * -0.625) 0 0 calc(var(--gal-w) * -0.5)", willChange: "transform", zIndex: 3 - i }}>
+              <div key={g.label} data-gc style={{ position: "absolute", left: "50%", top: "50%", width: "var(--gal-w)", aspectRatio: "4/5", margin: "calc(var(--gal-w) * -0.625) 0 0 calc(var(--gal-w) * -0.5)", willChange: "transform", zIndex: i === 1 ? 3 : 2 - i / 2 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element -- static webp */}
                 <img src={g.src} alt="" loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 14, boxShadow: "0 30px 80px rgba(0,0,0,.55)", border: "1px solid #2a2824", background: "#1a1915" }} />
                 <div className="mono" style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 14px)", display: "flex", justifyContent: "space-between", color: "#a09b91" }}>
