@@ -102,7 +102,7 @@ export const archive: GalleryItem[] = photos.map(([key, title, tag, year, w, h],
 
 /** The three photos fanned out in the homepage gallery teaser. */
 export const galleryCards = [
-  { label: "LAB", rot: -7, src: archive[0].src },
-  { label: "SCOPE", rot: 3, src: archive[1].src },
+  { label: "SCOPE", rot: -7, src: archive[1].src },
+  { label: "LAB", rot: 3, src: archive[0].src },   // the lab-table photo takes the centre
   { label: "WORKSHOP", rot: 9, src: archive[2].src },
 ];
