@@ -317,14 +317,14 @@ export default function Home() {
         <div style={sticky}>
           <div style={{ position: "absolute", left: "var(--gx)", right: "var(--gx)", top: 84, display: "flex", justifyContent: "space-between", alignItems: "flex-end", zIndex: 5, pointerEvents: "none" }}>
             <div><div className="kicker">04 — GALLERY</div><h2 className="display h2">ON THE BENCH</h2></div>
-            <div className="mono" style={{ color: "#a09b91", textAlign: "right", lineHeight: 1.6 }}>03 FRAMES<br />OF {archive.length}</div>
+            <div className="mono" style={{ color: "var(--muted)", textAlign: "right", lineHeight: 1.6 }}>03 FRAMES<br />OF {archive.length}</div>
           </div>
           <div style={{ position: "absolute", inset: 0, top: 40 }}>
             {galleryCards.map((g, i) => (
               <div key={g.label} data-gc style={{ position: "absolute", left: "50%", top: "50%", width: "var(--gal-w)", aspectRatio: "4/5", margin: "calc(var(--gal-w) * -0.625) 0 0 calc(var(--gal-w) * -0.5)", willChange: "transform", zIndex: i === 1 ? 3 : 2 - i / 2 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element -- static webp */}
                 <img src={g.src} alt="" loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: 14, boxShadow: "0 30px 80px rgba(0,0,0,.55)", border: "1px solid #2a2824", background: "#1a1915" }} />
-                <div className="mono" style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 14px)", display: "flex", justifyContent: "space-between", color: "#a09b91" }}>
+                <div className="mono" style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 14px)", display: "flex", justifyContent: "space-between", color: "var(--muted)" }}>
                   <span>F/{pad(i + 1)}</span><span>{g.label}</span>
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function Home() {
       <section id="core" data-index="Core team" style={{ position: "relative", zIndex: 1, padding: "80px var(--gx) clamp(96px,14vw,160px)" }}>
         <div className="kicker">05 — CORE TEAM</div>
         <h2 className="display h2" style={{ marginBottom: 56 }}>THE PEOPLE</h2>
-        <div style={{ borderTop: "1px solid #2a2824" }}>
+        <div style={{ borderTop: "1px solid var(--line)" }}>
           {core.map((m) => (
             <div key={m.n} data-rv className="core-row">
               <span className="mono core-n">{m.n}</span>
@@ -374,7 +374,7 @@ export default function Home() {
               {/* eslint-disable-next-line @next/next/no-img-element -- tiny inline SVG logo */}
               <img src="/site/tec-logo.svg" alt="TEC" style={{ height: 26, display: "block" }} />
             </span>
-            <p style={{ color: "#a09b91", lineHeight: 1.55, margin: "16px 0 0", }}>The Electronics Club of LICET.<br />A community that builds. Inspiring the next.</p>
+            <p style={{ color: "var(--muted)", lineHeight: 1.55, margin: "16px 0 0", }}>The Electronics Club of LICET.<br />A community that builds. Inspiring the next.</p>
           </div>
           <div>
             <div className="mono foot-h">EXPLORE</div>
