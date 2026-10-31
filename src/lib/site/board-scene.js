@@ -2,11 +2,20 @@
 // `p` is hero scroll progress 0..1, (mx, my) the pointer offset, `now` seconds since mount.
 import * as T from "three";
 
+// WebGL drawn by the CPU (no usable GPU, or blocklisted drivers): treat as low power.
+function softwareGL() {
+  try { const gl = document.createElement('canvas').getContext('webgl'), ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    return !gl || (!!ext && /swiftshader|llvmpipe|software|basic render/i.test(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL))); } catch { return true; }
+}
+
 export function initBoard(box, fonts) {
   const MONO = fonts.mono, DISPLAY = fonts.display;
-    const phone = matchMedia("(max-width: 600px)").matches; // fewer pixels and cheaper filtering on phones
+    const phone = matchMedia("(max-width: 600px)").matches;
+    // Low-power tier: phones, small machines, Save-Data, or software WebGL. Halves every texture, skips the costly
+    // material effects and the finest copper layer, and renders at 30 fps.
+    const lowPower = phone || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4 || !!navigator.connection?.saveData || softwareGL();
     const W = () => box.clientWidth, H = () => box.clientHeight;
-    const r = new T.WebGLRenderer({ antialias: !phone, alpha: true, powerPreference: "high-performance" }); r.setPixelRatio(Math.min(phone ? 1.5 : 2, devicePixelRatio)); r.setSize(W(), H()); r.setClearColor(0x000000, 0);
+    const r = new T.WebGLRenderer({ antialias: !lowPower, alpha: true, powerPreference: "high-performance" }); let pr = Math.min(lowPower ? 1 : 2, devicePixelRatio); r.setPixelRatio(pr); r.setSize(W(), H()); r.setClearColor(0x000000, 0);
     r.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; box.appendChild(r.domElement);
     const sc = new T.Scene(); sc.fog = new T.Fog(0x0e0d0b, 26, 75);
     const cam = new T.PerspectiveCamera(45, W() / H(), .1, 200);
@@ -15,7 +24,7 @@ export function initBoard(box, fonts) {
     const dl = new T.DirectionalLight(0xffffff, .7); dl.position.set(-6, 12, 8); sc.add(dl);
     let seed = 11; const rng = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     const SC = 4096 / 60, X = (x) => (x + 30) * SC, Z = (z) => (z + 17) * SC;
-    const cv = document.createElement('canvas'); cv.width = 4096; cv.height = 2322; const c = cv.getContext('2d');
+    const BW = lowPower ? 2048 : 4096, cv = document.createElement('canvas'); cv.width = BW; cv.height = Math.round(2322 * BW / 4096); const c = cv.getContext('2d'); c.scale(BW / 4096, BW / 4096);
     c.fillStyle = '#10100e'; c.fillRect(0, 0, 4096, 2322); c.lineWidth = 1;
     for (let x = -30; x <= 30; x++) { c.strokeStyle = x % 5 ? 'rgba(242,240,234,.03)' : 'rgba(242,240,234,.07)'; c.beginPath(); c.moveTo(X(x), 0); c.lineTo(X(x), 2322); c.stroke(); }
     for (let z = -17; z <= 17; z++) { c.strokeStyle = z % 5 ? 'rgba(242,240,234,.03)' : 'rgba(242,240,234,.07)'; c.beginPath(); c.moveTo(0, Z(z)); c.lineTo(4096, Z(z)); c.stroke(); }
@@ -67,7 +76,7 @@ export function initBoard(box, fonts) {
     [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([ox, oz]) => { for (let i = -7; i <= 7; i++) { const ax = ox * 3.5 - oz * i * .4, az = oz * 3.5 + ox * i * .4, w = ox ? .8 : .22, h = ox ? .22 : .8;
       c.fillStyle = 'rgba(' + OR + ',.95)'; c.fillRect(X(ax - w / 2), Z(az - h / 2), w * SC, h * SC); c.fillStyle = 'rgba(' + PA + ',.35)'; c.fillRect(X(ax - w / 2 + (ox ? .08 : 0)), Z(az - h / 2 + (oz ? .08 : 0)), (ox ? w - .16 : w) * SC, (oz ? h - .16 : h) * SC); } });
     c.strokeStyle = 'rgba(' + PA + ',.4)'; c.lineWidth = 3; c.strokeRect(X(-4.3), Z(-4.3), 8.6 * SC, 8.6 * SC); txt('TEC-01  REV A  LICET', 0, 5.2, 30, .45); txt('INSPIRING THE NEXT', 0, -4.8, 24, .35);
-    const tex = new T.CanvasTexture(cv); tex.anisotropy = Math.min(phone ? 4 : 16, r.capabilities.getMaxAnisotropy()); tex.encoding = T.sRGBEncoding;
+    const tex = new T.CanvasTexture(cv); tex.anisotropy = Math.min(lowPower ? 2 : 16, r.capabilities.getMaxAnisotropy()); tex.encoding = T.sRGBEncoding;
     sc.add(new T.Mesh(new T.PlaneGeometry(60, 34).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: .55, roughness: .9, metalness: .1 })));
     const ledM = new T.MeshStandardMaterial({ color: 0xe99704, emissive: 0xe99704, emissiveIntensity: 1.4 }), bandM = new T.MeshStandardMaterial({ color: 0x7a4200 }), dark = new T.MeshStandardMaterial({ color: 0x14130f, roughness: .5 });
     const lead = new T.MeshStandardMaterial({ color: 0xa39e94, metalness: .8, roughness: .4 });
@@ -132,7 +141,7 @@ export function initBoard(box, fonts) {
     for (let i = 0; i < 30; i++) { const o = 70 + i * 63; [[o, 34], [o, 2014], [34, o], [2014, o]].forEach(([x, y]) => { g.fillStyle = 'rgba(233,151,4,.9)'; g.fillRect(x - 12, y - 12, 24, 24); }); }
     g.fillStyle = 'rgba(242,240,234,.5)'; g.font = '500 36px ' + MONO; g.fillText('TEC-01 DIE  28NM', 80, 1990);
     const dtex = new T.CanvasTexture(dc); dtex.anisotropy = tex.anisotropy;
-    const die = new T.Mesh(new T.PlaneGeometry(4.6, 4.6).rotateX(-Math.PI / 2), new T.MeshPhysicalMaterial({ map: dtex, emissiveMap: dtex, emissive: 0xffffff, emissiveIntensity: .6, roughness: .4, metalness: .3, clearcoat: 1, clearcoatRoughness: .06 })); die.position.y = .25; inner.add(die);
+    const die = new T.Mesh(new T.PlaneGeometry(4.6, 4.6).rotateX(-Math.PI / 2), (lowPower ? new T.MeshStandardMaterial({ map: dtex, emissiveMap: dtex, emissive: 0xffffff, emissiveIntensity: .6, roughness: .4, metalness: .3 }) : new T.MeshPhysicalMaterial({ map: dtex, emissiveMap: dtex, emissive: 0xffffff, emissiveIntensity: .6, roughness: .4, metalness: .3, clearcoat: 1, clearcoatRoughness: .06 }))); die.position.y = .25; inner.add(die);
     const dieEdge = new T.Mesh(new T.BoxGeometry(4.66, .14, 4.66), new T.MeshStandardMaterial({ color: 0x1d1d22, metalness: .85, roughness: .18 })); dieEdge.position.y = .175; inner.add(dieEdge);
     // seal ring + bond pads: what makes a real die read as a die at a glance
     const padM = new T.MeshStandardMaterial({ color: 0xc9ccd2, metalness: 1, roughness: .32 }), ringM = new T.MeshStandardMaterial({ color: 0x8d8f96, metalness: 1, roughness: .25 });
@@ -241,6 +250,7 @@ export function initBoard(box, fonts) {
     const buildStack = (lum, col, im, alpha) => {
       const m = new T.Matrix4(), q = new T.Quaternion();
       STACK.forEach(([y, pitch], li) => {
+        if (lowPower && li === STACK.length - 1) return;
         const g = new T.Group(); g.visible = false; inner.add(g);
         if (!pitch) {   // top metal: the die shot's own structures, as a raised copper-tinted sheet with a darker underside
           const mat = new T.MeshStandardMaterial({ map: im, color: 0xffffff, alphaMap: alpha, alphaTest: .5, metalness: .7, roughness: .3, emissive: 0xffffff, emissiveMap: im, emissiveIntensity: .25, transparent: true, opacity: 0, side: T.DoubleSide, envMap: env, envMapIntensity: .8 });
@@ -260,14 +270,14 @@ export function initBoard(box, fonts) {
         g.add(im2, vim); stack.push({ g, mats: [mat], y });
       });
     };
-    const dimg = new Image(); dimg.onload = () => { const N = 4096, cc = document.createElement('canvas'); cc.width = cc.height = N; const x = cc.getContext('2d');
+    const dimg = new Image(); dimg.onload = () => { const N = lowPower ? 2048 : 4096, cc = document.createElement('canvas'); cc.width = cc.height = N; const x = cc.getContext('2d');
       // keep the die shot crisp: no muddying overlays, just a touch of contrast and a light edge falloff
       x.imageSmoothingQuality = 'high'; x.filter = 'none'; x.drawImage(dimg, 0, 0, N, N); x.filter = 'none';
       const vg = x.createRadialGradient(N / 2, N / 2, N * .35, N / 2, N / 2, N * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.18)'); x.fillStyle = vg; x.fillRect(0, 0, N, N);
       const bc = document.createElement('canvas'); bc.width = bc.height = 2048; const bx = bc.getContext('2d'); bx.filter = 'grayscale(1) contrast(1.8)'; bx.drawImage(cc, 0, 0, 2048, 2048);
       const rc = document.createElement('canvas'); rc.width = rc.height = 1024; const rx = rc.getContext('2d'); rx.filter = 'grayscale(1) invert(1) contrast(1.4) brightness(.8)'; rx.drawImage(cc, 0, 0, 1024, 1024);
       const mk = (cv, srgb) => { const t = new T.CanvasTexture(cv); t.anisotropy = r.capabilities.getMaxAnisotropy(); if (srgb) t.encoding = T.sRGBEncoding; return t; }, im = mk(cc, true);
-      Object.assign(die.material, { map: im, emissiveMap: im, emissiveIntensity: .38, bumpMap: mk(bc), bumpScale: .003, roughnessMap: mk(rc), roughness: .35, metalness: .45, clearcoat: .6, envMap: env, envMapIntensity: 1 }); die.material.needsUpdate = true;
+      Object.assign(die.material, { map: im, emissiveMap: im, emissiveIntensity: .38, roughness: .35, metalness: .45, envMap: env, envMapIntensity: 1 }, lowPower ? {} : { bumpMap: mk(bc), bumpScale: .003, roughnessMap: mk(rc), clearcoat: .6 }); die.material.needsUpdate = true;
       // luminance grid of the die shot: drives where the copper lines run, and the top layer's cut-out
       const LG = 256, lc = document.createElement('canvas'); lc.width = lc.height = LG; const lx = lc.getContext('2d'); lx.filter = 'grayscale(1) contrast(1.6)'; lx.drawImage(dimg, 0, 0, LG, LG);
       const ld = lx.getImageData(0, 0, LG, LG).data, lum = (wx, wz) => { const px = Math.min(LG - 1, Math.max(0, Math.floor((wx + 2.3) / 4.6 * LG))), pz = Math.min(LG - 1, Math.max(0, Math.floor((wz + 2.3) / 4.6 * LG))); return ld[(pz * LG + px) * 4] / 255; };
@@ -276,9 +286,9 @@ export function initBoard(box, fonts) {
         return new T.Color().setRGB(kd[o] / 255, kd[o + 1] / 255, kd[o + 2] / 255).convertSRGBToLinear(); };
       // cut-out for the top sheet: threshold at low res, then scale up without smoothing so edges stay square like real metal
       const sc0 = document.createElement('canvas'); sc0.width = sc0.height = 1024; const s0 = sc0.getContext('2d'); s0.filter = 'grayscale(1) contrast(2.2)'; s0.drawImage(dimg, 0, 0, 1024, 1024);
-      const ac = document.createElement('canvas'); ac.width = ac.height = 2048; const ax = ac.getContext('2d'); ax.imageSmoothingEnabled = false; ax.drawImage(sc0, 0, 0, 2048, 2048);
+      const ac = document.createElement('canvas'); ac.width = ac.height = N / 2; const ax = ac.getContext('2d'); ax.imageSmoothingEnabled = false; ax.drawImage(sc0, 0, 0, N / 2, N / 2);
       const at = mk(ac); at.magFilter = T.NearestFilter; buildStack(lum, col, im, at); };
-    dimg.src = '/site/die-hd.webp';   // generated by scripts/die_gen.py
+    dimg.src = lowPower ? '/site/die-md.webp' : '/site/die-hd.webp';   // generated by scripts/die_gen.py
     // the block of the die the camera dives into: an amber target frame
     const RS = .95;
     const secM = new T.LineBasicMaterial({ color: 0xe99704, transparent: true, opacity: 0, depthTest: false });
@@ -291,9 +301,14 @@ export function initBoard(box, fonts) {
     // One centripetal spline through the keyframes: the camera keeps moving through each one instead of stopping dead.
     const camC = new T.CatmullRomCurve3(K.map((q) => new T.Vector3(...q.pos)), false, 'centripetal'), tgC = new T.CatmullRomCurve3(K.map((q) => new T.Vector3(...q.tg)), false, 'centripetal');
     const cp = new T.Vector3(), ct = new T.Vector3();
-    const ss = (x) => x * x * (3 - 2 * x), lr = (a, b, k) => a + (b - a) * k; let lastT = 0;
+    const ss = (x) => x * x * (3 - 2 * x), lr = (a, b, k) => a + (b - a) * k; let lastT = 0, lastDraw = -1, slow = 0, frames = 0;
     const onResize = () => { r.setSize(W(), H()); cam.aspect = W() / H(); cam.updateProjectionMatrix(); }; window.addEventListener('resize', onResize);
     return { dispose: () => { window.removeEventListener('resize', onResize); r.dispose(); r.domElement.remove(); }, update: (p, mx, my, now) => {
+      if (lowPower && now - lastDraw < 1 / 30) return;   // 30 fps is plenty for a scroll-driven scene on weak machines
+      // Adaptive resolution: if frames keep running slow (> 40 ms, or > 60 ms at the 30 fps cap), drop the pixel ratio a notch (down to 0.6), once per second at most.
+      if (lastDraw >= 0) { frames++; if (now - lastDraw > (lowPower ? .06 : .04)) slow++;
+        if (frames >= 30) { if (slow > 18 && pr > .6) { pr = Math.max(.6, pr - .25); r.setPixelRatio(pr); r.setSize(W(), H()); } frames = slow = 0; } }
+      lastDraw = now;
       const dt = Math.min(.05, now - lastT); lastT = now;
       let s = 0; while (s < K.length - 2 && p > KB[s + 1]) s++;
       let t = Math.max(0, Math.min(1, (p - KB[s]) / (KB[s + 1] - KB[s])));
