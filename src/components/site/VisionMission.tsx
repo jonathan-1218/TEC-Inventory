@@ -129,8 +129,8 @@ export default function VisionMission() {
           </div>
           <div data-road className="vm-road" style={{ opacity: 0 }}>
             <svg preserveAspectRatio="none" aria-hidden>
-              <path data-track fill="none" stroke="#1c1b18" strokeWidth="22" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-              <path data-track fill="none" stroke="#3a3832" strokeWidth="2" strokeDasharray="8 10" vectorEffect="non-scaling-stroke" />
+              <path data-track fill="none" style={{ stroke: "var(--road)" }} strokeWidth="22" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              <path data-track fill="none" style={{ stroke: "var(--roadline)" }} strokeWidth="2" strokeDasharray="8 10" vectorEffect="non-scaling-stroke" />
               <path data-fill fill="none" stroke="#e99704" strokeWidth="4" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ filter: "drop-shadow(0 0 8px #e99704)" }} />
               <g data-dot><circle r="22" fill="#e99704" opacity=".22" /><circle r="9" fill="#ffd58a" /></g>
             </svg>
