@@ -11,9 +11,12 @@ function softwareGL() {
 export function initBoard(box, fonts) {
   const MONO = fonts.mono, DISPLAY = fonts.display;
     const phone = matchMedia("(max-width: 600px)").matches;
-    // Low-power tier: phones, small machines, Save-Data, or software WebGL. Halves every texture, skips the costly
+    // Low-power tier: phones, Save-Data, or software WebGL. Core count and device memory are not consulted: Brave
+    // reports fake low values for both, which put fast laptops in this tier. Slow machines are still caught by the
+    // adaptive resolution in update().
+    // Halves every texture, skips the costly
     // material effects and the finest copper layer, and renders at 30 fps.
-    const lowPower = phone || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4 || !!navigator.connection?.saveData || softwareGL();
+    const lowPower = phone || !!navigator.connection?.saveData || softwareGL();
     const W = () => box.clientWidth, H = () => box.clientHeight;
     const r = new T.WebGLRenderer({ antialias: !lowPower, alpha: true, powerPreference: "high-performance" }); let pr = Math.min(lowPower ? 1 : 2, devicePixelRatio); r.setPixelRatio(pr); r.setSize(W(), H()); r.setClearColor(0x000000, 0);
     r.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; box.appendChild(r.domElement);
