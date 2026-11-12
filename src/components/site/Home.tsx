@@ -54,12 +54,12 @@ export default function Home() {
       else addEventListener("tec:intro-done", release, { once: true });
     }
 
-    // The board fly-through, quotes included, is a pre-rendered video scrubbed by scroll: a 16:9 cut for wide
-    // screens and a tall cut for phones held upright (re-record both if the quotes in content.ts change).
+    // The board fly-through, quotes included, is a pre-rendered video: a 16:9 cut for wide screens and a tall cut
+    // for phones held upright (re-record both if the quotes change). It plays by itself whenever it is on screen;
+    // scrolling is never hijacked and never moves the video.
     gbox.src = matchMedia("(orientation: portrait)").matches ? "/site/hero-portrait.mp4" : "/site/hero.mp4";
-    // ponytail: iOS only decodes a frame after a play() has started, so nudge it once on first touch.
-    const prime = () => { gbox.play().then(() => gbox.pause()).catch(() => {}); };
-    addEventListener("touchstart", prime, { once: true, passive: true });
+    gbox.defaultPlaybackRate = gbox.playbackRate = 0.9;
+    let playing = false;
     let mx = 0, my = 0, raf = 0;
     const onMove = (e: MouseEvent) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; };
     // Parallax is for pointers only; on touch it would just keep the frame loop busy.
@@ -72,85 +72,6 @@ export default function Home() {
     const small = matchMedia("(max-width: 600px)");
 
     let ly = -1, lx = 0, lyy = 0, lw = 0;
-    // Hero film: one scroll/swipe down from the title plays the fly-through video on its own, slowly, and the page
-    // position follows the video so the title, nav and manifesto keep their cues. Another scroll while it plays
-    // skips to the end (down) or back to the title (up). After the hero the page scrolls natively again.
-    const PLAY_RATE = 0.7, V0 = 0.1, V1 = 0.8; // the video spans hero progress V0..V1 (see gp in tick)
-    let gliding = false, lastWheel = 0, touchY = 0, stepRaf = 0;
-    const heroSpan = () => {
-      const top = heroSec.getBoundingClientRect().top + scrollY;
-      return { top, H: heroSec.offsetHeight - (probe.offsetHeight || innerHeight) };
-    };
-    // Is this gesture (down = 1, up = -1) ours to handle, or should the page scroll natively?
-    const ours = (dir: number) => {
-      if (html.style.overflow === "hidden" || galOpenRef.current) return false;
-      const { top, H } = heroSpan(), pos = scrollY - top;
-      return dir > 0 ? pos >= -2 && pos < H - 2 : pos > 2 && pos <= H + 2;
-    };
-    // Eased scroll to `to`; the tick scrubs the video along with it.
-    const ease = (to: number, dur: number, then?: () => void) => {
-      const from = scrollY, t0 = performance.now();
-      const step = (now: number) => {
-        const t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-        scrollTo({ top: from + (to - from) * e, behavior: "instant" });
-        if (t < 1) stepRaf = requestAnimationFrame(step);
-        else if (then) then();
-        else gliding = false;
-      };
-      stepRaf = requestAnimationFrame(step);
-    };
-    const glide = (dir: number) => {
-      const { top, H } = heroSpan(), skip = gliding;
-      cancelAnimationFrame(stepRaf); gbox.pause();
-      gliding = true;
-      if (dir < 0) return ease(top, 1200);
-      if (skip || !gbox.duration) return ease(top + H, 1400);
-      // Title out, then let the video run and keep the page in step with it, then settle on the manifesto.
-      const outro = () => ease(top + H, 1600);
-      ease(Math.max(scrollY, top + V0 * H), 900, () => {
-        gbox.playbackRate = PLAY_RATE;
-        const follow = () => {
-          scrollTo({ top: top + (V0 + (V1 - V0) * (gbox.currentTime / gbox.duration)) * H, behavior: "instant" });
-          if (gbox.ended || gbox.paused) outro();
-          else stepRaf = requestAnimationFrame(follow);
-        };
-        // ponytail: if the browser refuses to play (e.g. iOS Low Power Mode), scrub through it on a timer instead.
-        gbox.play().then(follow, () => ease(top + V1 * H, (gbox.duration / PLAY_RATE) * 1000, outro));
-      });
-    };
-    const onWheel = (e: WheelEvent) => {
-      const dir = Math.sign(e.deltaY);
-      if (!dir || !ours(dir)) return;
-      e.preventDefault();
-      // A trackpad keeps firing inertia events for a second after a flick: only a fresh gesture starts a step.
-      const now = performance.now(), fresh = now - lastWheel > 220;
-      lastWheel = now;
-      if (fresh) glide(dir);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? 1 : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
-      if (!dir || !ours(dir) || (e.target as HTMLElement).closest?.("input,textarea,button,a")) return;
-      e.preventDefault();
-      if (!e.repeat) glide(dir);
-    };
-    const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0].clientY; };
-    const onTouchMove = (e: TouchEvent) => {
-      const dy = touchY - e.touches[0].clientY;
-      if (Math.abs(dy) > 4 && ours(Math.sign(dy))) e.preventDefault();
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      const dy = touchY - e.changedTouches[0].clientY;
-      if (Math.abs(dy) > 24 && ours(Math.sign(dy))) glide(Math.sign(dy));
-    };
-    const stepped = !matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (stepped) {
-      addEventListener("wheel", onWheel, { passive: false });
-      addEventListener("keydown", onKey);
-      addEventListener("touchstart", onTouchStart, { passive: true });
-      addEventListener("touchmove", onTouchMove, { passive: false });
-      addEventListener("touchend", onTouchEnd);
-    }
-
     const tick = () => {
       const vh = probe.offsetHeight || innerHeight, sy = scrollY;
       // Nothing moved and the hero's board is off-screen: skip the whole frame.
@@ -159,10 +80,14 @@ export default function Home() {
 
       // hero: board fly-through + phrases
       const hr = heroSec.getBoundingClientRect();
-      const hp = clamp(-hr.top / (hr.height - vh)), gp = clamp((hp - 0.1) / 0.7);
-      if (hp > 0.04 && hp < 0.9 && gbox.duration && gbox.paused) {
-        const t = gp * (gbox.duration - 0.04);
-        if (Math.abs(gbox.currentTime - t) > 0.01) gbox.currentTime = t;
+      const hp = clamp(-hr.top / (hr.height - vh));
+      // Play while the video is on screen, pause when it is scrolled away; a finished video starts over next time.
+      // ponytail: if the browser refuses autoplay (iOS Low Power Mode) it stays on its first frame.
+      const show = hp > 0.08 && hp < 0.87;
+      if (show !== playing) {
+        playing = show;
+        if (!show) gbox.pause();
+        else { if (gbox.ended) gbox.currentTime = 0; gbox.play().catch(() => {}); }
       }
       gbox.style.opacity = String(ss(clamp((hp - 0.08) / 0.14)) * (1 - ss(clamp((hp - 0.8) / 0.07))));
       herotext.style.opacity = String(1 - ss(clamp((hp - 0.03) / 0.1)));
@@ -200,9 +125,7 @@ export default function Home() {
     };
     raf = requestAnimationFrame(tick);
     return () => {
-      cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove(); removeEventListener("touchstart", prime);
-      cancelAnimationFrame(stepRaf); removeEventListener("wheel", onWheel); removeEventListener("keydown", onKey);
-      removeEventListener("touchstart", onTouchStart); removeEventListener("touchmove", onTouchMove); removeEventListener("touchend", onTouchEnd);
+      cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove();
       clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
     };
   }, []);
@@ -226,7 +149,7 @@ export default function Home() {
       </nav>
 
       {/* 01 — hero */}
-      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "950vh" }}>
+      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "400vh" }}>
         <div style={sticky}>
           <video data-gl muted playsInline preload="auto" aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           <div data-herotext className="display" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", fontSize: "15.5vw", lineHeight: 0.82, textAlign: "center", pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
@@ -245,7 +168,6 @@ export default function Home() {
                 <span style={{ width: 3, height: 7, borderRadius: 2, background: "#e99704", animation: "tec-hint-dot 1.6s ease-in-out infinite" }} />
               </span>
               <span className="mono" style={{ fontSize: 11, letterSpacing: ".2em", color: "#a09b91", WebkitTextStroke: 0 }}>SCROLL</span>
-              <span className="mono" style={{ fontSize: 10, letterSpacing: ".18em", color: "#6f6b63", WebkitTextStroke: 0 }}>SCROLL ONCE TO PLAY</span>
             </div>
           </div>
           <div data-manwrap style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 var(--gx)", opacity: 0 }}>
