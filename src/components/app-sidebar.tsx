@@ -48,8 +48,9 @@ export const NAV = [
 const ADMIN_NAV = { href: "/accounts", label: "Sign-ups & goals", icon: UserCheck, group: "People" }
 const TEAM_NAV = { href: "/team", label: "Team portal", icon: Rocket, group: "Your team" }
 
+// On the dashboard subdomain the dashboard is served at "/" (next.config.ts), and "/" is never inside the app otherwise.
 export const isNavActive = (pathname: string, href: string) =>
-  pathname.startsWith(href)
+  pathname.startsWith(href) || (pathname === "/" && href === "/dashboard")
 
 export function AppSidebar() {
   const pathname = usePathname()
