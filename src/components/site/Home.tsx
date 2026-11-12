@@ -3,12 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { TecLogo } from "@/components/tec-logo";
 import { MorphicNavbar } from "@/components/ui/split-nav";
-<<<<<<< HEAD
-import ScrollIndex from "@/components/ui/scroll-index";
-=======
 import ScrollIndex from "./ScrollIndex";
-import type { initBoard as InitBoard } from "@/lib/site/board-scene";
->>>>>>> origin/main
 import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
 import { archive, core, galleryCards, manifesto, pad } from "@/lib/site/content";
