@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import Link from "next/link"
 import { TecLogo } from "@/components/tec-logo";
 import { MorphicNavbar } from "@/components/ui/split-nav";
+<<<<<<< HEAD
 import ScrollIndex from "@/components/ui/scroll-index";
+=======
+import ScrollIndex from "./ScrollIndex";
+import type { initBoard as InitBoard } from "@/lib/site/board-scene";
+>>>>>>> origin/main
 import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
 import { archive, core, galleryCards, manifesto, pad } from "@/lib/site/content";
 import { featuredEvents } from "@/lib/site/events";
 import GalleryOverlay from "./GalleryOverlay";
 
-const DASHBOARD = "/dashboard"; // the inventory app lives in the same site
+const DASHBOARD = "/dashboard"; // on the live domain this redirects to the dashboard subdomain (next.config.ts), hence plain <a>, not <Link>
 const GITHUB = "https://github.com/jonathan-1218/TEC-Inventory";
 
 const sticky: CSSProperties = { position: "sticky", top: 0, height: "var(--vh)", overflow: "hidden" };
@@ -144,7 +148,7 @@ export default function Home() {
         </a>
         <div className="nav-links" style={{ display: "flex", gap: 28, alignItems: "center" }}>
           <MorphicNavbar dark className="nav-split p-0" items={SITE_NAV} defaultPath="#top" />
-          <Link href={DASHBOARD} className="cta">DASHBOARD ↗</Link>
+          <a href={DASHBOARD} className="cta">DASHBOARD ↗</a>
         </div>
       </nav>
 
@@ -277,7 +281,7 @@ export default function Home() {
           <div>
             <div className="mono foot-h">MEMBERS</div>
             <div className="mono foot-list">
-              <Link href={DASHBOARD} className="foot-link">INVENTORY DASHBOARD ↗</Link>
+              <a href={DASHBOARD} className="foot-link">INVENTORY DASHBOARD ↗</a>
               <a href={GITHUB} className="foot-link">GITHUB / TEC-INVENTORY ↗</a>
             </div>
           </div>

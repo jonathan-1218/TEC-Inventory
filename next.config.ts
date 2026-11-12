@@ -12,6 +12,17 @@ const SECURITY_HEADERS = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
 ]
 
+// The inventory app is served from its own subdomain; the club homepage stays on the apex domain. Both are this one
+// deployment, told apart by the Host header. On any other host (localhost, Vercel previews) none of these rules
+// match and everything is reachable by path, as before.
+const SITE_HOST = "(?:www\\.)?theelectronicsclub\\.in"
+const APP_HOST = "dashboard.theelectronicsclub.in"
+const APP_ORIGIN = `https://${APP_HOST}`
+// Every top-level route of the app and the team portal.
+const APP_ROUTES = ["dashboard", "accounts", "admin", "inventory", "issuances", "members", "projects", "search", "tasks", "teams", "team", "login", "signup", "my"]
+const onSite = [{ type: "host" as const, value: SITE_HOST }]
+const onApp = [{ type: "host" as const, value: APP_HOST.replaceAll(".", "\\.") }]
+
 const nextConfig: NextConfig = {
   // Hides the round "N" dev-tools badge that floats bottom-left in `next dev` (it never exists in production).
   devIndicators: false,
@@ -23,6 +34,11 @@ const nextConfig: NextConfig = {
   // Project teams have their own portal under /team; keep the old addresses working.
   async redirects() {
     return [
+      // Apex domain: app addresses move to the subdomain (login cookies are per-host, so the app must live on one).
+      ...APP_ROUTES.map((r) => ({ source: `/${r}/:path*`, has: onSite, destination: `${APP_ORIGIN}/${r}/:path*`, permanent: false })),
+      // Subdomain: the dashboard is the front page (a redirect, not a rewrite: the app's nav highlighting and the
+      // intro both key off the real "/dashboard" pathname).
+      { source: "/", has: onApp, destination: "/dashboard", permanent: false },
       { source: "/login", destination: "/team/login", permanent: false },
       { source: "/signup", destination: "/team/signup", permanent: false },
       { source: "/my", destination: "/team", permanent: false },
