@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Intro } from "@/components/intro/intro"
-import { SiteHeader } from "@/components/site-header"
+import { SiteHeader } from "@/components/app-header"
 
 /** The club app: sidebar, header and the logo intro. Project teams have their own portal under /team. */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
