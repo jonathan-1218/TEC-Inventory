@@ -7,7 +7,7 @@ import { MorphicNavbar } from "@/components/ui/split-nav";
 import ScrollIndex from "@/components/ui/scroll-index";
 import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
-import { archive, core, galleryCards, manifesto, pad, phrases } from "@/lib/site/content";
+import { archive, core, galleryCards, manifesto, pad } from "@/lib/site/content";
 import { featuredEvents } from "@/lib/site/events";
 import GalleryOverlay from "./GalleryOverlay";
 
@@ -72,15 +72,10 @@ export default function Home() {
     const small = matchMedia("(max-width: 600px)");
 
     let ly = -1, lx = 0, lyy = 0, lw = 0;
-    // Hero steps: one scroll/swipe glides the board to the next quote instead of making people scroll through
-    // ~9 screens. Stops (hero progress): the hero title, each quote held mid-way, then the end of the hero, after
-    // which the page scrolls natively again.
-    // Slow on purpose so people can follow the fly-through; longer hops (board -> first quote) take longer.
-    const stepMs = (dhp: number) => Math.min(4600, Math.max(3200, 2400 + dhp * 9000));
-    const stops = [0, ...phrases.map((p, i) => {
-      const [a, b] = p.range.split(",").map(Number);
-      return 0.1 + 0.7 * (a + (b - a) * (i === phrases.length - 1 ? 0.45 : 0.5));
-    }), 1];
+    // Hero film: one scroll/swipe down from the title plays the fly-through video on its own, slowly, and the page
+    // position follows the video so the title, nav and manifesto keep their cues. Another scroll while it plays
+    // skips to the end (down) or back to the title (up). After the hero the page scrolls natively again.
+    const PLAY_RATE = 0.7, V0 = 0.1, V1 = 0.8; // the video spans hero progress V0..V1 (see gp in tick)
     let gliding = false, lastWheel = 0, touchY = 0, stepRaf = 0;
     const heroSpan = () => {
       const top = heroSec.getBoundingClientRect().top + scrollY;
@@ -92,19 +87,36 @@ export default function Home() {
       const { top, H } = heroSpan(), pos = scrollY - top;
       return dir > 0 ? pos >= -2 && pos < H - 2 : pos > 2 && pos <= H + 2;
     };
-    const glide = (dir: number) => {
-      const { top, H } = heroSpan(), cur = scrollY, ys = stops.map((s) => top + s * H);
-      const to = dir > 0 ? ys.find((y) => y > cur + 4) : [...ys].reverse().find((y) => y < cur - 4);
-      if (to === undefined) return;
-      gliding = true;
-      const from = cur, t0 = performance.now(), dur = stepMs(Math.abs(to - from) / H);
+    // Eased scroll to `to`; the tick scrubs the video along with it.
+    const ease = (to: number, dur: number, then?: () => void) => {
+      const from = scrollY, t0 = performance.now();
       const step = (now: number) => {
         const t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
         scrollTo({ top: from + (to - from) * e, behavior: "instant" });
         if (t < 1) stepRaf = requestAnimationFrame(step);
+        else if (then) then();
         else gliding = false;
       };
       stepRaf = requestAnimationFrame(step);
+    };
+    const glide = (dir: number) => {
+      const { top, H } = heroSpan(), skip = gliding;
+      cancelAnimationFrame(stepRaf); gbox.pause();
+      gliding = true;
+      if (dir < 0) return ease(top, 1200);
+      if (skip || !gbox.duration) return ease(top + H, 1400);
+      // Title out, then let the video run and keep the page in step with it, then settle on the manifesto.
+      const outro = () => ease(top + H, 1600);
+      ease(Math.max(scrollY, top + V0 * H), 900, () => {
+        gbox.playbackRate = PLAY_RATE;
+        const follow = () => {
+          scrollTo({ top: top + (V0 + (V1 - V0) * (gbox.currentTime / gbox.duration)) * H, behavior: "instant" });
+          if (gbox.ended || gbox.paused) outro();
+          else stepRaf = requestAnimationFrame(follow);
+        };
+        // ponytail: if the browser refuses to play (e.g. iOS Low Power Mode), scrub through it on a timer instead.
+        gbox.play().then(follow, () => ease(top + V1 * H, (gbox.duration / PLAY_RATE) * 1000, outro));
+      });
     };
     const onWheel = (e: WheelEvent) => {
       const dir = Math.sign(e.deltaY);
@@ -113,13 +125,13 @@ export default function Home() {
       // A trackpad keeps firing inertia events for a second after a flick: only a fresh gesture starts a step.
       const now = performance.now(), fresh = now - lastWheel > 220;
       lastWheel = now;
-      if (!gliding && fresh) glide(dir);
+      if (fresh) glide(dir);
     };
     const onKey = (e: KeyboardEvent) => {
       const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? 1 : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
       if (!dir || !ours(dir) || (e.target as HTMLElement).closest?.("input,textarea,button,a")) return;
       e.preventDefault();
-      if (!gliding) glide(dir);
+      if (!e.repeat) glide(dir);
     };
     const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0].clientY; };
     const onTouchMove = (e: TouchEvent) => {
@@ -128,7 +140,7 @@ export default function Home() {
     };
     const onTouchEnd = (e: TouchEvent) => {
       const dy = touchY - e.changedTouches[0].clientY;
-      if (Math.abs(dy) > 24 && !gliding && ours(Math.sign(dy))) glide(Math.sign(dy));
+      if (Math.abs(dy) > 24 && ours(Math.sign(dy))) glide(Math.sign(dy));
     };
     const stepped = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (stepped) {
@@ -148,7 +160,7 @@ export default function Home() {
       // hero: board fly-through + phrases
       const hr = heroSec.getBoundingClientRect();
       const hp = clamp(-hr.top / (hr.height - vh)), gp = clamp((hp - 0.1) / 0.7);
-      if (hp > 0.04 && hp < 0.9 && gbox.duration) {
+      if (hp > 0.04 && hp < 0.9 && gbox.duration && gbox.paused) {
         const t = gp * (gbox.duration - 0.04);
         if (Math.abs(gbox.currentTime - t) > 0.01) gbox.currentTime = t;
       }
@@ -233,7 +245,7 @@ export default function Home() {
                 <span style={{ width: 3, height: 7, borderRadius: 2, background: "#e99704", animation: "tec-hint-dot 1.6s ease-in-out infinite" }} />
               </span>
               <span className="mono" style={{ fontSize: 11, letterSpacing: ".2em", color: "#a09b91", WebkitTextStroke: 0 }}>SCROLL</span>
-              <span className="mono" style={{ fontSize: 10, letterSpacing: ".18em", color: "#6f6b63", WebkitTextStroke: 0 }}>ONE SCROLL AT A TIME</span>
+              <span className="mono" style={{ fontSize: 10, letterSpacing: ".18em", color: "#6f6b63", WebkitTextStroke: 0 }}>SCROLL ONCE TO PLAY</span>
             </div>
           </div>
           <div data-manwrap style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 var(--gx)", opacity: 0 }}>
