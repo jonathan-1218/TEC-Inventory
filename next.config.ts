@@ -18,8 +18,8 @@ const SECURITY_HEADERS = [
 const SITE_HOST = "(?:www\\.)?theelectronicsclub\\.in"
 const APP_HOST = "dashboard.theelectronicsclub.in"
 const APP_ORIGIN = `https://${APP_HOST}`
-// Every top-level route of the app and the team portal.
-const APP_ROUTES = ["dashboard", "accounts", "admin", "inventory", "issuances", "members", "projects", "search", "tasks", "teams", "team", "login", "signup", "my"]
+// Every top-level route of the app and the team portal ("/dashboard" is separate: on the subdomain it is "/").
+const APP_ROUTES = ["accounts", "admin", "inventory", "issuances", "members", "projects", "search", "tasks", "teams", "team", "login", "signup", "my"]
 const onSite = [{ type: "host" as const, value: SITE_HOST }]
 const onApp = [{ type: "host" as const, value: APP_HOST.replaceAll(".", "\\.") }]
 
@@ -35,10 +35,10 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       // Apex domain: app addresses move to the subdomain (login cookies are per-host, so the app must live on one).
+      { source: "/dashboard", has: onSite, destination: APP_ORIGIN, permanent: false },
       ...APP_ROUTES.map((r) => ({ source: `/${r}/:path*`, has: onSite, destination: `${APP_ORIGIN}/${r}/:path*`, permanent: false })),
-      // Subdomain: the dashboard is the front page (a redirect, not a rewrite: the app's nav highlighting and the
-      // intro both key off the real "/dashboard" pathname).
-      { source: "/", has: onApp, destination: "/dashboard", permanent: false },
+      // Subdomain: the dashboard is served at "/" (rewrite below), so its own path folds back onto it.
+      { source: "/dashboard", has: onApp, destination: "/", permanent: false },
       { source: "/login", destination: "/team/login", permanent: false },
       { source: "/signup", destination: "/team/signup", permanent: false },
       { source: "/my", destination: "/team", permanent: false },
@@ -47,7 +47,12 @@ const nextConfig: NextConfig = {
   // The /chart-kit showcase is dev-only. Its page-level notFound() streams as a soft 404 (HTTP 200) under
   // app/loading.tsx, so send it to an unmatched path in production for a real 404.
   async rewrites() {
-    return process.env.NODE_ENV === "production" ? { beforeFiles: [{ source: "/chart-kit", destination: "/_dev-only" }] } : []
+    return {
+      beforeFiles: [
+        { source: "/", has: onApp, destination: "/dashboard" },
+        ...(process.env.NODE_ENV === "production" ? [{ source: "/chart-kit", destination: "/_dev-only" }] : []),
+      ],
+    }
   },
 }
 

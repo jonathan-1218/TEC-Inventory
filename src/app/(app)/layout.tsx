@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const sidebarOpen = (await cookies()).get("sidebar_state")?.value !== "false"
   return (
     <>
-      <Intro />
+      <Intro app />
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar />
         <SidebarInset className="dotgrid">
