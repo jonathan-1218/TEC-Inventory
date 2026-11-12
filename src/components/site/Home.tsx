@@ -5,7 +5,6 @@ import Link from "next/link"
 import { TecLogo } from "@/components/tec-logo";
 import { MorphicNavbar } from "@/components/ui/split-nav";
 import ScrollIndex from "@/components/ui/scroll-index";
-import type { initBoard as InitBoard } from "@/lib/site/board-scene";
 import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
 import { archive, core, galleryCards, manifesto, pad, phrases } from "@/lib/site/content";
@@ -18,8 +17,6 @@ const GITHUB = "https://github.com/jonathan-1218/TEC-Inventory";
 const sticky: CSSProperties = { position: "sticky", top: 0, height: "var(--vh)", overflow: "hidden" };
 const phraseLine: CSSProperties = { fontSize: "clamp(30px,7.4vw,132px)" };
 
-// next/font exposes each loaded family as a CSS variable on <html>
-const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "sans-serif";
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const ss = (x: number) => x * x * (3 - 2 * x);
 
@@ -50,7 +47,7 @@ export default function Home() {
     const $$ = (s: string) => Array.from(root.querySelectorAll<HTMLElement>(s));
 
     const nav = $("[data-nav]"), herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
-    const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
+    const heroSec = $("[data-pin=hero]"), gbox = $<HTMLVideoElement>("[data-gl]"), scrim = $("[data-scrim]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
     const reveals = $$("[data-rv]");
@@ -73,13 +70,11 @@ export default function Home() {
       else addEventListener("tec:intro-done", release, { once: true });
     }
 
-    // three.js is the bulk of the JS: load it after first paint instead of blocking it.
-    let board: ReturnType<typeof InitBoard> | null = null, dead = false;
-    import("@/lib/site/board-scene").then((m) => {
-      if (!dead) board = m.initBoard(gbox, { mono: cssVar("--font-geist-mono"), display: cssVar("--font-archivo") });
-    });
+    // The board fly-through is a pre-rendered video (public/site/hero.mp4), scrubbed by scroll.
+    // ponytail: iOS only decodes a frame after a play() has started, so nudge it once on first touch.
+    const prime = () => { gbox.play().then(() => gbox.pause()).catch(() => {}); };
+    addEventListener("touchstart", prime, { once: true, passive: true });
     let mx = 0, my = 0, raf = 0;
-    const t0 = performance.now();
     const onMove = (e: MouseEvent) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; };
     // Parallax is for pointers only; on touch it would just keep the frame loop busy.
     if (matchMedia("(hover: hover)").matches) addEventListener("mousemove", onMove);
@@ -158,7 +153,7 @@ export default function Home() {
       addEventListener("touchend", onTouchEnd);
     }
 
-    const tick = (now: number) => {
+    const tick = () => {
       const vh = probe.offsetHeight || innerHeight, sy = scrollY;
       // Nothing moved and the hero's board is off-screen: skip the whole frame.
       if (sy === ly && mx === lx && my === lyy && innerWidth + vh === lw && sy > heroSec.offsetHeight) { raf = requestAnimationFrame(tick); return; }
@@ -167,7 +162,10 @@ export default function Home() {
       // hero: board fly-through + phrases
       const hr = heroSec.getBoundingClientRect();
       const hp = clamp(-hr.top / (hr.height - vh)), gp = clamp((hp - 0.1) / 0.7);
-      if (hp > 0.04 && hp < 0.9) board?.update(gp, mx, my, (now - t0) / 1000);
+      if (hp > 0.04 && hp < 0.9 && gbox.duration) {
+        const t = gp * (gbox.duration - 0.04);
+        if (Math.abs(gbox.currentTime - t) > 0.01) gbox.currentTime = t;
+      }
       const fade = 1 - ss(clamp((hp - 0.8) / 0.07));
       let scrimOp = 0;
       for (const P of phs) {
@@ -218,7 +216,7 @@ export default function Home() {
     };
     raf = requestAnimationFrame(tick);
     return () => {
-      dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove(); board?.dispose();
+      cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove(); removeEventListener("touchstart", prime);
       cancelAnimationFrame(stepRaf); removeEventListener("wheel", onWheel); removeEventListener("keydown", onKey);
       removeEventListener("touchstart", onTouchStart); removeEventListener("touchmove", onTouchMove); removeEventListener("touchend", onTouchEnd);
       clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
@@ -246,7 +244,7 @@ export default function Home() {
       {/* 01 — hero */}
       <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "950vh" }}>
         <div style={sticky}>
-          <div data-gl style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0 }} />
+          <video data-gl src="/site/hero.mp4" muted playsInline preload="auto" aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           <div data-scrim style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", opacity: 0, background: "linear-gradient(90deg,rgba(14,13,11,.92) 0%,rgba(14,13,11,.75) 38%,rgba(14,13,11,0) 72%)" }} />
           <div className="display" style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none", fontVariationSettings: "'wdth' 118", lineHeight: 0.9, textShadow: "0 2px 30px rgba(14,13,11,.9)" }}>
             {phrases.map((p) => (
