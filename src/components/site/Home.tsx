@@ -4,10 +4,9 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { TecLogo } from "@/components/tec-logo";
 import { MorphicNavbar } from "@/components/ui/split-nav";
 import ScrollIndex from "./ScrollIndex";
-import type { initBoard as InitBoard } from "@/lib/site/board-scene";
 import VisionMission from "./VisionMission";
 import FootRotor from "./FootRotor";
-import { archive, core, galleryCards, manifesto, pad, phrases } from "@/lib/site/content";
+import { archive, core, galleryCards, manifesto, pad } from "@/lib/site/content";
 import { featuredEvents } from "@/lib/site/events";
 import GalleryOverlay from "./GalleryOverlay";
 
@@ -15,23 +14,9 @@ const DASHBOARD = "/dashboard"; // on the live domain this redirects to the dash
 const GITHUB = "https://github.com/jonathan-1218/TEC-Inventory";
 
 const sticky: CSSProperties = { position: "sticky", top: 0, height: "var(--vh)", overflow: "hidden" };
-const phraseLine: CSSProperties = { fontSize: "clamp(30px,7.4vw,132px)" };
 
-// next/font exposes each loaded family as a CSS variable on <html>
-const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "sans-serif";
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const ss = (x: number) => x * x * (3 - 2 * x);
-
-function Words({ text }: { text: string }) {
-  return text.split(" ").map((w, i) => (
-    <span key={i}>
-      {i > 0 && " "}
-      <span style={{ display: "inline-block", overflow: "hidden", verticalAlign: "top", padding: "0 .02em .08em" }}>
-        <span data-w style={{ display: "inline-block", willChange: "transform" }}>{w}</span>
-      </span>
-    </span>
-  ));
-}
 
 /** Seconds after the intro when the hero letters have landed: the scroll hint appears and scrolling unlocks. */
 const HINT_AT = 2.1;
@@ -49,14 +34,10 @@ export default function Home() {
     const $$ = (s: string) => Array.from(root.querySelectorAll<HTMLElement>(s));
 
     const nav = $("[data-nav]"), herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
-    const heroSec = $("[data-pin=hero]"), gbox = $("[data-gl]"), scrim = $("[data-scrim]");
+    const heroSec = $("[data-pin=hero]"), gbox = $<HTMLVideoElement>("[data-gl]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
     const reveals = $$("[data-rv]");
-    const phs = $$("[data-ph]").map((el) => {
-      const [a, b] = el.dataset.ph!.split(",").map(Number);
-      return { el, a, b, ws: Array.from(el.querySelectorAll<HTMLElement>("[data-w]")), k: el.querySelector<HTMLElement>("[data-k]")! };
-    });
 
     // Hold the page at the top until the TEC intro is over and the hero letters have risen, then let scrolling
     // (and the board fly-through it drives) begin.
@@ -72,13 +53,13 @@ export default function Home() {
       else addEventListener("tec:intro-done", release, { once: true });
     }
 
-    // three.js is the bulk of the JS: load it after first paint instead of blocking it.
-    let board: ReturnType<typeof InitBoard> | null = null, dead = false;
-    import("@/lib/site/board-scene").then((m) => {
-      if (!dead) board = m.initBoard(gbox, { mono: cssVar("--font-geist-mono"), display: cssVar("--font-archivo") });
-    });
+    // The board fly-through, quotes included, is a pre-rendered video: a 16:9 cut for wide screens and a tall cut
+    // for phones held upright (re-record both if the quotes change). It plays by itself whenever it is on screen;
+    // scrolling is never hijacked and never moves the video.
+    gbox.src = matchMedia("(orientation: portrait)").matches ? "/site/hero-portrait.mp4" : "/site/hero.mp4";
+    gbox.defaultPlaybackRate = gbox.playbackRate = 0.9;
+    let playing = false;
     let mx = 0, my = 0, raf = 0;
-    const t0 = performance.now();
     const onMove = (e: MouseEvent) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; };
     // Parallax is for pointers only; on touch it would just keep the frame loop busy.
     if (matchMedia("(hover: hover)").matches) addEventListener("mousemove", onMove);
@@ -90,74 +71,7 @@ export default function Home() {
     const small = matchMedia("(max-width: 600px)");
 
     let ly = -1, lx = 0, lyy = 0, lw = 0;
-    // Hero steps: one scroll/swipe glides the board to the next quote instead of making people scroll through
-    // ~9 screens. Stops (hero progress): the hero title, each quote held mid-way, then the end of the hero, after
-    // which the page scrolls natively again.
-    // Slow on purpose so people can follow the fly-through; longer hops (board -> first quote) take longer.
-    const stepMs = (dhp: number) => Math.min(4600, Math.max(3200, 2400 + dhp * 9000));
-    const stops = [0, ...phrases.map((p, i) => {
-      const [a, b] = p.range.split(",").map(Number);
-      return 0.1 + 0.7 * (a + (b - a) * (i === phrases.length - 1 ? 0.45 : 0.5));
-    }), 1];
-    let gliding = false, lastWheel = 0, touchY = 0, stepRaf = 0;
-    const heroSpan = () => {
-      const top = heroSec.getBoundingClientRect().top + scrollY;
-      return { top, H: heroSec.offsetHeight - (probe.offsetHeight || innerHeight) };
-    };
-    // Is this gesture (down = 1, up = -1) ours to handle, or should the page scroll natively?
-    const ours = (dir: number) => {
-      if (html.style.overflow === "hidden" || galOpenRef.current) return false;
-      const { top, H } = heroSpan(), pos = scrollY - top;
-      return dir > 0 ? pos >= -2 && pos < H - 2 : pos > 2 && pos <= H + 2;
-    };
-    const glide = (dir: number) => {
-      const { top, H } = heroSpan(), cur = scrollY, ys = stops.map((s) => top + s * H);
-      const to = dir > 0 ? ys.find((y) => y > cur + 4) : [...ys].reverse().find((y) => y < cur - 4);
-      if (to === undefined) return;
-      gliding = true;
-      const from = cur, t0 = performance.now(), dur = stepMs(Math.abs(to - from) / H);
-      const step = (now: number) => {
-        const t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-        scrollTo({ top: from + (to - from) * e, behavior: "instant" });
-        if (t < 1) stepRaf = requestAnimationFrame(step);
-        else gliding = false;
-      };
-      stepRaf = requestAnimationFrame(step);
-    };
-    const onWheel = (e: WheelEvent) => {
-      const dir = Math.sign(e.deltaY);
-      if (!dir || !ours(dir)) return;
-      e.preventDefault();
-      // A trackpad keeps firing inertia events for a second after a flick: only a fresh gesture starts a step.
-      const now = performance.now(), fresh = now - lastWheel > 220;
-      lastWheel = now;
-      if (!gliding && fresh) glide(dir);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      const dir = ["ArrowDown", "PageDown", " "].includes(e.key) ? 1 : ["ArrowUp", "PageUp"].includes(e.key) ? -1 : 0;
-      if (!dir || !ours(dir) || (e.target as HTMLElement).closest?.("input,textarea,button,a")) return;
-      e.preventDefault();
-      if (!gliding) glide(dir);
-    };
-    const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0].clientY; };
-    const onTouchMove = (e: TouchEvent) => {
-      const dy = touchY - e.touches[0].clientY;
-      if (Math.abs(dy) > 4 && ours(Math.sign(dy))) e.preventDefault();
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      const dy = touchY - e.changedTouches[0].clientY;
-      if (Math.abs(dy) > 24 && !gliding && ours(Math.sign(dy))) glide(Math.sign(dy));
-    };
-    const stepped = !matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (stepped) {
-      addEventListener("wheel", onWheel, { passive: false });
-      addEventListener("keydown", onKey);
-      addEventListener("touchstart", onTouchStart, { passive: true });
-      addEventListener("touchmove", onTouchMove, { passive: false });
-      addEventListener("touchend", onTouchEnd);
-    }
-
-    const tick = (now: number) => {
+    const tick = () => {
       const vh = probe.offsetHeight || innerHeight, sy = scrollY;
       // Nothing moved and the hero's board is off-screen: skip the whole frame.
       if (sy === ly && mx === lx && my === lyy && innerWidth + vh === lw && sy > heroSec.offsetHeight) { raf = requestAnimationFrame(tick); return; }
@@ -165,22 +79,15 @@ export default function Home() {
 
       // hero: board fly-through + phrases
       const hr = heroSec.getBoundingClientRect();
-      const hp = clamp(-hr.top / (hr.height - vh)), gp = clamp((hp - 0.1) / 0.7);
-      if (hp > 0.04 && hp < 0.9) board?.update(gp, mx, my, (now - t0) / 1000);
-      const fade = 1 - ss(clamp((hp - 0.8) / 0.07));
-      let scrimOp = 0;
-      for (const P of phs) {
-        const L = (gp - P.a) / (P.b - P.a), inn = clamp(L / 0.3), outp = clamp((L - 0.75) / 0.25), live = L > 0 && L < 1;
-        P.el.style.opacity = String(live ? fade : 0);
-        P.ws.forEach((w, i) => {
-          const e = ss(clamp(inn * 1.6 - i * 0.12)), o = ss(clamp(outp * 1.6 - i * 0.08));
-          w.style.transform = `translateY(${(1 - e) * 110 - o * 110}%) skewY(${(1 - e) * 6}deg)`;
-        });
-        P.k.style.opacity = String(ss(inn) * (1 - ss(outp)));
-        P.k.style.letterSpacing = 0.14 + (1 - ss(inn)) * 0.5 + "em";
-        if (live) scrimOp = Math.max(scrimOp, ss(clamp(L / 0.2)) * (1 - ss(clamp((L - 0.85) / 0.15))));
+      const hp = clamp(-hr.top / (hr.height - vh));
+      // Play while the video is on screen, pause when it is scrolled away; a finished video starts over next time.
+      // ponytail: if the browser refuses autoplay (iOS Low Power Mode) it stays on its first frame.
+      const show = hp > 0.08 && hp < 0.87;
+      if (show !== playing) {
+        playing = show;
+        if (!show) gbox.pause();
+        else { if (gbox.ended) gbox.currentTime = 0; gbox.play().catch(() => {}); }
       }
-      scrim.style.opacity = String(scrimOp * fade);
       gbox.style.opacity = String(ss(clamp((hp - 0.08) / 0.14)) * (1 - ss(clamp((hp - 0.8) / 0.07))));
       herotext.style.opacity = String(1 - ss(clamp((hp - 0.03) / 0.1)));
       herotext.style.transform = `scale(${1 + Math.min(hp, 0.15) * 1.5})`;
@@ -217,9 +124,7 @@ export default function Home() {
     };
     raf = requestAnimationFrame(tick);
     return () => {
-      dead = true; cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove(); board?.dispose();
-      cancelAnimationFrame(stepRaf); removeEventListener("wheel", onWheel); removeEventListener("keydown", onKey);
-      removeEventListener("touchstart", onTouchStart); removeEventListener("touchmove", onTouchMove); removeEventListener("touchend", onTouchEnd);
+      cancelAnimationFrame(raf); removeEventListener("mousemove", onMove); probe.remove();
       clearTimeout(releaseTimer); removeEventListener("tec:intro-done", release); html.style.overflow = ""; history.scrollRestoration = "auto";
     };
   }, []);
@@ -243,21 +148,9 @@ export default function Home() {
       </nav>
 
       {/* 01 — hero */}
-      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "950vh" }}>
+      <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "400vh" }}>
         <div style={sticky}>
-          <div data-gl style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0 }} />
-          <div data-scrim style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", opacity: 0, background: "linear-gradient(90deg,rgba(14,13,11,.92) 0%,rgba(14,13,11,.75) 38%,rgba(14,13,11,0) 72%)" }} />
-          <div className="display" style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none", fontVariationSettings: "'wdth' 118", lineHeight: 0.9, textShadow: "0 2px 30px rgba(14,13,11,.9)" }}>
-            {phrases.map((p) => (
-              <div key={p.k} data-ph={p.range} className="phrase" style={{ position: "absolute", left: "var(--gx)", top: "50%", transform: "translateY(-50%)", maxWidth: "min(62vw,980px)", opacity: 0 }}>
-                <div data-k style={{ font: "500 14px var(--mono)", letterSpacing: ".14em", color: "#e99704", marginBottom: 28, display: "flex", gap: 14, alignItems: "center" }}>
-                  <span style={{ width: 28, height: 2, background: "#e99704" }} />{p.k}
-                </div>
-                <div style={phraseLine}><Words text={p.a} /></div>
-                <div style={{ ...phraseLine, color: "#e99704" }}><Words text={p.b} /></div>
-              </div>
-            ))}
-          </div>
+          <video data-gl muted playsInline preload="auto" aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           <div data-herotext className="display" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", fontSize: "15.5vw", lineHeight: 0.82, textAlign: "center", pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
             {["INSPIRING", "THE NEXT"].map((line, li) => (
               <div key={line} style={{ overflow: "hidden", padding: "0 .04em .06em", ...(li ? { color: "transparent", WebkitTextStroke: "2px #e99704" } : {}) }}>
@@ -274,7 +167,6 @@ export default function Home() {
                 <span style={{ width: 3, height: 7, borderRadius: 2, background: "#e99704", animation: "tec-hint-dot 1.6s ease-in-out infinite" }} />
               </span>
               <span className="mono" style={{ fontSize: 11, letterSpacing: ".2em", color: "#a09b91", WebkitTextStroke: 0 }}>SCROLL</span>
-              <span className="mono" style={{ fontSize: 10, letterSpacing: ".18em", color: "#6f6b63", WebkitTextStroke: 0 }}>ONE SCROLL AT A TIME</span>
             </div>
           </div>
           <div data-manwrap style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 var(--gx)", opacity: 0 }}>
