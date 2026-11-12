@@ -15,21 +15,9 @@ const DASHBOARD = "/dashboard"; // the inventory app lives in the same site
 const GITHUB = "https://github.com/jonathan-1218/TEC-Inventory";
 
 const sticky: CSSProperties = { position: "sticky", top: 0, height: "var(--vh)", overflow: "hidden" };
-const phraseLine: CSSProperties = { fontSize: "clamp(30px,7.4vw,132px)" };
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const ss = (x: number) => x * x * (3 - 2 * x);
-
-function Words({ text }: { text: string }) {
-  return text.split(" ").map((w, i) => (
-    <span key={i}>
-      {i > 0 && " "}
-      <span style={{ display: "inline-block", overflow: "hidden", verticalAlign: "top", padding: "0 .02em .08em" }}>
-        <span data-w style={{ display: "inline-block", willChange: "transform" }}>{w}</span>
-      </span>
-    </span>
-  ));
-}
 
 /** Seconds after the intro when the hero letters have landed: the scroll hint appears and scrolling unlocks. */
 const HINT_AT = 2.1;
@@ -47,14 +35,10 @@ export default function Home() {
     const $$ = (s: string) => Array.from(root.querySelectorAll<HTMLElement>(s));
 
     const nav = $("[data-nav]"), herotext = $("[data-herotext]"), manwrap = $("[data-manwrap]");
-    const heroSec = $("[data-pin=hero]"), gbox = $<HTMLVideoElement>("[data-gl]"), scrim = $("[data-scrim]");
+    const heroSec = $("[data-pin=hero]"), gbox = $<HTMLVideoElement>("[data-gl]");
     const evSec = $("[data-pin=ev]"), evTrack = $("[data-track=ev]");
     const galSec = $("#gallery"), galCards = $$("[data-gc]"), galBtn = $("[data-galbtn]");
     const reveals = $$("[data-rv]");
-    const phs = $$("[data-ph]").map((el) => {
-      const [a, b] = el.dataset.ph!.split(",").map(Number);
-      return { el, a, b, ws: Array.from(el.querySelectorAll<HTMLElement>("[data-w]")), k: el.querySelector<HTMLElement>("[data-k]")! };
-    });
 
     // Hold the page at the top until the TEC intro is over and the hero letters have risen, then let scrolling
     // (and the board fly-through it drives) begin.
@@ -70,7 +54,9 @@ export default function Home() {
       else addEventListener("tec:intro-done", release, { once: true });
     }
 
-    // The board fly-through is a pre-rendered video (public/site/hero.mp4), scrubbed by scroll.
+    // The board fly-through, quotes included, is a pre-rendered video scrubbed by scroll: a 16:9 cut for wide
+    // screens and a tall cut for phones held upright (re-record both if the quotes in content.ts change).
+    gbox.src = matchMedia("(orientation: portrait)").matches ? "/site/hero-portrait.mp4" : "/site/hero.mp4";
     // ponytail: iOS only decodes a frame after a play() has started, so nudge it once on first touch.
     const prime = () => { gbox.play().then(() => gbox.pause()).catch(() => {}); };
     addEventListener("touchstart", prime, { once: true, passive: true });
@@ -166,20 +152,6 @@ export default function Home() {
         const t = gp * (gbox.duration - 0.04);
         if (Math.abs(gbox.currentTime - t) > 0.01) gbox.currentTime = t;
       }
-      const fade = 1 - ss(clamp((hp - 0.8) / 0.07));
-      let scrimOp = 0;
-      for (const P of phs) {
-        const L = (gp - P.a) / (P.b - P.a), inn = clamp(L / 0.3), outp = clamp((L - 0.75) / 0.25), live = L > 0 && L < 1;
-        P.el.style.opacity = String(live ? fade : 0);
-        P.ws.forEach((w, i) => {
-          const e = ss(clamp(inn * 1.6 - i * 0.12)), o = ss(clamp(outp * 1.6 - i * 0.08));
-          w.style.transform = `translateY(${(1 - e) * 110 - o * 110}%) skewY(${(1 - e) * 6}deg)`;
-        });
-        P.k.style.opacity = String(ss(inn) * (1 - ss(outp)));
-        P.k.style.letterSpacing = 0.14 + (1 - ss(inn)) * 0.5 + "em";
-        if (live) scrimOp = Math.max(scrimOp, ss(clamp(L / 0.2)) * (1 - ss(clamp((L - 0.85) / 0.15))));
-      }
-      scrim.style.opacity = String(scrimOp * fade);
       gbox.style.opacity = String(ss(clamp((hp - 0.08) / 0.14)) * (1 - ss(clamp((hp - 0.8) / 0.07))));
       herotext.style.opacity = String(1 - ss(clamp((hp - 0.03) / 0.1)));
       herotext.style.transform = `scale(${1 + Math.min(hp, 0.15) * 1.5})`;
@@ -244,19 +216,7 @@ export default function Home() {
       {/* 01 — hero */}
       <section id="top" data-index="Power on" data-pin="hero" style={{ position: "relative", zIndex: 1, height: "950vh" }}>
         <div style={sticky}>
-          <video data-gl src="/site/hero.mp4" muted playsInline preload="auto" aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-          <div data-scrim style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", opacity: 0, background: "linear-gradient(90deg,rgba(14,13,11,.92) 0%,rgba(14,13,11,.75) 38%,rgba(14,13,11,0) 72%)" }} />
-          <div className="display" style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none", fontVariationSettings: "'wdth' 118", lineHeight: 0.9, textShadow: "0 2px 30px rgba(14,13,11,.9)" }}>
-            {phrases.map((p) => (
-              <div key={p.k} data-ph={p.range} className="phrase" style={{ position: "absolute", left: "var(--gx)", top: "50%", transform: "translateY(-50%)", maxWidth: "min(62vw,980px)", opacity: 0 }}>
-                <div data-k style={{ font: "500 14px var(--mono)", letterSpacing: ".14em", color: "#e99704", marginBottom: 28, display: "flex", gap: 14, alignItems: "center" }}>
-                  <span style={{ width: 28, height: 2, background: "#e99704" }} />{p.k}
-                </div>
-                <div style={phraseLine}><Words text={p.a} /></div>
-                <div style={{ ...phraseLine, color: "#e99704" }}><Words text={p.b} /></div>
-              </div>
-            ))}
-          </div>
+          <video data-gl muted playsInline preload="auto" aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 1, opacity: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           <div data-herotext className="display" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", fontSize: "15.5vw", lineHeight: 0.82, textAlign: "center", pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
             {["INSPIRING", "THE NEXT"].map((line, li) => (
               <div key={line} style={{ overflow: "hidden", padding: "0 .04em .06em", ...(li ? { color: "transparent", WebkitTextStroke: "2px #e99704" } : {}) }}>
