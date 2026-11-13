@@ -280,8 +280,13 @@ export const storedSignupSchema = z.object({
 })
 export type StoredSignup = z.output<typeof storedSignupSchema>
 
+/** New team logins must use a college address. (Logging in is not restricted, so older accounts keep working.) */
+export const COLLEGE_EMAIL_DOMAIN = "licet.ac.in"
+export const isCollegeEmail = (e: string) => e.trim().toLowerCase().endsWith(`@${COLLEGE_EMAIL_DOMAIN}`)
+const collegeEmail = email.refine(isCollegeEmail, `Use your @${COLLEGE_EMAIL_DOMAIN} email`)
+
 export const signupSchema = storedSignupSchema
-  .extend({ email, password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`).max(200) })
+  .extend({ email: collegeEmail, password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`).max(200) })
   .superRefine((v, ctx) => {
     const problem = passwordProblems(v.password, personalWords(v.email, v.members))[0]
     if (problem) ctx.addIssue({ code: "custom", path: ["password"], message: problem })
@@ -324,6 +329,8 @@ export const portalProjectSchema = z
   .superRefine(checkProjectDates)
 
 export const portalTeamSchema = z.object({ projectId: id, name: reqStr(80), description: optStr(1000) })
+/** A team asks for a part from its portal; the borrower is one of the project's own members. */
+export const portalPartRequestSchema = z.object({ projectId: id, memberId: id, componentId: id, quantity: int(1).max(20, "Ask for 20 or fewer") })
 export const portalMemberRoleSchema = z.object({ projectId: id, memberId: id, roleInProject: reqStr(60) })
 
 export const changePasswordSchema = z.object({

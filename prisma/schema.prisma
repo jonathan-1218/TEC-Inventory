@@ -153,6 +153,7 @@ model Project {
   progressUpdates ProgressUpdate[]
   components      ProjectComponent[]
   issuances       Issuance[]
+  requests        ComponentRequest[]
   tasks           Task[]
 }
 
@@ -214,8 +215,10 @@ model Issuance {
 }
 
 /**
- * A student's public request for a component. Pending until an admin approves it (which creates the
- * Issuance, and the Member if the roll number is new) or rejects it; either way the row is then deleted.
+ * A request for a component: from the public form, or from a project team's portal (then `projectId` is set).
+ * Pending until an admin approves it (which creates the Issuance, and the Member if the roll number is new, and
+ * deletes the row) or rejects it. A rejected public request is deleted; a team's is kept with `rejectedAt` so the
+ * team sees the outcome until it dismisses it.
  */
 model ComponentRequest {
   id          String    @id @default(cuid())
@@ -226,9 +229,13 @@ model ComponentRequest {
   componentId String
   quantity    Int       @default(1)
   createdAt   DateTime  @default(now())
+  projectId   String?
+  rejectedAt  DateTime?
   component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
+  @@index([projectId])
 }
 
 model Task {

@@ -11,7 +11,7 @@ import { FormField } from "@/components/form-field"
 import { signUp } from "@/app/actions/accounts"
 import { runAction } from "@/lib/client"
 import { cn } from "@/lib/utils"
-import { MAX_GROUP, personalWords } from "@/lib/validators"
+import { COLLEGE_EMAIL_DOMAIN, MAX_GROUP, isCollegeEmail, personalWords } from "@/lib/validators"
 import TeamSelector from "@/components/ui/team-selector"
 import { PASSWORD_MIN, passwordProblems, passwordScore } from "@/lib/password-strength"
 
@@ -63,6 +63,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
     }
     if (s === 3) {
       if (!/^\S+@\S+\.\S+$/.test(email.trim())) return "Enter a valid email."
+      if (!isCollegeEmail(email)) return `Use your @${COLLEGE_EMAIL_DOMAIN} email.`
       const problem = passwordProblems(password, personal)[0]
       if (problem) return `${problem}.`
       if (password !== confirm) return "The two passwords don't match."
@@ -247,7 +248,7 @@ export function SignupForm({ mentors }: { mentors: Mentor[] }) {
         {step === 3 && (
           <Step title="Your team login" hint="One login per project. Share it only with your team.">
             <FormField label="Email" htmlFor="email">
-              <Input id="email" type="email" autoComplete="email" value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} />
+              <Input id="email" type="email" autoComplete="email" placeholder={`you@${COLLEGE_EMAIL_DOMAIN}`} value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} />
             </FormField>
             <div className="grid items-start gap-4 sm:grid-cols-2">
               <FormField label="Password" htmlFor="password">

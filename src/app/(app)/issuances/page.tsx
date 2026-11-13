@@ -33,7 +33,7 @@ export default async function IssuancesPage(props: PageProps<"/issuances">) {
     admin ? getSelectOptions() : null,
     getCheckoutSeries(30),
     getComponentsWithStock(),
-    admin ? db.componentRequest.findMany({ orderBy: { createdAt: "asc" }, include: { component: { select: { id: true, name: true } } } }) : [],
+    admin ? db.componentRequest.findMany({ where: { rejectedAt: null }, orderBy: { createdAt: "asc" }, include: { component: { select: { id: true, name: true } }, project: { select: { title: true } } } }) : [],
   ])
   const available = new Map(stock.map((c) => [c.id, c.quantityAvailable]))
 
@@ -122,6 +122,7 @@ export default async function IssuancesPage(props: PageProps<"/issuances">) {
           yearOfStudy: r.yearOfStudy,
           quantity: r.quantity,
           component: r.component.name,
+          project: r.project?.title ?? null,
           available: available.get(r.componentId) ?? 0,
         }))}
       />

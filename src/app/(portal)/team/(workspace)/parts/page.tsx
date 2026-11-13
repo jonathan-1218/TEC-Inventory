@@ -1,9 +1,13 @@
 import type { Metadata } from "next"
-import { PackageOpen } from "lucide-react"
+import { HandHelping, PackageOpen } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { RequestDialog } from "@/components/issuances/request-dialog"
+import { RemoveRequestButton } from "@/components/portal/remove-request"
 import { IssuanceStatusBadge } from "@/components/badges"
 import { db } from "@/lib/db"
 import { daysOverdue, formatDate, isOverdue } from "@/lib/dates"
 import { requireTeam } from "@/lib/portal"
+import { getComponentsWithStock } from "@/lib/queries"
 
 export const metadata: Metadata = { title: "Team parts" }
 
@@ -13,7 +17,7 @@ export default async function TeamPartsPage() {
     where: { id: projectId },
     select: {
       title: true,
-      members: { select: { memberId: true } },
+      members: { select: { memberId: true, member: { select: { name: true, isActive: true } } }, orderBy: { member: { name: "asc" } } },
       components: { select: { quantityRequired: true, quantityIssued: true, component: { select: { name: true } } }, orderBy: { component: { name: "asc" } } },
     },
   })
@@ -26,16 +30,56 @@ export default async function TeamPartsPage() {
     take: 100,
   })
   const open = loans.filter((l) => !l.returnedDate)
+  const [stock, requests] = await Promise.all([
+    getComponentsWithStock(),
+    db.componentRequest.findMany({ where: { projectId }, include: { component: { select: { name: true } } }, orderBy: { createdAt: "desc" } }),
+  ])
 
   return (
     <div className="grid gap-8">
-      <div>
-        <p className="eyebrow mb-2">{project.title}</p>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">Parts</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {open.length} borrowed right now. A club admin records issues and returns when you collect or hand parts back.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow mb-2">{project.title}</p>
+          <h1 className="font-display text-3xl font-extrabold tracking-tight">Parts</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {open.length} borrowed right now. Request what you need; a club admin approves it and records returns.
+          </p>
+        </div>
+        <RequestDialog
+          components={stock.map((c) => ({ id: c.id, name: c.name, modelNumber: c.modelNumber, quantityAvailable: c.quantityAvailable }))}
+          team={{ projectId, members: project.members.filter((m) => m.member.isActive).map((m) => ({ id: m.memberId, name: m.member.name })) }}
+          trigger={
+            <Button variant="brand">
+              <HandHelping /> Request a part
+            </Button>
+          }
+        />
       </div>
+
+      {requests.length > 0 && (
+        <section>
+          <h2 className="font-display mb-4 text-lg font-extrabold">Your requests</h2>
+          <ul className="grid gap-3">
+            {requests.map((r) => (
+              <li key={r.id} className="bg-card flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border p-4">
+                <span className="font-mono text-sm font-semibold tabular-nums">{r.quantity}×</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{r.component.name}</p>
+                  <p className="text-muted-foreground truncate text-xs">
+                    for {r.name} · asked {formatDate(r.createdAt)}
+                    {r.rejectedAt && ` · declined ${formatDate(r.rejectedAt)}`}
+                  </p>
+                </div>
+                <span className={r.rejectedAt ? "text-danger text-xs font-medium" : "text-muted-foreground text-xs font-medium"}>
+                  {r.rejectedAt ? "Declined" : "Waiting for approval"}
+                </span>
+                <RemoveRequestButton id={r.id} declined={!!r.rejectedAt} />
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground mt-3 text-xs">An approved request moves to Borrowed parts below.</p>
+        </section>
+      )}
 
       {project.components.length > 0 && (
         <section className="bg-card rounded-2xl border p-6">

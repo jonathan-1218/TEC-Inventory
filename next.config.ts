@@ -27,6 +27,8 @@ const onApp = [{ type: "host" as const, value: "dashboard\\.(?:theelectronicsclu
 const nextConfig: NextConfig = {
   // Hides the round "N" dev-tools badge that floats bottom-left in `next dev` (it never exists in production).
   devIndicators: false,
+  // `next dev` prints every server action with its arguments, which would put login passwords in the terminal.
+  logging: { serverFunctions: false },
   allowedDevOrigins: ["dashboard.localhost"],
   // Pin the project root so a stray lockfile in a parent folder isn't picked up.
   turbopack: { root: __dirname },

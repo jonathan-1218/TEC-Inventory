@@ -28,10 +28,10 @@ export async function requestComponent(raw: Record<string, string>): Promise<Act
     if (!(await db.component.findUnique({ where: { id: d.componentId }, select: { id: true } }))) {
       return { ok: false, error: "Pick a component from the list." }
     }
-    if ((await db.componentRequest.count()) >= MAX_PENDING) {
+    if ((await db.componentRequest.count({ where: { rejectedAt: null } })) >= MAX_PENDING) {
       return { ok: false, error: "The request list is full. Please ask a club officer." }
     }
-    if (await db.componentRequest.count({ where: { rollNumber: d.rollNumber, componentId: d.componentId } })) {
+    if (await db.componentRequest.count({ where: { rollNumber: d.rollNumber, componentId: d.componentId, rejectedAt: null } })) {
       return { ok: false, error: "You've already requested this component. An officer will get back to you." }
     }
     await db.componentRequest.create({ data: d })
@@ -47,7 +47,7 @@ export const approveRequest = adminAction(idSchema, async ({ id }) => {
   return db.$transaction(
     async (tx) => {
       const r = await tx.componentRequest.findUnique({ where: { id } })
-      if (!r) throw new ActionError("This request no longer exists.")
+      if (!r || r.rejectedAt) throw new ActionError("This request no longer exists.")
       const member =
         (await tx.member.findUnique({ where: { rollNumber: r.rollNumber } })) ??
         (await tx.member.create({
@@ -58,7 +58,7 @@ export const approveRequest = adminAction(idSchema, async ({ id }) => {
         componentId: r.componentId,
         quantity: r.quantity,
         issuedToMemberId: member.id,
-        projectId: null,
+        projectId: r.projectId,
         issuedDate: issued,
         expectedReturnDate: new Date(issued.getTime() + LOAN_DAYS * 86_400_000),
         notes: "Requested online",
@@ -71,7 +71,9 @@ export const approveRequest = adminAction(idSchema, async ({ id }) => {
   )
 })
 
+/** A team's request is kept as "declined" so its portal can show the outcome; a public one is just removed. */
 export const rejectRequest = adminAction(idSchema, async ({ id }) => {
-  await db.componentRequest.deleteMany({ where: { id } })
+  await db.componentRequest.updateMany({ where: { id, projectId: { not: null } }, data: { rejectedAt: new Date() } })
+  await db.componentRequest.deleteMany({ where: { id, projectId: null } })
   return { id }
 })

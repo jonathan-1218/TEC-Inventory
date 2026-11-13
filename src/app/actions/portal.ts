@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { ActionError, projectAction } from "@/lib/action"
-import { portalMemberRoleSchema, portalProjectSchema, portalTeamSchema } from "@/lib/validators"
+import { idSchema, portalMemberRoleSchema, portalPartRequestSchema, portalProjectSchema, portalTeamSchema } from "@/lib/validators"
 
 // Every action here is `projectAction`: it runs only for an admin, or for the signed-in team whose own project
 // the input names (checked against the session, never trusted from the browser).
@@ -32,3 +32,30 @@ export const updateOwnMemberRole = projectAction(portalMemberRoleSchema, ownProj
   if (r.count === 0) throw new ActionError("That person isn't on this project.")
   return { projectId, memberId }
 })
+
+const MAX_OPEN_REQUESTS = 20
+
+/** Ask the club for a part. An admin approves it on the Issuances page, which issues it to that member for this project. */
+export const requestOwnPart = projectAction(portalPartRequestSchema, ownProject, async ({ projectId, memberId, componentId, quantity }) => {
+  const pm = await db.projectMember.findUnique({
+    where: { projectId_memberId: { projectId, memberId } },
+    select: { member: { select: { name: true, rollNumber: true, department: true, yearOfStudy: true } } },
+  })
+  if (!pm) throw new ActionError("Pick someone on your project.")
+  if (!(await db.component.findUnique({ where: { id: componentId }, select: { id: true } }))) throw new ActionError("Pick a component from the list.")
+  const waiting = await db.componentRequest.findMany({ where: { projectId, rejectedAt: null }, select: { componentId: true } })
+  if (waiting.some((w) => w.componentId === componentId)) throw new ActionError("Your team has already asked for this part. Wait for the answer first.")
+  if (waiting.length >= MAX_OPEN_REQUESTS) throw new ActionError("Your team has too many requests waiting. Ask a club admin.")
+  await db.componentRequest.create({ data: { ...pm.member, componentId, quantity, projectId } })
+  return { projectId }
+})
+
+/** Cancel a waiting request, or dismiss a declined one. */
+export const removeOwnRequest = projectAction(
+  idSchema,
+  async ({ id }) => (await db.componentRequest.findUnique({ where: { id }, select: { projectId: true } }))?.projectId,
+  async ({ id }) => {
+    await db.componentRequest.deleteMany({ where: { id } })
+    return { id }
+  }
+)
