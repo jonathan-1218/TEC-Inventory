@@ -48,8 +48,9 @@ export const NAV = [
 const ADMIN_NAV = { href: "/accounts", label: "Sign-ups & goals", icon: UserCheck, group: "People" }
 const TEAM_NAV = { href: "/team", label: "Team portal", icon: Rocket, group: "Your team" }
 
+// "/" inside the app shell is the dashboard: its subdomain serves it at the root (next.config.ts).
 export const isNavActive = (pathname: string, href: string) =>
-  pathname.startsWith(href)
+  (pathname === "/" ? "/dashboard" : pathname).startsWith(href)
 
 export function AppSidebar() {
   const pathname = usePathname()
