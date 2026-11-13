@@ -21,9 +21,9 @@ const T = { te: 60, c: 180, pulse: 520, pulseDur: 950, pcb: 1300, eyebrow: 1500,
 const MS_PER_UNIT = 1.5 // PCB "current" spreads out from where the pulse meets the C
 
 // Decides before first paint whether this page load plays the intro (never under reduced motion): every hard load of the
-// homepage, but "/dashboard" only on the first arrival in a tab, so a reload there doesn't look like a trip back to the
+// homepage, but the dashboard ("/dashboard", or "/" on its own subdomain) only on the first arrival in a tab, so a reload there doesn't look like a trip back to the
 // landing page. Pages read html[data-intro-done] or wait for the "tec:intro-done" event.
-const SCRIPT = `(function(){var d=document.documentElement,p=false;try{var l=location.pathname,n=performance.getEntriesByType("navigation")[0];if(l==="/dashboard"){p=!sessionStorage.getItem("tec-intro-dash")&&!(n&&n.type==="reload");sessionStorage.setItem("tec-intro-dash","1")}else p=l==="/";if(matchMedia("(prefers-reduced-motion: reduce)").matches)p=false}catch(e){}if(p){d.dataset.intro="play";d.dataset.introT0=String(performance.now())}else d.dataset.introDone="1"})()`
+const SCRIPT = `(function(){var d=document.documentElement,p=false;try{var l=location.pathname,n=performance.getEntriesByType("navigation")[0];if(l==="/dashboard"||(l==="/"&&location.hostname.indexOf("dashboard.")===0)){p=!sessionStorage.getItem("tec-intro-dash")&&!(n&&n.type==="reload");sessionStorage.setItem("tec-intro-dash","1")}else p=l==="/";if(matchMedia("(prefers-reduced-motion: reduce)").matches)p=false}catch(e){}if(p){d.dataset.intro="play";d.dataset.introT0=String(performance.now())}else d.dataset.introDone="1"})()`
 
 
 const [EX, EY] = PCB_ENTRY
