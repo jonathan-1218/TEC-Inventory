@@ -14,10 +14,11 @@ export type PendingRequest = {
   yearOfStudy: number
   quantity: number
   component: string
+  project: string | null
   available: number
 }
 
-/** Admin only: pending student requests, one click to issue (14 days) or reject. */
+/** Admin only: pending requests from students and project teams, one click to issue (14 days) or reject. */
 export function RequestsPanel({ requests }: { requests: PendingRequest[] }) {
   const [pending, startTransition] = useTransition()
   if (!requests.length) return null
@@ -38,7 +39,7 @@ export function RequestsPanel({ requests }: { requests: PendingRequest[] }) {
                 {r.name} <span className="text-muted-foreground font-mono text-xs">{r.rollNumber}</span>
               </p>
               <p className="text-muted-foreground text-xs">
-                {r.department} · Year {r.yearOfStudy} · wants {r.quantity} × {r.component} ({r.available} available)
+                {r.project ? `${r.project} · ` : ""}{r.department} · Year {r.yearOfStudy} · wants {r.quantity} × {r.component} ({r.available} available)
               </p>
             </div>
             <div className="flex gap-1.5">

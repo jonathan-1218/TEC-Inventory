@@ -10,31 +10,37 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FormField } from "@/components/form-field"
+import { requestOwnPart } from "@/app/actions/portal"
 import { requestComponent } from "@/app/actions/requests"
 import { formValues, runAction } from "@/lib/client"
 import { cn } from "@/lib/utils"
 
 export type RequestOption = { id: string; name: string; modelNumber: string | null; quantityAvailable: number }
 
+/** A signed-in project team asking from its portal: the borrower is picked from its members instead of typed in. */
+export type RequestTeam = { projectId: string; members: { id: string; name: string }[] }
+
 /** Open to everyone: a student picks a component and leaves their details; an admin approves it later. */
-export function RequestDialog({ components, trigger }: { components: RequestOption[]; trigger: React.ReactNode }) {
+export function RequestDialog({ components, trigger, team }: { components: RequestOption[]; trigger: React.ReactNode; team?: RequestTeam }) {
   const [open, setOpen] = useState(false)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <p className="eyebrow">Students</p>
-          <DialogTitle>Request a component</DialogTitle>
-          <DialogDescription>Fill this in and a club officer will approve it and hand it over.</DialogDescription>
+          <p className="eyebrow">{team ? "Your project" : "Students"}</p>
+          <DialogTitle>{team ? "Request a part" : "Request a component"}</DialogTitle>
+          <DialogDescription>
+            {team ? "A club admin will approve it and hand it to the person you pick." : "Fill this in and a club officer will approve it and hand it over."}
+          </DialogDescription>
         </DialogHeader>
-        {open && <RequestForm components={components} onDone={() => setOpen(false)} />}
+        {open && <RequestForm components={components} team={team} onDone={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
   )
 }
 
-function RequestForm({ components, onDone }: { components: RequestOption[]; onDone: () => void }) {
+function RequestForm({ components, team, onDone }: { components: RequestOption[]; team?: RequestTeam; onDone: () => void }) {
   const [pending, startTransition] = useTransition()
   const [saveStatus, track] = useActionStatus()
   const [errors, setErrors] = useState<Record<string, string[]>>({})
@@ -46,7 +52,8 @@ function RequestForm({ components, onDone }: { components: RequestOption[]; onDo
     e.preventDefault()
     const values = { ...formValues(e.currentTarget), componentId }
     startTransition(async () => {
-      const res = await track(runAction(requestComponent(values), "Request sent — an officer will get back to you"))
+      const sent = team ? requestOwnPart({ ...values, projectId: team.projectId }) : requestComponent(values)
+      const res = await track(runAction(sent, team ? "Request sent" : "Request sent — an officer will get back to you"))
       if (res.ok) onDone()
       else setErrors(res.fieldErrors ?? {})
     })
@@ -55,10 +62,26 @@ function RequestForm({ components, onDone }: { components: RequestOption[]; onDo
   return (
     <>
       <form id="request-form" onSubmit={onSubmit} className="grid gap-4">
-        <FormField label="Full name" htmlFor="req-name" error={errors.name}>
+        {team && (
+          <FormField label="Who will collect it" error={errors.memberId}>
+            <Select name="memberId" defaultValue={team.members[0]?.id} required>
+              <SelectTrigger className="w-full" aria-label="Who will collect it">
+                <SelectValue placeholder="Pick a member" />
+              </SelectTrigger>
+              <SelectContent>
+                {team.members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+        )}
+        {!team && <FormField label="Full name" htmlFor="req-name" error={errors.name}>
           <Input id="req-name" name="name" autoComplete="name" required />
-        </FormField>
-        <div className="grid gap-4 sm:grid-cols-2">
+        </FormField>}
+        {!team && <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Register no." htmlFor="req-roll" error={errors.rollNumber}>
             <Input id="req-roll" name="rollNumber" autoCapitalize="characters" required />
           </FormField>
@@ -76,10 +99,10 @@ function RequestForm({ components, onDone }: { components: RequestOption[]; onDo
               </SelectContent>
             </Select>
           </FormField>
-        </div>
-        <FormField label="Department" htmlFor="req-dept" error={errors.department}>
+        </div>}
+        {!team && <FormField label="Department" htmlFor="req-dept" error={errors.department}>
           <Input id="req-dept" name="department" placeholder="e.g. ECE" required />
-        </FormField>
+        </FormField>}
         <div className="grid gap-4 sm:grid-cols-[1fr_5.5rem]">
           <FormField label="Component" error={errors.componentId}>
             <Popover open={pick} onOpenChange={setPick} modal>

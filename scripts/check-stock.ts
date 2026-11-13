@@ -13,7 +13,7 @@ import { dayKeys, levelByDay, sumByDay } from "@/lib/analytics"
 import { csvCell, toCsv } from "@/app/api/export/[entity]/csv"
 import { ActionError } from "@/lib/action-error"
 import { parseDateInput, toDateInput, todayNoonUTC } from "@/lib/dates"
-import { extendDueSchema, issueSchema, projectCreateSchema, taskUpdateSchema } from "@/lib/validators"
+import { extendDueSchema, isCollegeEmail, issueSchema, projectCreateSchema, taskUpdateSchema } from "@/lib/validators"
 import { createVerify, generateKeyPairSync } from "node:crypto"
 import { CHECKLIST_HEADER, categoryFromType, checklistRows, clubRows, configuredSheetUrl, pushChecklist, pushToSheet, SHEET_HEADER, sheetsConfig, signJwt, typeFor } from "@/lib/sheets"
 import { withStock } from "@/lib/queries"
@@ -30,6 +30,9 @@ execSync("npx prisma db push --skip-generate", {
   stdio: "ignore",
 })
 const db = new PrismaClient({ datasourceUrl: url })
+
+// Sign-up accepts college addresses only.
+assert.deepEqual(["a@licet.ac.in", " A@LICET.AC.IN ", "a@gmail.com", "a@licet.ac.in.evil.com", "a@xlicet.ac.in"].map(isCollegeEmail), [true, true, false, false, false])
 
 const run = <T>(fn: (tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]) => Promise<T>) =>
   db.$transaction(fn, { isolationLevel: "Serializable" })
